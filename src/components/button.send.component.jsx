@@ -1,50 +1,50 @@
+// button.send.component.jsx
 import * as React from 'react';
-import Button from '@mui/material/Button';
-import Box from '@mui/material/Box';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Switch from '@mui/material/Switch';
+import LoadingButton from '@mui/lab/LoadingButton';
 import SendIcon from '@mui/icons-material/Send';
+import { toast } from 'react-toastify';
 
-export default function LoadingButtonsTransition() {
-  const [loading, setLoading] = React.useState(true);
-  function handleClick() {
+export default function LoadingButtonsTransition({ formData, setFormData }) {
+  const [loading, setLoading] = React.useState(false);
+  const [counter, setCounter] = React.useState(1); // ID incremental
+
+  const handleClick = () => {
     setLoading(true);
-  }
+
+    setTimeout(() => {
+      const chamado = {
+        id: counter,
+        nome: formData.nome,
+        email: formData.email,
+        telefone: formData.telefone,
+        servico: formData.servico,
+        descricao: formData.descricao,
+      };
+      console.log('📦 Chamado enviado:', chamado);
+       // 🔄 Zerar formulário
+      setFormData({
+        nome: '',
+        email: '',
+        telefone: '',
+        servico: '',
+        descricao: '',
+      });
+
+      setCounter((prev) => prev + 1); // incrementa ID
+      setLoading(false);
+      toast.success('Chamado aberto com sucesso!');
+    }, 2000);
+  };
 
   return (
-    <div>
-      <FormControlLabel
-        sx={{ display: 'block' }}
-        control={
-          <Switch
-            checked={loading}
-            onChange={() => setLoading(!loading)}
-            name="loading"
-            color="primary"
-          />
-        }
-        label="Loading"
-      />
-      <Box sx={{ '& > button': { m: 1 } }}>
-        
-        
-      
-      
-      </Box>
-      <Box sx={{ '& > button': { m: 1 } }}>
-        
-        
-        <Button
-          onClick={handleClick}
-          endIcon={<SendIcon />}
-          loading={loading}
-          loadingPosition="end"
-          variant="contained"
-        >
-          Enviar
-        </Button>
-       
-      </Box>
-    </div>
+    <LoadingButton
+      onClick={handleClick}
+      endIcon={<SendIcon />}
+      loading={loading}
+      loadingPosition="end"
+      variant="contained"
+    >
+      Enviar
+    </LoadingButton>
   );
 }

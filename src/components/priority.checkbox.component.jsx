@@ -1,66 +1,30 @@
+// components/SingleSelectService.jsx
 import * as React from 'react';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
-import ListItemText from '@mui/material/ListItemText';
 import Select from '@mui/material/Select';
-import Checkbox from '@mui/material/Checkbox';
 
-const ITEM_HEIGHT = 48;
-const ITEM_PADDING_TOP = 12;
-const MenuProps = {
-  PaperProps: {
-    style: {
-      maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
-      width: 250,
-    },
-  },
-};
+const names = ['Atendchat', 'Hotmobile', 'Hotmenu'];
 
-const names = [
-  'Atendchat',
-  'Hotmobile',
-  'Hotmenu'
-  
-];
-
-export default function MultipleSelectCheckmarks() {
-  const [personName, setPersonName] = React.useState([]);
-
-  const handleChange = (event) => {
-    const {
-      target: { value },
-    } = event;
-    setPersonName(
-      // On autofill we get a stringified value.
-      typeof value === 'string' ? value.split(',') : value,
-    );
-  };
-
+export default function SingleSelectService({ value, onChange }) {
   return (
-    <div>
-      <FormControl sx={{ m: 1, width: 215 }}>
-        <InputLabel id="demo-multiple-checkbox-label" >🗃️ Serviço</InputLabel>
-        <Select
-          labelId="demo-multiple-checkbox-label"
-          id="demo-multiple-checkbox"
-          
-          multiple
-          value={personName}
-          onChange={handleChange}
-          input={<OutlinedInput label="🗃️ Serviço"  />}
-          renderValue={(selected) => selected.join(', ')}
-          MenuProps={MenuProps}
-        >
-          {names.map((name) => (
-            <MenuItem key={name} value={name}>
-              <Checkbox checked={personName.includes(name)} />
-              <ListItemText primary={name} />
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    </div>
+    <FormControl sx={{ m: 1, width: 215 }}>
+      <InputLabel id="single-service-label">🗃️ Serviço</InputLabel>
+      <Select
+        labelId="single-service-label"
+        id="single-service"
+        value={value}
+        onChange={onChange}
+        input={<OutlinedInput label="🗃️ Serviço" />}
+      >
+        {names.map((name) => (
+          <MenuItem key={name} value={name}>
+            {name}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
   );
 }
