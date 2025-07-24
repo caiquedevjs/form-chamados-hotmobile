@@ -13,12 +13,14 @@ export default function App() {
       <div
         style={{
           height: '100vh',
-          width: '100vw',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          position: 'relative',
-          backgroundColor: 'inherit',
+    width: '100vw',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden', // 🔒 bloqueia scroll externo
+    backgroundColor: 'inherit',
         }}
       >
         <NotificationProvider />
