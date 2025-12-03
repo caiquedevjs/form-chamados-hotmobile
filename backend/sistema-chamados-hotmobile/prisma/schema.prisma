@@ -1,0 +1,58 @@
+generator client {
+  provider      = "prisma-client-js"  // <--- CORREÇÃO 1: Nome correto
+  binaryTargets = ["native", "windows"] // Mantém para compatibilidade com Windows
+  // CORREÇÃO 2: Removido o 'output' para usar o padrão do NestJS
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")     // <--- CORREÇÃO 3: Obrigatório para Supabase
+}
+
+model Chamado {
+  id          Int      @id @default(autoincrement())
+  nomeEmpresa String
+  servico     String
+  descricao   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  emails    Email[]
+  telefones Telefone[]
+  anexos    Anexo[]
+
+  @@map("chamados")
+}
+
+model Email {
+  id        Int     @id @default(autoincrement())
+  endereco  String
+  chamadoId Int
+  chamado   Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+
+  @@map("emails")
+}
+
+model Telefone {
+  id        Int     @id @default(autoincrement())
+  numero    String
+  chamadoId Int
+  chamado   Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+
+  @@map("telefones")
+}
+
+model Anexo {
+  id           Int    @id @default(autoincrement())
+  nomeOriginal String 
+  nomeArquivo  String 
+  caminho      String 
+  mimetype     String 
+  tamanho      Int    
+
+  chamadoId Int
+  chamado   Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+
+  @@map("anexos")
+}
