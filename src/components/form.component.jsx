@@ -11,10 +11,10 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
-import DescriptionIcon from '@mui/icons-material/Description';
 import BusinessIcon from '@mui/icons-material/Business';
 import MultipleSelectCheckmarks from './priority.checkbox.component';
 import LoadingButtonsTransition from './button.send.component';
+import InputFileUpload from './button.file.upload.component';
 
 export default function MultilineTextFields() {
   const theme = useTheme();
@@ -27,6 +27,7 @@ export default function MultilineTextFields() {
     telefone: [''],
     servico: '',
     descricao: '',
+    anexos: null
   });
 
   const handleChange = (field, index = null) => (event) => {
@@ -54,6 +55,19 @@ export default function MultilineTextFields() {
       updated.splice(index, 1);
       return { ...prev, [field]: updated };
     });
+  };
+
+  const handleFileChange = (event) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      setFormData((prev) => ({ 
+        ...prev, 
+        anexos: files 
+      }));
+      
+      // Opcional: Mostrar no console quantos arquivos foram pegos
+      console.log(`${files.length} arquivos selecionados`);
+    }
   };
 
   return (
@@ -216,6 +230,15 @@ export default function MultilineTextFields() {
                 ),
               }}
             />
+            <InputFileUpload onChange={handleFileChange} />
+
+
+            {/* Dica visual: Mostrar nomes dos arquivos selecionados (Opcional mas recomendado) */}
+            {formData.anexos && (
+              <Box sx={{ mt: 1, fontSize: '0.8rem', color: 'gray' }}>
+                {Array.from(formData.anexos).map(f => f.name).join(', ')}
+              </Box>
+            )}
           </Grid>
 
           {/* Botão de envio */}
