@@ -51,4 +51,15 @@ export class ChamadosService {
       data: { status: novoStatus },
     });
 }
+
+async findAll() {
+    return this.prisma.chamado.findMany({
+      include: { 
+        anexos: true,
+        emails: true,    // <--- ADICIONE ISSO
+        telefones: true  // <--- ADICIONE ISSO
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

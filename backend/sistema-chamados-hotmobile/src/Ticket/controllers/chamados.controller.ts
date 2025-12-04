@@ -1,6 +1,7 @@
 import { 
   Controller, 
-  Post, 
+  Post,
+  Get,
   Body, 
   UploadedFiles, 
   UseInterceptors, 
@@ -46,5 +47,10 @@ export class ChamadosController {
     @Body() body: UpdateStatusDto
   ) {
     return this.chamadosService.updateStatus(id, body.status);
+  }
+
+  @Get()
+  async findAll() {
+    return this.chamadosService.findAll();
   }
 }

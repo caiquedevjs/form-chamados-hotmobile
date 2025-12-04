@@ -6,6 +6,7 @@ import MultilineTextFields from './components/form.component';
 import NotificationProvider from './components/NotificationProvider';
 import LogoHeader from './components/LogoHeader';
 import Footer from './components/Footer';
+import KanbanBoardView from './components/KanbanBoard';
 
 export default function App() {
   return (
@@ -41,7 +42,9 @@ export default function App() {
         </div>
 
         {/* 📝 Formulário centralizado */}
-        <MultilineTextFields />
+        {/*  <MultilineTextFields />  */}
+        <KanbanBoardView/> 
+        
       </div>
       <Footer />
     </ThemeProviderContext>
