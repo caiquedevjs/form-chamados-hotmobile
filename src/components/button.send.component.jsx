@@ -1,56 +1,63 @@
-// button.send.component.jsx
-
 import * as React from 'react';
 import LoadingButton from '@mui/lab/LoadingButton';
 import SendIcon from '@mui/icons-material/Send';
 import { toast } from 'react-toastify';
-// Importe axios se for usar, ou use fetch
-// import axios from 'axios'; 
+import axios from 'axios'; // Certifique-se de ter instalado: npm install axios
 
 export default function LoadingButtonsTransition({ formData, setFormData }) {
   const [loading, setLoading] = React.useState(false);
 
-  const handleClick = async () => { // Note o async se for fazer requisição real
-    setLoading(true);
-
-    // 1. CRIAÇÃO DO FORMDATA (O Envelope Especial)
-    const dataToSend = new FormData();
-
-    // 2. Adicionar campos de texto simples
-    dataToSend.append('nome', formData.nome);
-    dataToSend.append('servico', formData.servico);
-    dataToSend.append('descricao', formData.descricao);
-
-    // 3. Adicionar Arrays (Emails e Telefones)
-    // FormData não aceita arrays direto. Você tem duas opções comuns:
-    // Opção A: Enviar a mesma chave várias vezes (Backend recebe como lista)
-    formData.email.forEach(email => dataToSend.append('emails', email));
-    formData.telefone.forEach(tel => dataToSend.append('telefones', tel));
-    
-    // 4. Adicionar o(s) Arquivo(s) [A PARTE CRÍTICA]
-    if (formData.anexos && formData.anexos.length > 0) {
-      // Como é FileList, percorremos e adicionamos cada um
-      for (let i = 0; i < formData.anexos.length; i++) {
-        dataToSend.append('arquivos', formData.anexos[i]);
-      }
+  const handleClick = async () => {
+    // 1. Validação Básica (Opcional)
+    if (!formData.nome || !formData.servico) {
+      toast.warning('Por favor, preencha o nome da empresa e o serviço.');
+      return;
     }
 
-  
-    for (var pair of dataToSend.entries()) {
-         console.log(pair[0]+ ', ' + pair[1]); 
-     }
+    setLoading(true);
 
     try {
-      // SIMULAÇÃO DO ENVIO (Substitua isso pela chamada real ao backend)
-      console.log('📦 Enviando FormData...');
+      // 2. CRIAÇÃO DO FORMDATA
+      const dataToSend = new FormData();
+
+      // Campos de texto simples
+      dataToSend.append('nome', formData.nome);
+      dataToSend.append('servico', formData.servico);
+      dataToSend.append('descricao', formData.descricao);
+
+      // 3. Arrays (Emails e Telefones)
+      // Filtramos itens vazios (.trim() !== '') para não enviar lixo pro banco
+      formData.email.forEach(email => {
+        if (email && email.trim() !== '') {
+          dataToSend.append('emails', email);
+        }
+      });
+
+      formData.telefone.forEach(tel => {
+        if (tel && tel.trim() !== '') {
+          dataToSend.append('telefones', tel);
+        }
+      });
       
-      // EXEMPLO DE CHAMADA REAL (Axios detecta FormData e ajusta os headers automaticamente)
-      // await axios.post('http://localhost:3000/api/chamados', dataToSend);
+      // 4. Arquivos (A PARTE CRÍTICA)
+      // A chave DEVE ser 'arquivos' para bater com o Controller do NestJS
+      if (formData.anexos && formData.anexos.length > 0) {
+        // Convertemos FileList para Array para poder percorrer
+        Array.from(formData.anexos).forEach((file) => {
+          dataToSend.append('arquivos', file);
+        });
+      }
 
-      // Timeout simulando a rede
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Debug: Mostra o que está sendo enviado no console
+      console.log('📦 Enviando para o Backend...');
 
-      // Sucesso
+      // 5. ENVIO REAL (AXIOS)
+      // O Axios detecta FormData e configura o 'multipart/form-data' automaticamente
+      const response = await axios.post('http://localhost:3000/chamados', dataToSend);
+
+      console.log('✅ Sucesso:', response.data);
+
+      // 6. Limpeza e Sucesso
       setFormData({
         nome: '',
         email: [''],
@@ -61,11 +68,23 @@ export default function LoadingButtonsTransition({ formData, setFormData }) {
       });
 
       toast.success('Chamado aberto com sucesso!');
+      
+      // Rola a tela para o topo
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
     } catch (error) {
-      console.error(error);
-      toast.error('Erro ao enviar chamado');
+      console.error('❌ Erro:', error);
+      
+      // Tenta pegar a mensagem de erro específica do Backend (NestJS)
+      const mensagemErro = error.response?.data?.message || 'Erro ao enviar chamado. Verifique a conexão.';
+      
+      // Se a mensagem for um array (validação do DTO), junta elas
+      if (Array.isArray(mensagemErro)) {
+        toast.error(mensagemErro.join(', '));
+      } else {
+        toast.error(mensagemErro);
+      }
+
     } finally {
       setLoading(false);
     }

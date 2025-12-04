@@ -10,6 +10,13 @@ datasource db {
   directUrl = env("DIRECT_URL")     // <--- CORREÇÃO 3: Obrigatório para Supabase
 }
 
+
+enum StatusChamado {
+  NOVO
+  EM_ATENDIMENTO
+  FINALIZADO
+}
+
 model Chamado {
   id          Int      @id @default(autoincrement())
   nomeEmpresa String
@@ -17,6 +24,7 @@ model Chamado {
   descricao   String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  status      StatusChamado @default(NOVO)
 
   emails    Email[]
   telefones Telefone[]
