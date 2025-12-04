@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service'; 
 import { CreateChamadoDto } from '../dtos/create-chamado.dto';
+import { StatusChamado } from '@prisma/client';
 
 @Injectable()
 export class ChamadosService {
@@ -43,4 +44,11 @@ export class ChamadosService {
 
     return chamado;
   }
+
+  async updateStatus(id: number, novoStatus: StatusChamado) {
+    return this.prisma.chamado.update({
+      where: { id },
+      data: { status: novoStatus },
+    });
+}
 }

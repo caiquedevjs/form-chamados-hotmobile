@@ -12,6 +12,8 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { ChamadosService } from '../services/chamados.service'; 
 import { CreateChamadoDto } from '../dtos/create-chamado.dto'; // Importe seu DTO
+import { Patch, Param, ParseIntPipe } from '@nestjs/common'; // Adicione esses imports
+import { UpdateStatusDto } from '../dtos/update-status.dto'; // Importe o DTO
 
 @Controller('chamados')
 export class ChamadosController {
@@ -37,5 +39,12 @@ export class ChamadosController {
     console.log('📂 Arquivos recebidos:', files); 
     console.log('📝 Body recebido:', Body);
     return this.chamadosService.create(createChamadoDto, files);
+  }
+  @Patch(':id/status')
+  async updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: UpdateStatusDto
+  ) {
+    return this.chamadosService.updateStatus(id, body.status);
   }
 }
