@@ -17,6 +17,11 @@ enum StatusChamado {
   FINALIZADO
 }
 
+enum TipoAutor {
+  CLIENTE
+  SUPORTE
+}
+
 model Chamado {
   id          Int      @id @default(autoincrement())
   nomeEmpresa String
@@ -29,7 +34,7 @@ model Chamado {
   emails    Email[]
   telefones Telefone[]
   anexos    Anexo[]
-
+  interacoes  Interacao[]
   @@map("chamados")
 }
 
@@ -63,4 +68,20 @@ model Anexo {
   chamado   Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
 
   @@map("anexos")
+}
+
+
+model Interacao {
+  id        Int      @id @default(autoincrement())
+  texto     String   // O que foi escrito
+  autor     TipoAutor // Quem escreveu (CLIENTE ou SUPORTE)
+  
+  createdAt DateTime @default(now()) // Data/Hora da criação (Automático)
+  updatedAt DateTime @updatedAt      // Data/Hora da edição (Automático)
+
+  // Ligação com o Chamado
+  chamadoId Int
+  chamado   Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+
+  @@map("interacoes")
 }
