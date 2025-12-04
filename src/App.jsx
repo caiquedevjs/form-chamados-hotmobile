@@ -1,5 +1,8 @@
-// App.jsx
+// src/App.jsx
 import React from 'react';
+// 1. ADICIONEI OS IMPORTS QUE FALTAVAM AQUI:
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
 import ThemeProviderContext from './contexts/ThemeProviderContext';
 import ToggleThemeButton from './components/ToggleThemeButton';
 import MultilineTextFields from './components/form.component';
@@ -8,20 +11,23 @@ import LogoHeader from './components/LogoHeader';
 import Footer from './components/Footer';
 import KanbanBoardView from './components/KanbanBoard';
 
+// 2. CORRIGI O CAMINHO (agora busca dentro de components):
+import ClientTracking from './components/ClientTracking'; 
+
 export default function App() {
   return (
     <ThemeProviderContext>
       <div
         style={{
           height: '100vh',
-    width: '100vw',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    overflow: 'hidden', // 🔒 bloqueia scroll externo
-    backgroundColor: 'inherit',
+          width: '100vw',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          position: 'relative',
+          overflow: 'hidden', // 🔒 bloqueia scroll externo
+          backgroundColor: 'inherit',
         }}
       >
         <NotificationProvider />
@@ -41,10 +47,21 @@ export default function App() {
           <ToggleThemeButton />
         </div>
 
-        {/* 📝 Formulário centralizado */}
-        {/*  <MultilineTextFields />  */}
-        <KanbanBoardView/> 
-        
+        {/* Roteamento */}
+        <BrowserRouter>
+          {/* Se você tiver um menu de navegação, ele deve ficar aqui dentro */}
+          
+          <Routes>
+            {/* Rota Raiz: Formulário */}
+            <Route path="/" element={<MultilineTextFields />} />
+            
+            {/* Rota Admin: Kanban */}
+            <Route path="/admin" element={<KanbanBoardView />} />
+            
+            {/* Rota Cliente: Acompanhamento */}
+            <Route path="/acompanhamento/:id" element={<ClientTracking />} />
+          </Routes>
+        </BrowserRouter>
       </div>
       <Footer />
     </ThemeProviderContext>

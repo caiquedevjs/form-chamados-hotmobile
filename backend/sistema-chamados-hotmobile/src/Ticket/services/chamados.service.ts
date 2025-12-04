@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service'; 
 import { CreateChamadoDto } from '../dtos/create-chamado.dto';
+import { CreateInteracaoDto } from '../dtos/create-interacao.dto';
 import { StatusChamado } from '@prisma/client';
 
 @Injectable()
@@ -54,12 +55,46 @@ export class ChamadosService {
 
 async findAll() {
     return this.prisma.chamado.findMany({
-      include: { 
+      include: {
+        emails: true,
+        telefones: true,
         anexos: true,
-        emails: true,    // <--- ADICIONE ISSO
-        telefones: true  // <--- ADICIONE ISSO
+        interacoes: { // <--- NOVO
+          orderBy: { createdAt: 'asc' } // As mais antigas primeiro (ordem cronológica)
+        }
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  // 2. NOVO MÉTODO: Adicionar Interação
+  async addInteracao(chamadoId: number, data: CreateInteracaoDto) {
+    return this.prisma.interacao.create({
+      data: {
+        texto: data.texto,
+        autor: data.autor,
+        chamadoId: chamadoId
+      }
+    });
+  }
+
+  async findOne(id: number) {
+    const chamado = await this.prisma.chamado.findUnique({
+      where: { id },
+      include: {
+        emails: true,
+        telefones: true,
+        anexos: true,
+        interacoes: {
+          orderBy: { createdAt: 'asc' }, // Histórico na ordem correta
+        },
+      },
+    });
+
+    if (!chamado) {
+      throw new Error('Chamado não encontrado');
+    }
+
+    return chamado;
   }
 }

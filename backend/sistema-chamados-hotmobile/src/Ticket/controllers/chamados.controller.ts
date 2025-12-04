@@ -15,6 +15,7 @@ import { ChamadosService } from '../services/chamados.service';
 import { CreateChamadoDto } from '../dtos/create-chamado.dto'; // Importe seu DTO
 import { Patch, Param, ParseIntPipe } from '@nestjs/common'; // Adicione esses imports
 import { UpdateStatusDto } from '../dtos/update-status.dto'; // Importe o DTO
+import { CreateInteracaoDto } from '../dtos/create-interacao.dto';
 
 @Controller('chamados')
 export class ChamadosController {
@@ -52,5 +53,19 @@ export class ChamadosController {
   @Get()
   async findAll() {
     return this.chamadosService.findAll();
+  }
+
+  @Post(':id/interacoes')
+  async addInteracao(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: CreateInteracaoDto
+  ) {
+    return this.chamadosService.addInteracao(id, body);
+  }
+
+
+  @Get(':id')
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.chamadosService.findOne(id);
   }
 }

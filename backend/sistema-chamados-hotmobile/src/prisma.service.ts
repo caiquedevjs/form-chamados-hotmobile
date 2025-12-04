@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  
   constructor() {
     // Chama o construtor padrão, que lê automaticamente o DATABASE_URL do .env
     super();
