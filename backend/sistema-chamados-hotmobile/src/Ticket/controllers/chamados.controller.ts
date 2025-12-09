@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Body, 
+  Query,
   UploadedFiles, 
   UseInterceptors, 
   UsePipes, 
@@ -67,5 +68,13 @@ export class ChamadosController {
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.chamadosService.findOne(id);
+  }
+
+ @Get('dashboard/metrics')
+  async getMetrics(
+    @Query('start') start?: string, 
+    @Query('end') end?: string
+  ) {
+    return this.chamadosService.getDashboardMetrics(start, end);
   }
 }

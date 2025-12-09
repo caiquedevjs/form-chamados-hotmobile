@@ -10,6 +10,7 @@ import NotificationProvider from './components/NotificationProvider';
 import LogoHeader from './components/LogoHeader';
 import Footer from './components/Footer';
 import KanbanBoardView from './components/KanbanBoard';
+import DashboardView from './components/DashboardView';
 
 // 2. CORRIGI O CAMINHO (agora busca dentro de components):
 import ClientTracking from './components/ClientTracking'; 
@@ -60,10 +61,12 @@ export default function App() {
             
             {/* Rota Cliente: Acompanhamento */}
             <Route path="/acompanhamento/:id" element={<ClientTracking />} />
+            <Route path="/dashboard" element={<div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginTop: '5%', overflow: 'scroll' }}><DashboardView /></div>} />
           </Routes>
         </BrowserRouter>
+        
       </div>
-      <Footer />
+      
     </ThemeProviderContext>
   );
 }

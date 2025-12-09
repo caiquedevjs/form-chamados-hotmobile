@@ -103,7 +103,7 @@ export default function ClientTracking() {
   const statusInfo = STATUS_COLORS[chamado.status as keyof typeof STATUS_COLORS] || STATUS_COLORS.NOVO;
 
   return (
-    <Box sx={{ minHeight: '100%', bgcolor: '#f5f5f5', pb: 6, width: '100%' }}>
+    <Box sx={{ minHeight: '100%', bgcolor: '#f5f5f5', pb: 6, width: '100%', overflow: 'scroll' }}>
       
       <AppBar position="sticky" color="default" elevation={1} sx={{ bgcolor: 'white' }}>
         <Toolbar>

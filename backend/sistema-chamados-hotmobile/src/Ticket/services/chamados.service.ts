@@ -3,6 +3,7 @@ import { PrismaService } from 'src/prisma.service';
 import { CreateChamadoDto } from '../dtos/create-chamado.dto';
 import { CreateInteracaoDto } from '../dtos/create-interacao.dto';
 import { StatusChamado } from '@prisma/client';
+import { startOfDay, endOfDay, parseISO, eachDayOfInterval, format } from 'date-fns';
 
 @Injectable()
 export class ChamadosService {
@@ -96,5 +97,57 @@ async findAll() {
     }
 
     return chamado;
+  }
+
+ async getDashboardMetrics(startStr?: string, endStr?: string) {
+    // 1. Define as datas (Se não vier nada, assume últimos 7 dias)
+    const endDate = endStr ? endOfDay(parseISO(endStr)) : endOfDay(new Date());
+    const startDate = startStr ? startOfDay(parseISO(startStr)) : startOfDay(new Date(new Date().setDate(new Date().getDate() - 7)));
+
+    // 2. Busca totais (KPIs) baseados no filtro de data
+    const totalGeral = await this.prisma.chamado.count({
+      where: { createdAt: { gte: startDate, lte: endDate } }
+    });
+    const totalFinalizados = await this.prisma.chamado.count({ 
+      where: { status: 'FINALIZADO', createdAt: { gte: startDate, lte: endDate } } 
+    });
+
+    // 3. Busca Distribuição por Status (Pizza) nesse período
+    const porStatus = await this.prisma.chamado.groupBy({
+      by: ['status'],
+      where: { createdAt: { gte: startDate, lte: endDate } },
+      _count: { status: true },
+    });
+
+    // 4. Busca dados para o Gráfico de Linha/Barra (Timeline)
+    const chamadosNoPeriodo = await this.prisma.chamado.findMany({
+      where: { createdAt: { gte: startDate, lte: endDate } },
+      select: { createdAt: true },
+    });
+
+    // Lógica para preencher os dias vazios (ex: se não teve chamado na terça, tem que aparecer 0)
+    const diasDoIntervalo = eachDayOfInterval({ start: startDate, end: endDate });
+    
+    const graficoTimeline = diasDoIntervalo.map((dia) => {
+      const diaFormatadoISO = format(dia, 'yyyy-MM-dd'); // Chave para comparar
+      const diaFormatadoExibicao = format(dia, 'dd/MM'); // Label do gráfico
+
+      // Conta quantos chamados caem neste dia
+      const quantidade = chamadosNoPeriodo.filter(c => 
+        format(c.createdAt, 'yyyy-MM-dd') === diaFormatadoISO
+      ).length;
+
+      return { name: diaFormatadoExibicao, chamados: quantidade };
+    });
+
+    return {
+      statusData: porStatus.map(s => ({ name: s.status, value: s._count.status })),
+      timelineData: graficoTimeline,
+      kpis: {
+        total: totalGeral,
+        finalizados: totalFinalizados,
+        pendentes: totalGeral - totalFinalizados
+      }
+    };
   }
 }
