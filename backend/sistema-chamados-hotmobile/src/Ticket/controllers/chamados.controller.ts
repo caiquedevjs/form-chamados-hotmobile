@@ -18,6 +18,7 @@ import { Patch, Param, ParseIntPipe } from '@nestjs/common'; // Adicione esses i
 import { UpdateStatusDto } from '../dtos/update-status.dto'; // Importe o DTO
 import { CreateInteracaoDto } from '../dtos/create-interacao.dto';
 
+
 @Controller('chamados')
 export class ChamadosController {
   constructor(private readonly chamadosService: ChamadosService) {}

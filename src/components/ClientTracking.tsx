@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { 
   Box, Typography, Paper, Chip, TextField, Button, 
-  Container, Grid, Avatar, Divider, AppBar, Toolbar, IconButton
+  Container, Grid, Avatar, Divider, AppBar, Toolbar, IconButton, CircularProgress
 } from '@mui/material';
 import { 
   Send as SendIcon, 
@@ -14,21 +14,11 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { io } from 'socket.io-client'; // <--- Importante para o tempo real
 
-// --- 1. DEFINIÇÃO DOS TIPOS (INTERFACES) ---
-interface Anexo {
-  id: number;
-  nomeOriginal: string;
-  nomeArquivo: string;
-}
-
-interface Interacao {
-  id: number;
-  texto: string;
-  autor: 'CLIENTE' | 'SUPORTE';
-  createdAt: string;
-}
-
+// --- TIPOS ---
+interface Anexo { id: number; nomeOriginal: string; nomeArquivo: string; }
+interface Interacao { id: number; texto: string; autor: 'CLIENTE' | 'SUPORTE'; createdAt: string; }
 interface Chamado {
   id: number;
   nomeEmpresa: string;
@@ -46,64 +36,150 @@ const STATUS_COLORS = {
   FINALIZADO: { bg: '#E8F5E9', color: '#2E7D32', label: 'Concluído' },
 };
 
+
+const dispararNotificacaoNativa = (titulo: string, corpo: string) => {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    new Notification(titulo, { body: corpo, icon: '/vite.svg' });
+  } else if (Notification.permission !== "denied") {
+    Notification.requestPermission();
+  }
+};
+
+
+
 export default function ClientTracking() {
   const { id } = useParams();
-  
-  // --- 2. USANDO A TIPAGEM NO STATE ---
-  // Dizemos: "Isso pode ser um objeto Chamado OU null"
   const [chamado, setChamado] = useState<Chamado | null>(null);
-  
   const [novoComentario, setNovoComentario] = useState('');
   const [loading, setLoading] = useState(true);
   
-  // Tipagem correta para o Ref de scroll
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
+  // 1. CARREGAMENTO INICIAL
   useEffect(() => {
     if (id) fetchChamado();
   }, [id]);
 
+  // 2. SCROLL AUTOMÁTICO
   useEffect(() => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [chamado]);
+  }, [chamado?.interacoes]); // Rola sempre que as interações mudarem
 
+
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+// 3. TEMPO REAL (SOCKET.IO) - ATUALIZADO
+  useEffect(() => {
+    const socket = io('http://localhost:3000');
+    const audio = new Audio('/notification.mp3'); 
+
+    socket.on('nova_interacao', (data) => {
+      // Verifica se a mensagem é para ESTE chamado
+      if (Number(data.chamadoId) === Number(id)) {
+        
+        setChamado((prev) => {
+          if (!prev) return null;
+          const jaExiste = prev.interacoes.some(i => i.id === data.id);
+          if (jaExiste) return prev;
+          return { ...prev, interacoes: [...prev.interacoes, data] };
+        });
+
+        // --- AQUI ESTÁ A MUDANÇA ---
+        if (data.autor === 'SUPORTE') {
+          // 1. Toast (Visual dentro do app)
+          toast.info("🔔 O suporte respondeu ao seu chamado!", {
+            position: "top-center",
+            theme: "colored"
+          });
+          
+          // 2. Som
+          audio.play().catch(() => {});
+
+          // 3. Notificação do Navegador (NOVO!)
+          // Só mostra se a aba estiver oculta (opcional, mas recomendado) ou sempre
+          if (document.hidden) {
+             dispararNotificacaoNativa("Nova mensagem do Suporte", data.texto);
+          } else {
+             // Se quiser mostrar SEMPRE, mesmo com a aba aberta, tire o if(document.hidden)
+             dispararNotificacaoNativa("Nova mensagem do Suporte", data.texto);
+          }
+        }
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [id]);
+
+  // Função de Enviar (Cliente)
+  const handleSendReply = async () => {
+    if (!novoComentario.trim()) return;
+
+    try {
+      // Envia para o backend
+      await axios.post(`http://localhost:3000/chamados/${id}/interacoes`, {
+        texto: novoComentario,
+        autor: 'CLIENTE'
+      });
+      
+      setNovoComentario('');
+      
+      // Feedback imediato para o Cliente
+      toast.success("Comentário adicionado com sucesso!", {
+        position: "top-center",
+        autoClose: 3000
+      });
+
+    } catch (error) {
+      toast.error('Erro ao enviar resposta.');
+    }
+  };
   const fetchChamado = async () => {
     try {
       const response = await axios.get(`http://localhost:3000/chamados/${id}`);
       setChamado(response.data);
     } catch (error) {
+      console.error(error);
       toast.error('Chamado não encontrado.');
     } finally {
-      setLoading(false);
+      // IMPORTANTE: Isso garante que o loading pare, mesmo se der erro
+      setLoading(false); 
     }
   };
 
-  const handleSendReply = async () => {
-    if (!novoComentario.trim()) return;
+  
 
-    try {
-      await axios.post(`http://localhost:3000/chamados/${id}/interacoes`, {
-        texto: novoComentario,
-        autor: 'CLIENTE'
-      });
-      setNovoComentario('');
-      toast.success('Resposta enviada!');
-      fetchChamado();
-    } catch (error) {
-      toast.error('Erro ao enviar resposta.');
-    }
-  };
+  // --- TRATAMENTO DE ESTADOS DE CARREGAMENTO ---
+  if (loading) {
+    return (
+      <Box sx={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <CircularProgress />
+        <Typography ml={2}>Carregando chamado...</Typography>
+      </Box>
+    );
+  }
 
-  if (loading) return <Box p={4} display="flex" justifyContent="center">Carregando...</Box>;
-  if (!chamado) return <Box p={4} display="flex" justifyContent="center">Chamado não encontrado.</Box>;
+  if (!chamado) {
+    return (
+      <Box sx={{ p: 4, textAlign: 'center' }}>
+        <Typography variant="h5" color="error">Chamado não encontrado.</Typography>
+        <Button onClick={() => window.history.back()} sx={{ mt: 2 }}>Voltar</Button>
+      </Box>
+    );
+  }
 
-  // Correção do erro de índice do objeto de cores
   const statusInfo = STATUS_COLORS[chamado.status as keyof typeof STATUS_COLORS] || STATUS_COLORS.NOVO;
 
   return (
-    <Box sx={{ minHeight: '100%', bgcolor: '#f5f5f5', pb: 6, width: '100%', overflow: 'scroll' }}>
+    <Box sx={{ minHeight: '100%', bgcolor: '#f5f5f5', pb: 6, width: '100%' }}>
       
       <AppBar position="sticky" color="default" elevation={1} sx={{ bgcolor: 'white' }}>
         <Toolbar>

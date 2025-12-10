@@ -21,6 +21,9 @@ import {
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom'; // <--- Navegação
+import { io } from 'socket.io-client';
+
+
 
 // --- CONFIGURAÇÃO DAS COLUNAS ---
 const COLUMNS = {
@@ -48,6 +51,9 @@ interface Chamado {
   telefones: Telefone[];
   interacoes: Interacao[];
 }
+
+
+
 
 export default function KanbanBoardView() {
   const navigate = useNavigate(); // <--- Hook de Navegação
@@ -146,6 +152,52 @@ export default function KanbanBoardView() {
       c.descricao.toLowerCase().includes(termo)
     );
   });
+
+
+  useEffect(() => {
+    // Conecta ao backend
+    const socket = io('http://localhost:3000');
+    const audio = new Audio('/public/notification.mp3')
+
+    // Escuta o evento 'nova_interacao'
+    socket.on('nova_interacao', (data) => {
+
+
+      if (data.autor === 'CLIENTE') {
+      // Dispara o Toast
+      toast.info(`Nova mensagem no chamado #${data.chamadoId}`, {
+        position: "top-right",
+        autoClose: 5000,
+      });
+
+      // Toca o som (ignora erro se o usuário ainda não interagiu com a página)
+      audio.play().catch(() => console.log("Som bloqueado pelo navegador até interação."));
+    }
+      // Se a mensagem for para o chamado que está aberto no Modal:
+      if (chamadoSelecionado && chamadoSelecionado.id === data.chamadoId) {
+
+        
+        setChamadoSelecionado((prev) => {
+           if (!prev) return null;
+           // Adiciona a mensagem na lista sem precisar recarregar
+           return { ...prev, interacoes: [...(prev.interacoes || []), data] };
+        });
+      }
+      
+      // Atualiza também a lista geral de chamados (para ter os dados frescos se abrir outro)
+      setChamados((prevLista) => prevLista.map(c => {
+         if (c.id === data.chamadoId) {
+            return { ...c, interacoes: [...(c.interacoes || []), data] };
+         }
+         return c;
+      }));
+    });
+
+    // Limpa a conexão ao sair da tela
+    return () => {
+      socket.disconnect();
+    };
+  }, [chamadoSelecionado]); //
 
   return (
     <Box sx={{ p: 3, height: '90vh', backgroundColor: '#F4F5F7', display: 'flex', flexDirection: 'column' }}>

@@ -4,10 +4,11 @@ import { CreateChamadoDto } from '../dtos/create-chamado.dto';
 import { CreateInteracaoDto } from '../dtos/create-interacao.dto';
 import { StatusChamado } from '@prisma/client';
 import { startOfDay, endOfDay, parseISO, eachDayOfInterval, format } from 'date-fns';
+import { ChamadosGateway } from './chamados.gateway';
 
 @Injectable()
 export class ChamadosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly gateway: ChamadosGateway) {}
 
   // Recebe o DTO tipado em vez de 'any'
   async create(data: CreateChamadoDto, files: Array<Express.Multer.File>) {
@@ -69,14 +70,20 @@ async findAll() {
   }
 
   // 2. NOVO MÉTODO: Adicionar Interação
-  async addInteracao(chamadoId: number, data: CreateInteracaoDto) {
-    return this.prisma.interacao.create({
+ async addInteracao(chamadoId: number, data: CreateInteracaoDto) {
+    const novaInteracao = await this.prisma.interacao.create({
       data: {
         texto: data.texto,
         autor: data.autor,
         chamadoId: chamadoId
       }
     });
+
+    // AQUI ESTÁ A MÁGICA ✨
+    // Assim que salvou no banco, avisamos o Websocket
+    this.gateway.emitirNovaInteracao(chamadoId, novaInteracao);
+
+    return novaInteracao;
   }
 
   async findOne(id: number) {
