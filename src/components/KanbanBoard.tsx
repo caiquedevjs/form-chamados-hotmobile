@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { 
   Box, Typography, Paper, Card, CardContent, Chip, IconButton,
@@ -16,14 +16,12 @@ import {
   Send as SendIcon,
   Person as PersonIcon,
   SupportAgent as SupportAgentIcon,
-  BarChart as BarChartIcon // <--- Ícone do Dashboard
+  BarChart as BarChartIcon 
 } from '@mui/icons-material';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { useNavigate } from 'react-router-dom'; // <--- Navegação
+import { useNavigate } from 'react-router-dom'; 
 import { io } from 'socket.io-client';
-
-
 
 // --- CONFIGURAÇÃO DAS COLUNAS ---
 const COLUMNS = {
@@ -37,7 +35,13 @@ const FLOW_ORDER = ['NOVO', 'EM_ATENDIMENTO', 'FINALIZADO'];
 interface Email { id: number; endereco: string; }
 interface Telefone { id: number; numero: string; }
 interface Anexo { id: number; nomeOriginal: string; nomeArquivo: string; }
-interface Interacao { id: number; texto: string; autor: 'CLIENTE' | 'SUPORTE'; createdAt: string; }
+interface Interacao { 
+  id: number; 
+  texto: string; 
+  autor: 'CLIENTE' | 'SUPORTE'; 
+  createdAt: string; 
+  anexos?: Anexo[];
+}
 
 interface Chamado {
   id: number;
@@ -52,19 +56,35 @@ interface Chamado {
   interacoes: Interacao[];
 }
 
-
-
+// Função auxiliar para notificações (mesma do cliente)
+const dispararNotificacaoNativa = (titulo: string, corpo: string) => {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    new Notification(titulo, { body: corpo, icon: '/vite.svg' });
+  } else if (Notification.permission !== "denied") {
+    Notification.requestPermission();
+  }
+};
 
 export default function KanbanBoardView() {
-  const navigate = useNavigate(); // <--- Hook de Navegação
+  const navigate = useNavigate(); 
   const [chamados, setChamados] = useState<Chamado[]>([]);
   const [busca, setBusca] = useState('');
+  
   const [chamadoSelecionado, setChamadoSelecionado] = useState<Chamado | null>(null);
+  
+  // Estado do Chat e Arquivos
   const [novoComentario, setNovoComentario] = useState('');
   const [enviandoComentario, setEnviandoComentario] = useState(false);
+  const [files, setFiles] = useState<File[]>([]); // <--- Estado para arquivos
+  const fileInputRef = useRef<HTMLInputElement>(null); // <--- Ref para o input hidden
 
   useEffect(() => {
     carregarChamados();
+    // Pede permissão de notificação ao carregar
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
   }, []);
 
   const carregarChamados = async () => {
@@ -113,31 +133,52 @@ export default function KanbanBoardView() {
     }
   };
 
+  // --- LÓGICA DE ARQUIVOS (ADMIN) ---
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setFiles((prev) => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // --- ENVIO COM ANEXOS ---
+ // --- ENVIO COM ANEXOS (CORRIGIDO PARA NÃO DUPLICAR) ---
   const handleAddInteracao = async () => {
-    if (!chamadoSelecionado || !novoComentario.trim()) return;
+    // Permite enviar se tiver texto OU arquivo
+    if (!chamadoSelecionado || (!novoComentario.trim() && files.length === 0)) return;
+    
     setEnviandoComentario(true);
+    
+    // Monta o FormData
+    const formData = new FormData();
+    formData.append('texto', novoComentario || 'Segue anexo.');
+    formData.append('autor', 'SUPORTE');
+    
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+
     try {
-      const response = await axios.post(`http://localhost:3000/chamados/${chamadoSelecionado.id}/interacoes`, {
-        texto: novoComentario,
-        autor: 'SUPORTE'
+      // 1. Envia para o backend
+      await axios.post(`http://localhost:3000/chamados/${chamadoSelecionado.id}/interacoes`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
-      const novaInteracao = response.data;
-      setChamados((prev) => prev.map(c => {
-        if (c.id === chamadoSelecionado.id) {
-          const interacoesAtuais = c.interacoes || [];
-          return { ...c, interacoes: [...interacoesAtuais, novaInteracao] };
-        }
-        return c;
-      }));
-      setChamadoSelecionado((prev) => {
-        if (!prev) return null;
-        const interacoesAtuais = prev.interacoes || [];
-        return { ...prev, interacoes: [...interacoesAtuais, novaInteracao] };
-      });
+      
+      // ⚠️ REMOVIDO: A atualização manual dos estados setChamados e setChamadoSelecionado.
+      // O motivo é que o seu useEffect do Socket já vai fazer isso assim que o servidor confirmar.
+      
+      // 2. Apenas limpa os inputs
       setNovoComentario('');
-      toast.success('Comentário adicionado!');
+      setFiles([]);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+
+      toast.success('Mensagem enviada!');
     } catch (error) {
-      toast.error('Erro ao enviar comentário.');
+      toast.error('Erro ao enviar mensagem.');
     } finally {
       setEnviandoComentario(false);
     }
@@ -153,51 +194,48 @@ export default function KanbanBoardView() {
     );
   });
 
-
   useEffect(() => {
-    // Conecta ao backend
     const socket = io('http://localhost:3000');
-    const audio = new Audio('/public/notification.mp3')
+    const audio = new Audio('/notification.mp3'); 
 
-    // Escuta o evento 'nova_interacao'
     socket.on('nova_interacao', (data) => {
-
-
+      
+      // Notificação se foi o CLIENTE
       if (data.autor === 'CLIENTE') {
-      // Dispara o Toast
-      toast.info(`Nova mensagem no chamado #${data.chamadoId}`, {
-        position: "top-right",
-        autoClose: 5000,
-      });
+        toast.warning(`Cliente respondeu no chamado #${data.chamadoId}`, {
+          position: "top-right",
+          theme: "dark",
+          autoClose: 5000,
+        });
+        audio.play().catch(() => {});
+        if (document.hidden) dispararNotificacaoNativa(`Novo Comentário #${data.chamadoId}`, data.texto);
+      }
 
-      // Toca o som (ignora erro se o usuário ainda não interagiu com a página)
-      audio.play().catch(() => console.log("Som bloqueado pelo navegador até interação."));
-    }
-      // Se a mensagem for para o chamado que está aberto no Modal:
+      // Atualiza Modal
       if (chamadoSelecionado && chamadoSelecionado.id === data.chamadoId) {
-
-        
         setChamadoSelecionado((prev) => {
            if (!prev) return null;
-           // Adiciona a mensagem na lista sem precisar recarregar
+           const jaExiste = prev.interacoes?.some(i => i.id === data.id);
+           if (jaExiste) return prev;
            return { ...prev, interacoes: [...(prev.interacoes || []), data] };
         });
       }
       
-      // Atualiza também a lista geral de chamados (para ter os dados frescos se abrir outro)
+      // Atualiza Lista
       setChamados((prevLista) => prevLista.map(c => {
          if (c.id === data.chamadoId) {
+            const jaExiste = c.interacoes?.some(i => i.id === data.id);
+            if (jaExiste) return c;
             return { ...c, interacoes: [...(c.interacoes || []), data] };
          }
          return c;
       }));
     });
 
-    // Limpa a conexão ao sair da tela
     return () => {
       socket.disconnect();
     };
-  }, [chamadoSelecionado]); //
+  }, [chamadoSelecionado]);
 
   return (
     <Box sx={{ p: 3, height: '90vh', backgroundColor: '#F4F5F7', display: 'flex', flexDirection: 'column' }}>
@@ -208,10 +246,7 @@ export default function KanbanBoardView() {
           Fila de Chamados
         </Typography>
 
-        {/* --- ÁREA DE AÇÕES DO CABEÇALHO --- */}
         <Box display="flex" gap={2}>
-          
-          {/* BOTÃO DASHBOARD */}
           <Button 
             variant="contained" 
             color="secondary" 
@@ -299,7 +334,7 @@ export default function KanbanBoardView() {
         </Box>
       </DragDropContext>
 
-      {/* --- MODAL DETALHES (Mantive igual ao anterior, apenas para completar o arquivo) --- */}
+      {/* --- MODAL DETALHES --- */}
       <Dialog 
         open={Boolean(chamadoSelecionado)} 
         onClose={() => setChamadoSelecionado(null)}
@@ -323,9 +358,15 @@ export default function KanbanBoardView() {
 
             <DialogContent dividers>
               <Grid container spacing={2} sx={{ height: '100%' }}>
+                
+                {/* ÁREA DE CHAT (ESQUERDA) */}
                 <Grid item xs={12} md={8} display="flex" flexDirection="column">
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>Histórico do Chamado</Typography>
+                  
+                  {/* Lista de Mensagens */}
                   <Box sx={{ flexGrow: 1, bgcolor: '#f9f9f9', borderRadius: 2, p: 2, mb: 2, border: '1px solid #eee', maxHeight: '400px', overflowY: 'auto' }}>
+                    
+                    {/* Descrição Inicial */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mb: 2 }}>
                         <Box display="flex" alignItems="center" gap={1} mb={0.5}>
                           <Avatar sx={{ width: 24, height: 24, bgcolor: '#9e9e9e' }}><PersonIcon fontSize="small" /></Avatar>
@@ -336,6 +377,8 @@ export default function KanbanBoardView() {
                           <Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{chamadoSelecionado.descricao}</Typography>
                         </Paper>
                     </Box>
+
+                    {/* Mensagens */}
                     {chamadoSelecionado.interacoes?.map((interacao, idx) => {
                       const isSuporte = interacao.autor === 'SUPORTE';
                       return (
@@ -345,26 +388,101 @@ export default function KanbanBoardView() {
                               <Typography variant="caption" fontWeight="bold">{isSuporte ? 'Suporte' : 'Cliente'}</Typography>
                               <Typography variant="caption" color="text.secondary">{new Date(interacao.createdAt).toLocaleString()}</Typography>
                             </Box>
+                            
                             <Paper elevation={0} sx={{ p: 2, bgcolor: isSuporte ? '#E3F2FD' : '#ffffff', border: isSuporte ? 'none' : '1px solid #ddd', borderRadius: isSuporte ? '12px 0 12px 12px' : '0 12px 12px 12px', maxWidth: '90%', color: isSuporte ? '#0d47a1' : 'inherit' }}>
                               <Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{interacao.texto}</Typography>
+                              
+                              {/* RENDERIZAÇÃO DE ANEXOS */}
+                              {interacao.anexos && interacao.anexos.length > 0 && (
+                                <Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">
+                                  {interacao.anexos.map(anexo => (
+                                    <Chip
+                                      key={anexo.id}
+                                      icon={<AttachIcon />}
+                                      label={anexo.nomeOriginal.length > 20 ? anexo.nomeOriginal.substring(0, 17) + '...' : anexo.nomeOriginal}
+                                      component="a"
+                                      href={`http://localhost:3000/uploads/${anexo.nomeArquivo}`}
+                                      target="_blank"
+                                      clickable
+                                      size="small"
+                                      sx={{ m: 0.5, bgcolor: 'rgba(0,0,0,0.05)' }}
+                                    />
+                                  ))}
+                                </Box>
+                              )}
                             </Paper>
                         </Box>
                       )
                     })}
                   </Box>
-                  <Box display="flex" gap={1}>
-                    <TextField fullWidth size="small" placeholder="Adicionar observação..." value={novoComentario} onChange={(e) => setNovoComentario(e.target.value)} multiline maxRows={3} />
-                    <Button variant="contained" onClick={handleAddInteracao} disabled={enviandoComentario || !novoComentario.trim()}><SendIcon /></Button>
+
+                  {/* INPUT AREA */}
+                  <Box>
+                    {/* Preview dos arquivos selecionados */}
+                    {files.length > 0 && (
+                      <Box mb={1} display="flex" gap={1} flexWrap="wrap">
+                        {files.map((file, i) => (
+                          <Chip 
+                            key={i} 
+                            label={file.name} 
+                            onDelete={() => removeFile(i)} 
+                            size="small" 
+                            icon={<AttachIcon />}
+                          />
+                        ))}
+                      </Box>
+                    )}
+
+                    <Box display="flex" gap={1} alignItems="flex-end">
+                      {/* Input File Oculto */}
+                      <input
+                        type="file"
+                        multiple
+                        ref={fileInputRef}
+                        style={{ display: 'none' }}
+                        onChange={handleFileChange}
+                      />
+                      
+                      {/* Botão Clipe */}
+                      <IconButton 
+                        onClick={() => fileInputRef.current?.click()}
+                        sx={{ border: '1px solid #ccc', borderRadius: 1 }}
+                      >
+                        <AttachIcon />
+                      </IconButton>
+
+                      <TextField 
+                        fullWidth 
+                        size="small" 
+                        placeholder="Adicionar resposta..." 
+                        value={novoComentario} 
+                        onChange={(e) => setNovoComentario(e.target.value)} 
+                        multiline 
+                        maxRows={3} 
+                      />
+                      
+                      <Button 
+                        variant="contained" 
+                        onClick={handleAddInteracao} 
+                        disabled={enviandoComentario || (!novoComentario.trim() && files.length === 0)}
+                      >
+                        <SendIcon />
+                      </Button>
+                    </Box>
                   </Box>
                 </Grid>
+
+                {/* INFO AREA (DIREITA) */}
                 <Grid item xs={12} md={4}>
                    <Box mb={2}>
                      <Typography variant="subtitle2" color="text.secondary">Empresa</Typography>
                      <Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gap={1}><BusinessIcon color="primary" fontSize="small"/> {chamadoSelecionado.nomeEmpresa}</Typography>
                    </Box>
+                   
+                   {/* Anexos da Abertura do Chamado (Separados) */}
                    {chamadoSelecionado.anexos?.length > 0 && (
                      <Box mb={2}>
-                       <Typography variant="subtitle2" color="text.secondary" gutterBottom>Anexos</Typography>
+                       <Typography variant="subtitle2" color="text.secondary" gutterBottom>Anexos Iniciais</Typography>
                        <Box display="flex" gap={1} flexWrap="wrap">
                          {chamadoSelecionado.anexos?.map((anexo, idx) => (
                             <Chip key={idx} icon={<AttachIcon />} label={anexo.nomeOriginal.substring(0,12)+'...'} clickable component="a" href={`http://localhost:3000/uploads/${anexo.nomeArquivo}`} target="_blank" rel="noopener noreferrer" variant="outlined" color="primary" size="small" />
@@ -388,6 +506,7 @@ export default function KanbanBoardView() {
                 </Grid>
               </Grid>
             </DialogContent>
+            
             <DialogActions sx={{ p: 2, justifyContent: 'space-between', bgcolor: '#f5f5f5' }}>
                <Box /> 
                {chamadoSelecionado.status !== 'FINALIZADO' && (

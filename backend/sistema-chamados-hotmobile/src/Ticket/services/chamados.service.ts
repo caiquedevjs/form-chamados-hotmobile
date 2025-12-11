@@ -109,17 +109,32 @@ async findAll() {
   }
 
   // 2. NOVO MÉTODO: Adicionar Interação
- async addInteracao(chamadoId: number, data: CreateInteracaoDto) {
+async addInteracao(chamadoId: number, data: CreateInteracaoDto, files?: Array<Express.Multer.File>) {
+    
     const novaInteracao = await this.prisma.interacao.create({
       data: {
         texto: data.texto,
         autor: data.autor,
-        chamadoId: chamadoId
+        chamadoId: chamadoId,
+        
+        // 👇 LÓGICA DE SALVAR ANEXOS
+        anexos: {
+          create: files ? files.map((file) => ({
+            nomeOriginal: file.originalname,
+            nomeArquivo: file.filename,
+            caminho: file.path,
+            mimetype: file.mimetype,
+            tamanho: file.size,
+            chamadoId: chamadoId // Linka também ao chamado pai para consultas gerais
+          })) : [],
+        },
+      },
+      include: {
+        anexos: true, // Retorna os anexos criados para o front ver na hora
       }
     });
 
-    // AQUI ESTÁ A MÁGICA ✨
-    // Assim que salvou no banco, avisamos o Websocket
+    // Avisa o Websocket (já com os anexos dentro do objeto)
     this.gateway.emitirNovaInteracao(chamadoId, novaInteracao);
 
     return novaInteracao;
@@ -134,6 +149,7 @@ async findAll() {
         anexos: true,
         interacoes: {
           orderBy: { createdAt: 'asc' }, // Histórico na ordem correta
+          include: {anexos: true}
         },
       },
     });

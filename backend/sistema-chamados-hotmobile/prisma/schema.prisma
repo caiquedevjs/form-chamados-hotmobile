@@ -56,32 +56,37 @@ model Telefone {
   @@map("telefones")
 }
 
-model Anexo {
-  id           Int    @id @default(autoincrement())
-  nomeOriginal String 
-  nomeArquivo  String 
-  caminho      String 
-  mimetype     String 
-  tamanho      Int    
-
-  chamadoId Int
-  chamado   Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
-
-  @@map("anexos")
-}
-
-
 model Interacao {
   id        Int      @id @default(autoincrement())
-  texto     String   // O que foi escrito
-  autor     TipoAutor // Quem escreveu (CLIENTE ou SUPORTE)
-  
-  createdAt DateTime @default(now()) // Data/Hora da criação (Automático)
-  updatedAt DateTime @updatedAt      // Data/Hora da edição (Automático)
+  texto     String
+  autor     TipoAutor
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Ligação com o Chamado
   chamadoId Int
   chamado   Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
 
+  // 👇 ADICIONE ISTO: Uma interação pode ter anexos
+  anexos    Anexo[] 
+
   @@map("interacoes")
+}
+
+model Anexo {
+  id           Int      @id @default(autoincrement())
+  nomeOriginal String
+  nomeArquivo  String
+  caminho      String
+  mimetype     String
+  tamanho      Int
+  createdAt    DateTime @default(now())
+
+  chamadoId    Int
+  chamado      Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+
+  // 👇 ADICIONE ISTO: Opcional, pois anexos da abertura do chamado não têm interação
+  interacaoId  Int?     
+  interacao    Interacao? @relation(fields: [interacaoId], references: [id]) 
+
+  @@map("anexos")
 }

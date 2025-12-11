@@ -58,13 +58,23 @@ export class ChamadosController {
   }
 
   @Post(':id/interacoes')
+  @UseInterceptors(FilesInterceptor('files', 5, { // Aceita até 5 arquivos
+    storage: diskStorage({
+      destination: './uploads',
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, uniqueSuffix + extname(file.originalname));
+      },
+    }),
+  }))
   async addInteracao(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: CreateInteracaoDto
+    @Body() body: CreateInteracaoDto,
+    @UploadedFiles() files: Array<Express.Multer.File> // <--- Recebe os arquivos
   ) {
-    return this.chamadosService.addInteracao(id, body);
+    // Passamos os arquivos para o service
+    return this.chamadosService.addInteracao(id, body, files);
   }
-
 
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
