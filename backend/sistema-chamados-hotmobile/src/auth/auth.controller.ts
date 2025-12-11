@@ -7,7 +7,7 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() body: any) {
-    return this.authService.login(body.email, body.senha);
+    return this.authService.login(body.email, body.password || body.senha);
   }
 
   // Rota para criar o primeiro usuário (depois você pode remover ou proteger)

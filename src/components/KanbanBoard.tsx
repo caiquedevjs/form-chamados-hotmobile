@@ -18,7 +18,7 @@ import {
   SupportAgent as SupportAgentIcon,
   BarChart as BarChartIcon 
 } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../services/api';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom'; 
 import { io } from 'socket.io-client';
@@ -89,7 +89,7 @@ export default function KanbanBoardView() {
 
   const carregarChamados = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/chamados');
+      const response = await api.get('http://localhost:3000/chamados');
       setChamados(response.data);
     } catch (error) {
       toast.error('Erro ao carregar chamados.');
@@ -116,7 +116,7 @@ export default function KanbanBoardView() {
     }
 
     try {
-      await axios.patch(`http://localhost:3000/chamados/${id}/status`, { status: novoStatus });
+      await api.patch(`http://localhost:3000/chamados/${id}/status`, { status: novoStatus });
       toast.success('Status atualizado!');
     } catch (error) {
       toast.error('Erro ao atualizar status.');
@@ -164,7 +164,7 @@ export default function KanbanBoardView() {
 
     try {
       // 1. Envia para o backend
-      await axios.post(`http://localhost:3000/chamados/${chamadoSelecionado.id}/interacoes`, formData, {
+      await api.post(`http://localhost:3000/chamados/${chamadoSelecionado.id}/interacoes`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
@@ -238,10 +238,10 @@ export default function KanbanBoardView() {
   }, [chamadoSelecionado]);
 
   return (
-    <Box sx={{ p: 3, height: '90vh', backgroundColor: '#F4F5F7', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: 3, height: '90vh', backgroundColor: '#F4F5F7', display: 'flex', flexDirection: 'column', marginTop: 5}}>
       
       {/* CABEÇALHO */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#444' }}>
           Fila de Chamados
         </Typography>
@@ -272,7 +272,7 @@ export default function KanbanBoardView() {
 
       {/* KANBAN */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <Box sx={{ display: 'flex', gap: 3, overflowX: 'auto', flexGrow: 1, alignItems: 'flex-start' }}>
+        <Box sx={{ display: 'flex', gap: 10, overflowX: 'auto', flexGrow: 1, alignItems: 'flex-start', justifyContent: 'center' }}>
           {Object.entries(COLUMNS).map(([columnId, column]) => {
             const cardsDaColuna = chamadosFiltrados.filter((c) => c.status === columnId);
 

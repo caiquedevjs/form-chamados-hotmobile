@@ -13,7 +13,7 @@ import {
   ArrowBack as ArrowBackIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../services/api';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
 
@@ -105,7 +105,7 @@ export default function ClientTracking() {
 
   const fetchChamado = async () => {
     try {
-      const response = await axios.get(`http://localhost:3000/chamados/${id}`);
+      const response = await api.get(`http://localhost:3000/chamados/${id}`);
       setChamado(response.data);
     } catch (error) {
       toast.error('Chamado não encontrado.');
@@ -142,7 +142,7 @@ export default function ClientTracking() {
     });
 
     try {
-      await axios.post(`http://localhost:3000/chamados/${id}/interacoes`, formData, {
+      await api.post(`http://localhost:3000/chamados/${id}/interacoes`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
