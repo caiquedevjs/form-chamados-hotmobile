@@ -7,7 +7,8 @@ import {
   UploadedFiles, 
   UseInterceptors, 
   UsePipes, 
-  ValidationPipe 
+  ValidationPipe,
+  UseGuards
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -17,6 +18,7 @@ import { CreateChamadoDto } from '../dtos/create-chamado.dto'; // Importe seu DT
 import { Patch, Param, ParseIntPipe } from '@nestjs/common'; // Adicione esses imports
 import { UpdateStatusDto } from '../dtos/update-status.dto'; // Importe o DTO
 import { CreateInteracaoDto } from '../dtos/create-interacao.dto';
+import { AuthGuard } from '@nestjs/passport';
 
 
 @Controller('chamados')
@@ -44,6 +46,8 @@ export class ChamadosController {
     console.log('📝 Body recebido:', Body);
     return this.chamadosService.create(createChamadoDto, files);
   }
+
+  @UseGuards(AuthGuard('jwt'))
   @Patch(':id/status')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
@@ -52,6 +56,7 @@ export class ChamadosController {
     return this.chamadosService.updateStatus(id, body.status);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get()
   async findAll() {
     return this.chamadosService.findAll();
@@ -67,6 +72,8 @@ export class ChamadosController {
       },
     }),
   }))
+
+  
   async addInteracao(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: CreateInteracaoDto,
@@ -81,6 +88,8 @@ export class ChamadosController {
     return this.chamadosService.findOne(id);
   }
 
+  
+@UseGuards(AuthGuard('jwt'))
  @Get('dashboard/metrics')
   async getMetrics(
     @Query('start') start?: string, 

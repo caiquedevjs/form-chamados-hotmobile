@@ -90,3 +90,13 @@ model Anexo {
 
   @@map("anexos")
 }
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  senha     String   // Será salva criptografada (hash)
+  nome      String
+  createdAt DateTime @default(now())
+
+  @@map("usuarios")
+}
