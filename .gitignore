@@ -7,7 +7,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependências
 node_modules
+
+# Build (Produção)
 dist
 dist-ssr
 *.local
@@ -22,3 +25,17 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# --- ADICIONE ISSO AQUI EMBAIXO ---
+
+# Uploads (Arquivos dos clientes)
+# Ignora tudo dentro da pasta uploads
+/uploads/*
+# Mas NÃO ignora o arquivo .gitkeep (para garantir que a pasta vazia exista no projeto)
+!/uploads/.gitkeep
+
+# Segurança (MUITO IMPORTANTE)
+# Nunca suba suas senhas e tokens para o Git
+.env
+.env.production
+.env.local
