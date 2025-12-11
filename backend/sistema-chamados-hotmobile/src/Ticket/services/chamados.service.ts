@@ -44,8 +44,11 @@ export class ChamadosService {
         emails: true,
         telefones: true,
         anexos: true,
+        interacoes: true
       },
     });
+
+    this.gateway.emitirNovoChamado(chamado);
 
     return chamado;
   }
@@ -89,6 +92,7 @@ async updateStatus(id: number, novoStatus: StatusChamado) {
         Promise.all(promessasZap).catch(err => console.error('Erro no envio em massa de whats', err));
       }
     }
+    this.gateway.emitirMudancaStatus(id, novoStatus);
 
     return chamadoAtualizado;
   }

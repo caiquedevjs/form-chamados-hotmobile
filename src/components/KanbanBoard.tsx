@@ -194,48 +194,53 @@ export default function KanbanBoardView() {
     );
   });
 
+// ... dentro do componente KanbanBoardView
+
   useEffect(() => {
     const socket = io('http://localhost:3000');
-    const audio = new Audio('/notification.mp3'); 
+    const audio = new Audio('/notification.mp3');
 
+    // 1. EVENTO DE CHAT (Já existia)
     socket.on('nova_interacao', (data) => {
-      
-      // Notificação se foi o CLIENTE
-      if (data.autor === 'CLIENTE') {
-        toast.warning(`Cliente respondeu no chamado #${data.chamadoId}`, {
-          position: "top-right",
-          theme: "dark",
-          autoClose: 5000,
-        });
-        audio.play().catch(() => {});
-        if (document.hidden) dispararNotificacaoNativa(`Novo Comentário #${data.chamadoId}`, data.texto);
-      }
+       // ... (seu código existente de chat) ...
+    });
 
-      // Atualiza Modal
-      if (chamadoSelecionado && chamadoSelecionado.id === data.chamadoId) {
-        setChamadoSelecionado((prev) => {
-           if (!prev) return null;
-           const jaExiste = prev.interacoes?.some(i => i.id === data.id);
-           if (jaExiste) return prev;
-           return { ...prev, interacoes: [...(prev.interacoes || []), data] };
-        });
-      }
+    // 👇 2. NOVO EVENTO: CHEGOU UM CHAMADO NOVO DO FORMULÁRIO
+    socket.on('novo_chamado', (novoChamado) => {
+      // Toca som para alertar o suporte
+      audio.play().catch(() => {});
       
-      // Atualiza Lista
-      setChamados((prevLista) => prevLista.map(c => {
-         if (c.id === data.chamadoId) {
-            const jaExiste = c.interacoes?.some(i => i.id === data.id);
-            if (jaExiste) return c;
-            return { ...c, interacoes: [...(c.interacoes || []), data] };
-         }
-         return c;
+      toast.info(`🆕 Novo chamado de ${novoChamado.nomeEmpresa}!`, {
+        position: "top-center",
+        theme: "colored"
+      });
+
+      // Adiciona na lista imediatamente
+      setChamados((prev) => [novoChamado, ...prev]);
+    });
+
+    // 👇 3. NOVO EVENTO: STATUS MUDOU (Outro admin moveu o card)
+    socket.on('mudanca_status', (data) => {
+      // data = { id: 15, status: 'EM_ATENDIMENTO' }
+      
+      setChamados((prev) => prev.map(chamado => {
+        if (chamado.id === data.id) {
+          // Atualiza apenas o status daquele chamado específico
+          return { ...chamado, status: data.status };
+        }
+        return chamado;
       }));
+      
+      // Se o modal desse chamado estiver aberto, atualiza ele também
+      if (chamadoSelecionado && chamadoSelecionado.id === data.id) {
+         setChamadoSelecionado(prev => prev ? { ...prev, status: data.status } : null);
+      }
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [chamadoSelecionado]);
+  }, [chamadoSelecionado]); // Dependências
 
   return (
     <Box sx={{ p: 3, height: '90vh', backgroundColor: '#F4F5F7', display: 'flex', flexDirection: 'column', marginTop: 5}}>

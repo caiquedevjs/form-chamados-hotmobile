@@ -78,11 +78,11 @@ export default function ClientTracking() {
     }
   }, [chamado?.interacoes]);
 
-  // SOCKET.IO
   useEffect(() => {
     const socket = io('http://localhost:3000');
     const audio = new Audio('/notification.mp3'); 
 
+    // 1. Ouvinte de Chat (Já existe)
     socket.on('nova_interacao', (data) => {
       if (Number(data.chamadoId) === Number(id)) {
         setChamado((prev) => {
@@ -100,9 +100,30 @@ export default function ClientTracking() {
       }
     });
 
+    // 👇 2. NOVO OUVINTE: MUDANÇA DE STATUS (FINALIZAÇÃO)
+    socket.on('mudanca_status', (data) => {
+      // data = { id: 123, status: 'FINALIZADO' }
+      
+      // Se a mudança for para ESTE chamado
+      if (Number(data.id) === Number(id)) {
+        
+        setChamado((prev) => {
+          if (!prev) return null;
+          return { ...prev, status: data.status }; // Atualiza o status na hora
+        });
+
+        // Feedback visual para o cliente
+        if (data.status === 'FINALIZADO') {
+           toast.warn("Este chamado foi finalizado pelo suporte.", {
+             position: "top-center",
+             autoClose: false // Fica na tela até o usuário fechar
+           });
+        }
+      }
+    });
+
     return () => { socket.disconnect(); };
   }, [id]);
-
   const fetchChamado = async () => {
     try {
       const response = await api.get(`http://localhost:3000/chamados/${id}`);

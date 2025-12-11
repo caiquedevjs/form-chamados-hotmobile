@@ -22,4 +22,14 @@ export class ChamadosGateway implements OnGatewayInit {
       ...interacao
     });
   }
+
+  // 👇 ADICIONE ESTE: Quando um chamado é criado no formulário
+  emitirNovoChamado(chamado: any) {
+    this.server.emit('novo_chamado', chamado);
+  }
+
+  // 👇 ADICIONE ESTE: Quando um status muda (para outros admins verem)
+  emitirMudancaStatus(id: number, novoStatus: string) {
+    this.server.emit('mudanca_status', { id, status: novoStatus });
+  }
 }
