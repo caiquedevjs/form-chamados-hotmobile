@@ -11,6 +11,6 @@ async function bootstrap() {
   // 2. Habilita CORS (Permite que o React converse com o Nest)
   app.enableCors(); 
 
-  await app.listen(3000);
+  await app.listen(process.env.PORT || 3000);
 }
 bootstrap();
