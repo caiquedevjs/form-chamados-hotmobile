@@ -14,7 +14,7 @@ import { startOfDay, endOfDay, parseISO, eachDayOfInterval, format } from 'date-
 import { ChamadosGateway } from './chamados.gateway';
 import { MailService } from './mail.service';
 import { WhatsappService } from './whatsapp.service';
-import { SupabaseService } from 'src/supabase/supabase.service';  // <--- 1. Importar o Serviço
+import { SupabaseService } from 'src/supabase/supabase.service'; // <--- 1. Importar o Serviço
 
 @Injectable()
 export class ChamadosService {
