@@ -228,7 +228,14 @@ export default function ClientTracking() {
                         
                         {/* ✅ 5. EXIBIR ANEXOS DA MENSAGEM COM LÓGICA SUPABASE */}
                         {msg.anexos && msg.anexos.length > 0 && (
+                          
                           <Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">
+                            
+                             {/* 👇 FORMA CORRETA DE DAR LOG DENTRO DO JSX 👇 */}
+                                {(() => {
+                                  console.log("📦 DADOS DO ANEXO:", msg.anexos);
+                                  return null;
+                                })()}
                             {msg.anexos.map(anexo => (
                               <Chip
                                 key={anexo.id}
