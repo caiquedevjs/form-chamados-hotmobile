@@ -11,13 +11,15 @@ export class SupabaseService {
 
   constructor() {
     const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+    // Use a chave de serviço (Service Role) para ignorar RLS e ter permissão total
+    const SUPABASE_KEY =
+      process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
 
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      throw new Error('Supabase URL ou Key não configuradas no ambiente.');
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+      throw new Error('Supabase URL ou Key não configuradas.');
     }
 
-    this.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    this.supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   }
 
   async uploadFile(
