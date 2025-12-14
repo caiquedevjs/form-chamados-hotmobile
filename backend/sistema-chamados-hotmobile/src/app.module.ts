@@ -3,6 +3,7 @@ import { ChamadosModule } from './Ticket/modules/chamados.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
+import { SupabaseModule } from './supabase/supabase.module';
 
 @Module({
   imports: [
@@ -11,7 +12,8 @@ import { AuthModule } from './auth/auth.module';
       serveRoot: '/uploads', // Define que a URL será http://.../uploads/...
     }),
 
-    ChamadosModule, AuthModule],
+    // eslint-disable-next-line prettier/prettier
+    ChamadosModule, AuthModule, SupabaseModule],
   controllers: [],
   providers: [],
 })
