@@ -17,6 +17,9 @@ import api from '../services/api';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
 
+// ✅ 1. CONFIGURAÇÃO DA URL (Produção vs Local)
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 // --- TIPOS ---
 interface Anexo {
   caminho: any; id: number; nomeOriginal: string; nomeArquivo: string; 
@@ -26,7 +29,7 @@ interface Interacao {
   texto: string; 
   autor: 'CLIENTE' | 'SUPORTE'; 
   createdAt: string; 
-  anexos?: Anexo[]; // Novo campo
+  anexos?: Anexo[]; 
 }
 interface Chamado {
   id: number;
@@ -45,7 +48,6 @@ const STATUS_COLORS = {
   FINALIZADO: { bg: '#E8F5E9', color: '#2E7D32', label: 'Concluído' },
 };
 
-// Função auxiliar para notificação
 const dispararNotificacaoNativa = (titulo: string, corpo: string) => {
   if (!("Notification" in window)) return;
   if (Notification.permission === "granted") {
@@ -61,10 +63,8 @@ export default function ClientTracking() {
   const [novoComentario, setNovoComentario] = useState('');
   const [loading, setLoading] = useState(true);
   
-  // Estados para Anexos no Chat
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -81,10 +81,10 @@ export default function ClientTracking() {
   }, [chamado?.interacoes]);
 
   useEffect(() => {
-    const socket = io('http://localhost:3000');
+    // ✅ 2. SOCKET COM URL DINÂMICA
+    const socket = io(API_URL);
     const audio = new Audio('/notification.mp3'); 
 
-    // 1. Ouvinte de Chat (Já existe)
     socket.on('nova_interacao', (data) => {
       if (Number(data.chamadoId) === Number(id)) {
         setChamado((prev) => {
@@ -102,23 +102,17 @@ export default function ClientTracking() {
       }
     });
 
-    // 👇 2. NOVO OUVINTE: MUDANÇA DE STATUS (FINALIZAÇÃO)
     socket.on('mudanca_status', (data) => {
-      // data = { id: 123, status: 'FINALIZADO' }
-      
-      // Se a mudança for para ESTE chamado
       if (Number(data.id) === Number(id)) {
-        
         setChamado((prev) => {
           if (!prev) return null;
-          return { ...prev, status: data.status }; // Atualiza o status na hora
+          return { ...prev, status: data.status }; 
         });
 
-        // Feedback visual para o cliente
         if (data.status === 'FINALIZADO') {
            toast.warn("Este chamado foi finalizado pelo suporte.", {
              position: "top-center",
-             autoClose: false // Fica na tela até o usuário fechar
+             autoClose: false 
            });
         }
       }
@@ -126,9 +120,11 @@ export default function ClientTracking() {
 
     return () => { socket.disconnect(); };
   }, [id]);
+
   const fetchChamado = async () => {
     try {
-      const response = await api.get(`http://localhost:3000/chamados/${id}`);
+      // ✅ 3. API GET COM URL DINÂMICA
+      const response = await api.get(`${API_URL}/chamados/${id}`);
       setChamado(response.data);
     } catch (error) {
       toast.error('Chamado não encontrado.');
@@ -137,10 +133,8 @@ export default function ClientTracking() {
     }
   };
 
-  // --- LÓGICA DE ARQUIVOS ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      // Converte FileList para Array e soma aos existentes
       const newFiles = Array.from(e.target.files);
       setFiles((prev) => [...prev, ...newFiles]);
     }
@@ -150,28 +144,26 @@ export default function ClientTracking() {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // --- ENVIO COM FORMDATA (TEXTO + ARQUIVOS) ---
   const handleSendReply = async () => {
     if (!novoComentario.trim() && files.length === 0) return;
 
-    // Monta o FormData
     const formData = new FormData();
-    formData.append('texto', novoComentario || 'Segue anexo.'); // Garante texto se só mandar anexo
+    formData.append('texto', novoComentario || 'Segue anexo.'); 
     formData.append('autor', 'CLIENTE');
     
-    // Adiciona cada arquivo
     files.forEach((file) => {
       formData.append('files', file);
     });
 
     try {
-      await api.post(`http://localhost:3000/chamados/${id}/interacoes`, formData, {
+      // ✅ 4. API POST COM URL DINÂMICA
+      await api.post(`${API_URL}/chamados/${id}/interacoes`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
       setNovoComentario('');
-      setFiles([]); // Limpa arquivos
-      if (fileInputRef.current) fileInputRef.current.value = ''; // Limpa input
+      setFiles([]); 
+      if (fileInputRef.current) fileInputRef.current.value = ''; 
 
       toast.success("Enviado com sucesso!", { position: "top-center", autoClose: 2000 });
     } catch (error) {
@@ -199,9 +191,8 @@ export default function ClientTracking() {
 
       <Container maxWidth="md" sx={{ mt: { xs: 2, md: 4 } }}>
         <Grid container spacing={3}>
-          {/* Card Info ... (Mantido igual, omitido pra poupar espaço) ... */}
           <Grid item xs={12}>
-             {/* ... Cabeçalho info da empresa ... */}
+            {/* Cabeçalho info da empresa omitido para economizar espaço */}
           </Grid>
 
           <Grid item xs={12}>
@@ -235,7 +226,7 @@ export default function ClientTracking() {
                       <Paper elevation={0} sx={{ p: 2, bgcolor: isCliente ? '#E3F2FD' : '#F5F5F5', borderRadius: isCliente ? '12px 0 12px 12px' : '0 12px 12px 12px', maxWidth: '90%' }}>
                         <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>{msg.texto}</Typography>
                         
-                        {/* --- EXIBIR ANEXOS DA MENSAGEM --- */}
+                        {/* ✅ 5. EXIBIR ANEXOS DA MENSAGEM COM LÓGICA SUPABASE */}
                         {msg.anexos && msg.anexos.length > 0 && (
                           <Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">
                             {msg.anexos.map(anexo => (
@@ -247,8 +238,8 @@ export default function ClientTracking() {
                                 href={
                                     anexo.caminho && anexo.caminho.startsWith('http') 
                                       ? anexo.caminho 
-                                      : `http://localhost:3000/uploads/${anexo.nomeArquivo}`
-                                  }
+                                      : `${API_URL}/uploads/${anexo.nomeArquivo}`
+                                }
                                 target="_blank"
                                 clickable
                                 size="small"
@@ -285,7 +276,6 @@ export default function ClientTracking() {
                   )}
 
                   <Box display="flex" gap={1} alignItems="flex-end">
-                    {/* Input de Arquivo (Oculto) */}
                     <input
                       type="file"
                       multiple
@@ -294,7 +284,6 @@ export default function ClientTracking() {
                       onChange={handleFileChange}
                     />
                     
-                    {/* Botão de Anexo */}
                     <IconButton 
                       color="primary" 
                       onClick={() => fileInputRef.current?.click()}

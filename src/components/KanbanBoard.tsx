@@ -32,6 +32,9 @@ const COLUMNS = {
 
 const FLOW_ORDER = ['NOVO', 'EM_ATENDIMENTO', 'FINALIZADO'];
 
+// URL DA API (Pega do .env ou usa localhost)
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 interface Email { id: number; endereco: string; }
 interface Telefone { id: number; numero: string; }
 interface Anexo {
@@ -58,16 +61,6 @@ interface Chamado {
   interacoes: Interacao[];
 }
 
-// Função auxiliar para notificações (mesma do cliente)
-const dispararNotificacaoNativa = (titulo: string, corpo: string) => {
-  if (!("Notification" in window)) return;
-  if (Notification.permission === "granted") {
-    new Notification(titulo, { body: corpo, icon: '/vite.svg' });
-  } else if (Notification.permission !== "denied") {
-    Notification.requestPermission();
-  }
-};
-
 export default function KanbanBoardView() {
   const navigate = useNavigate(); 
   const [chamados, setChamados] = useState<Chamado[]>([]);
@@ -78,12 +71,11 @@ export default function KanbanBoardView() {
   // Estado do Chat e Arquivos
   const [novoComentario, setNovoComentario] = useState('');
   const [enviandoComentario, setEnviandoComentario] = useState(false);
-  const [files, setFiles] = useState<File[]>([]); // <--- Estado para arquivos
-  const fileInputRef = useRef<HTMLInputElement>(null); // <--- Ref para o input hidden
+  const [files, setFiles] = useState<File[]>([]); 
+  const fileInputRef = useRef<HTMLInputElement>(null); 
 
   useEffect(() => {
     carregarChamados();
-    // Pede permissão de notificação ao carregar
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission();
     }
@@ -91,7 +83,8 @@ export default function KanbanBoardView() {
 
   const carregarChamados = async () => {
     try {
-      const response = await api.get('http://localhost:3000/chamados');
+      // ✅ CORREÇÃO: Usando API_URL em vez de string fixa
+      const response = await api.get(`${API_URL}/chamados`);
       setChamados(response.data);
     } catch (error) {
       toast.error('Erro ao carregar chamados.');
@@ -118,7 +111,8 @@ export default function KanbanBoardView() {
     }
 
     try {
-      await api.patch(`http://localhost:3000/chamados/${id}/status`, { status: novoStatus });
+      // ✅ CORREÇÃO: Usando API_URL
+      await api.patch(`${API_URL}/chamados/${id}/status`, { status: novoStatus });
       toast.success('Status atualizado!');
     } catch (error) {
       toast.error('Erro ao atualizar status.');
@@ -147,15 +141,11 @@ export default function KanbanBoardView() {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // --- ENVIO COM ANEXOS ---
- // --- ENVIO COM ANEXOS (CORRIGIDO PARA NÃO DUPLICAR) ---
   const handleAddInteracao = async () => {
-    // Permite enviar se tiver texto OU arquivo
     if (!chamadoSelecionado || (!novoComentario.trim() && files.length === 0)) return;
     
     setEnviandoComentario(true);
     
-    // Monta o FormData
     const formData = new FormData();
     formData.append('texto', novoComentario || 'Segue anexo.');
     formData.append('autor', 'SUPORTE');
@@ -165,15 +155,11 @@ export default function KanbanBoardView() {
     });
 
     try {
-      // 1. Envia para o backend
-      await api.post(`http://localhost:3000/chamados/${chamadoSelecionado.id}/interacoes`, formData, {
+      // ✅ CORREÇÃO: Usando API_URL
+      await api.post(`${API_URL}/chamados/${chamadoSelecionado.id}/interacoes`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
-      // ⚠️ REMOVIDO: A atualização manual dos estados setChamados e setChamadoSelecionado.
-      // O motivo é que o seu useEffect do Socket já vai fazer isso assim que o servidor confirmar.
-      
-      // 2. Apenas limpa os inputs
       setNovoComentario('');
       setFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -196,44 +182,55 @@ export default function KanbanBoardView() {
     );
   });
 
-// ... dentro do componente KanbanBoardView
-
   useEffect(() => {
-    const socket = io('http://localhost:3000');
+    // ✅ CORREÇÃO: Conecta no Socket da produção ou local
+    const socket = io(API_URL);
     const audio = new Audio('/notification.mp3');
 
-    // 1. EVENTO DE CHAT (Já existia)
     socket.on('nova_interacao', (data) => {
-       // ... (seu código existente de chat) ...
+      if (data.autor === 'CLIENTE') {
+         toast.info(`💬 Nova resposta no chamado #${data.chamadoId}`, {
+           position: "top-right", autoClose: 5000, theme: "colored"
+         });
+         audio.play().catch(() => {});
+      }
+
+      // Atualiza Modal
+      if (chamadoSelecionado && chamadoSelecionado.id === data.chamadoId) {
+         setChamadoSelecionado((prev) => {
+            if (!prev) return null;
+            const jaExiste = prev.interacoes?.some(i => i.id === data.id);
+            if (jaExiste) return prev;
+            return { ...prev, interacoes: [...(prev.interacoes || []), data] };
+         });
+      }
+      
+      // Atualiza Lista
+      setChamados((prevLista) => prevLista.map(c => {
+         if (c.id === data.chamadoId) {
+            const jaExiste = c.interacoes?.some(i => i.id === data.id);
+            if (jaExiste) return c;
+            return { ...c, interacoes: [...(c.interacoes || []), data] };
+         }
+         return c;
+      }));
     });
 
-    // 👇 2. NOVO EVENTO: CHEGOU UM CHAMADO NOVO DO FORMULÁRIO
     socket.on('novo_chamado', (novoChamado) => {
-      // Toca som para alertar o suporte
       audio.play().catch(() => {});
-      
       toast.info(`🆕 Novo chamado de ${novoChamado.nomeEmpresa}!`, {
-        position: "top-center",
-        theme: "colored"
+        position: "top-center", theme: "colored"
       });
-
-      // Adiciona na lista imediatamente
       setChamados((prev) => [novoChamado, ...prev]);
     });
 
-    // 👇 3. NOVO EVENTO: STATUS MUDOU (Outro admin moveu o card)
     socket.on('mudanca_status', (data) => {
-      // data = { id: 15, status: 'EM_ATENDIMENTO' }
-      
       setChamados((prev) => prev.map(chamado => {
         if (chamado.id === data.id) {
-          // Atualiza apenas o status daquele chamado específico
           return { ...chamado, status: data.status };
         }
         return chamado;
       }));
-      
-      // Se o modal desse chamado estiver aberto, atualiza ele também
       if (chamadoSelecionado && chamadoSelecionado.id === data.id) {
          setChamadoSelecionado(prev => prev ? { ...prev, status: data.status } : null);
       }
@@ -242,12 +239,11 @@ export default function KanbanBoardView() {
     return () => {
       socket.disconnect();
     };
-  }, [chamadoSelecionado]); // Dependências
+  }, [chamadoSelecionado]);
 
   return (
     <Box sx={{ p: 3, height: '90vh', backgroundColor: '#F4F5F7', display: 'flex', flexDirection: 'column', marginTop: 5}}>
       
-      {/* CABEÇALHO */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#444' }}>
           Fila de Chamados
@@ -412,7 +408,7 @@ export default function KanbanBoardView() {
                                         anexo.caminho && anexo.caminho.startsWith('http') 
                                           ? anexo.caminho 
                                           : `http://localhost:3000/uploads/${anexo.nomeArquivo}`
-}
+                                      }
                                       target="_blank"
                                       clickable
                                       size="small"
@@ -445,7 +441,6 @@ export default function KanbanBoardView() {
                     )}
 
                     <Box display="flex" gap={1} alignItems="flex-end">
-                      {/* Input File Oculto */}
                       <input
                         type="file"
                         multiple
@@ -454,7 +449,6 @@ export default function KanbanBoardView() {
                         onChange={handleFileChange}
                       />
                       
-                      {/* Botão Clipe */}
                       <IconButton 
                         onClick={() => fileInputRef.current?.click()}
                         sx={{ border: '1px solid #ccc', borderRadius: 1 }}
@@ -496,7 +490,24 @@ export default function KanbanBoardView() {
                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>Anexos Iniciais</Typography>
                        <Box display="flex" gap={1} flexWrap="wrap">
                          {chamadoSelecionado.anexos?.map((anexo, idx) => (
-                            <Chip key={idx} icon={<AttachIcon />} label={anexo.nomeOriginal.substring(0,12)+'...'} clickable component="a" href={`http://localhost:3000/uploads/${anexo.nomeArquivo}`} target="_blank" rel="noopener noreferrer" variant="outlined" color="primary" size="small" />
+                            <Chip 
+                                key={idx} 
+                                icon={<AttachIcon />} 
+                                label={anexo.nomeOriginal.substring(0,12)+'...'} 
+                                clickable 
+                                component="a" 
+                                // 👇 AQUI ESTAVA O ERRO FIXO. AGORA ESTÁ DINÂMICO:
+                                href={
+                                    anexo.caminho && anexo.caminho.startsWith('http') 
+                                        ? anexo.caminho 
+                                        : `http://localhost:3000/uploads/${anexo.nomeArquivo}`
+                                }
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                variant="outlined" 
+                                color="primary" 
+                                size="small" 
+                            />
                          ))}
                        </Box>
                      </Box>
