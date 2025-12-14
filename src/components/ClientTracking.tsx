@@ -18,7 +18,9 @@ import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
 
 // --- TIPOS ---
-interface Anexo { id: number; nomeOriginal: string; nomeArquivo: string; }
+interface Anexo {
+  caminho: any; id: number; nomeOriginal: string; nomeArquivo: string; 
+}
 interface Interacao { 
   id: number; 
   texto: string; 
@@ -242,7 +244,11 @@ export default function ClientTracking() {
                                 icon={<AttachIcon />}
                                 label={anexo.nomeOriginal}
                                 component="a"
-                                href={`http://localhost:3000/uploads/${anexo.nomeArquivo}`}
+                                href={
+                                    anexo.caminho && anexo.caminho.startsWith('http') 
+                                      ? anexo.caminho 
+                                      : `http://localhost:3000/uploads/${anexo.nomeArquivo}`
+                                  }
                                 target="_blank"
                                 clickable
                                 size="small"
