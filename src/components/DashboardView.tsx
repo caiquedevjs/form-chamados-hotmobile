@@ -64,7 +64,7 @@ export default function DashboardView() {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 4 }, width: '100%', maxWidth: '1200px', marginTop : 100}}>
+    <Box sx={{ p: { xs: 2, md: 4 }, width: '100%', maxWidth: '1200px', marginTop : 60}}>
       
       {/* 1. CABEÇALHO E FILTROS */}
       <Box display="flex" alignItems="center" mb={10}>
