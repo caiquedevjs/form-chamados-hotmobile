@@ -9,6 +9,7 @@ export default function LogoHeader() {
         top: '16px',
         left: '16px',
         zIndex: 999,
+        marginBottom: 40
       }}
     >
       <img

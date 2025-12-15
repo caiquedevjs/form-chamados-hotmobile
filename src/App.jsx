@@ -32,6 +32,7 @@ export default function App() {
           position: 'relative',
           overflow: 'scroll', // 🔒 bloqueia scroll externo
           backgroundColor: 'inherit',
+          
         }}
       >
         <NotificationProvider />
