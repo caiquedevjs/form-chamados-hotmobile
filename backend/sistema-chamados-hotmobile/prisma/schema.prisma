@@ -30,7 +30,7 @@ model Chamado {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   status      StatusChamado @default(NOVO)
-
+  mensagensNaoLidas Int @default(0)
   emails    Email[]
   telefones Telefone[]
   anexos    Anexo[]

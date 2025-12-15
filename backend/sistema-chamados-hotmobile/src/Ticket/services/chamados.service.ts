@@ -6,7 +6,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service'; // Ajuste o caminho se necessário
+import { PrismaService } from 'src/prisma.service'; 
 import { CreateChamadoDto } from '../dtos/create-chamado.dto';
 import { CreateInteracaoDto } from '../dtos/create-interacao.dto';
 import { StatusChamado } from '@prisma/client';
@@ -14,7 +14,7 @@ import { startOfDay, endOfDay, parseISO, eachDayOfInterval, format } from 'date-
 import { ChamadosGateway } from './chamados.gateway';
 import { MailService } from './mail.service';
 import { WhatsappService } from './whatsapp.service';
-import { SupabaseService } from 'src/supabase/supabase.service'; // <--- 1. Importar o Serviço
+import { SupabaseService } from 'src/supabase/supabase.service';
 
 @Injectable()
 export class ChamadosService {
@@ -23,19 +23,15 @@ export class ChamadosService {
     private readonly gateway: ChamadosGateway,
     private readonly mailService: MailService,
     private readonly whatsappService: WhatsappService,
-    private readonly supabaseService: SupabaseService, // <--- 2. Injetar o Serviço
+    private readonly supabaseService: SupabaseService,
   ) {}
 
   async create(data: CreateChamadoDto, files: Array<Express.Multer.File>) {
-    
-    // 3. Processar Uploads para o Supabase (Se houver arquivos)
-   let anexosData: any[] = [];
+    let anexosData: any[] = [];
     
     if (files && files.length > 0) {
-      // Usamos Promise.all para fazer upload de todos em paralelo
       anexosData = await Promise.all(
         files.map(async (file) => {
-          // Envia para o Supabase e recebe a URL Pública
           const publicUrl = await this.supabaseService.uploadFile(
             file.buffer, 
             file.originalname
@@ -43,8 +39,8 @@ export class ChamadosService {
 
           return {
             nomeOriginal: file.originalname,
-            nomeArquivo: file.originalname, // Pode manter o nome ou usar o path do supabase
-            caminho: publicUrl,             // <--- AQUI SALVAMOS A URL DA NUVEM
+            nomeArquivo: file.originalname,
+            caminho: publicUrl,
             mimetype: file.mimetype,
             tamanho: file.size,
           };
@@ -57,6 +53,7 @@ export class ChamadosService {
         nomeEmpresa: data.nome,
         servico: data.servico,
         descricao: data.descricao,
+        // Ao criar, começa com 0 não lidas (padrão do banco)
         
         emails: {
           create: data.emails.map((email) => ({ endereco: email })),
@@ -64,7 +61,6 @@ export class ChamadosService {
         telefones: {
           create: data.telefones.map((tel) => ({ numero: tel })),
         },
-        // Usa o array processado com as URLs do Supabase
         anexos: {
           create: anexosData,
         },
@@ -90,13 +86,9 @@ export class ChamadosService {
     });
 
     if (novoStatus === 'EM_ATENDIMENTO') {
-      
-      // 4. URL Dinâmica para Produção
-      // Se tiver a variável no .env (Render), usa ela. Senão, usa localhost.
       const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       const linkFrontend = `${baseUrl}/acompanhamento/${id}`;
 
-      // A. Enviar Email
       if (chamadoAtualizado.emails && chamadoAtualizado.emails.length > 0) {
         const promessasEmail = chamadoAtualizado.emails.map(email => 
           this.mailService.enviarAvisoInicioAtendimento(
@@ -108,7 +100,6 @@ export class ChamadosService {
         Promise.all(promessasEmail).catch(err => console.error('Erro email:', err));
       }
 
-      // B. Enviar WhatsApp
       if (chamadoAtualizado.telefones && chamadoAtualizado.telefones.length > 0) {
         const promessasZap = chamadoAtualizado.telefones.map(tel => 
           this.whatsappService.enviarAvisoInicioAtendimento(
@@ -125,7 +116,6 @@ export class ChamadosService {
     return chamadoAtualizado;
   }
 
-  
   async findAll() {
     return this.prisma.chamado.findMany({
       include: {
@@ -134,17 +124,17 @@ export class ChamadosService {
         anexos: true,
         interacoes: {
           orderBy: { createdAt: 'asc' },
-          include: { anexos: true } // Importante incluir anexos das interações na listagem
+          include: { anexos: true }
         }
       },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  // 5. Método de Interação Atualizado com Supabase
+  // ✅ MÉTODO ATUALIZADO COM CONTADOR
   async addInteracao(chamadoId: number, data: CreateInteracaoDto, files?: Array<Express.Multer.File>) {
     
-   let anexosData: any[] = [];
+    let anexosData: any[] = [];
 
     if (files && files.length > 0) {
       anexosData = await Promise.all(
@@ -157,7 +147,7 @@ export class ChamadosService {
           return {
             nomeOriginal: file.originalname,
             nomeArquivo: file.originalname,
-            caminho: publicUrl, // URL DO SUPABASE
+            caminho: publicUrl,
             mimetype: file.mimetype,
             tamanho: file.size,
             chamadoId: chamadoId 
@@ -166,12 +156,12 @@ export class ChamadosService {
       );
     }
     
+    // 1. Cria a interação
     const novaInteracao = await this.prisma.interacao.create({
       data: {
         texto: data.texto,
         autor: data.autor,
         chamadoId: chamadoId,
-        
         anexos: {
           create: anexosData,
         },
@@ -181,12 +171,31 @@ export class ChamadosService {
       }
     });
 
+    // 2. LÓGICA DE CONTADOR: Se for CLIENTE, incrementa mensagensNaoLidas
+    if (data.autor === 'CLIENTE') {
+      await this.prisma.chamado.update({
+        where: { id: chamadoId },
+        data: {
+          mensagensNaoLidas: { increment: 1 } // Soma 1 ao valor atual
+        }
+      });
+    }
+
     this.gateway.emitirNovaInteracao(chamadoId, novaInteracao);
 
     return novaInteracao;
   }
 
+  // ✅ MÉTODO ATUALIZADO PARA ZERAR
   async findOne(id: number) {
+    
+    // 1. Zera o contador ao abrir o chamado (Admin leu)
+    await this.prisma.chamado.update({
+      where: { id },
+      data: { mensagensNaoLidas: 0 }
+    }).catch(() => {}); // Catch silencioso caso dê erro no update, mas não trava o fluxo
+
+    // 2. Busca os dados
     const chamado = await this.prisma.chamado.findUnique({
       where: { id },
       include: {

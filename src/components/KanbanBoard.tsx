@@ -62,6 +62,7 @@ interface Chamado {
   emails: Email[];
   telefones: Telefone[];
   interacoes: Interacao[];
+  mensagensNaoLidas: number; // ✅ CAMPO NOVO QUE VEM DO BACKEND
 }
 
 export default function KanbanBoardView() {
@@ -70,17 +71,14 @@ export default function KanbanBoardView() {
   
   // --- ESTADOS DE FILTRO ---
   const [busca, setBusca] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState<string[]>(Object.keys(COLUMNS)); // Começa com todos selecionados
+  const [filtroStatus, setFiltroStatus] = useState<string[]>(Object.keys(COLUMNS)); 
   const [filtroDataInicio, setFiltroDataInicio] = useState('');
   const [filtroDataFim, setFiltroDataFim] = useState('');
   const [apenasNaoLidos, setApenasNaoLidos] = useState(false);
-  const [mostrarFiltros, setMostrarFiltros] = useState(false); // Expandir/Recolher painel
+  const [mostrarFiltros, setMostrarFiltros] = useState(false); 
 
   const [chamadoSelecionado, setChamadoSelecionado] = useState<Chamado | null>(null);
   
-  // Contador de mensagens não lidas por ID do chamado
-  const [naoLidos, setNaoLidos] = useState<Record<number, number>>({});
-
   // Estado do Chat e Arquivos
   const [novoComentario, setNovoComentario] = useState('');
   const [enviandoComentario, setEnviandoComentario] = useState(false);
@@ -140,14 +138,19 @@ export default function KanbanBoardView() {
     }
   };
 
-  const handleAbrirChamado = (item: Chamado) => {
+  // ✅ FUNÇÃO PARA ABRIR O MODAL E LIMPAR CONTADOR
+  const handleAbrirChamado = async (item: Chamado) => {
     setChamadoSelecionado(item);
-    // Zera o contador deste chamado ao abrir
-    setNaoLidos((prev) => {
-      const novo = { ...prev };
-      delete novo[item.id]; 
-      return novo;
-    });
+    
+    // 1. Atualiza visualmente na hora (zera a bolinha)
+    setChamados(prev => prev.map(c => c.id === item.id ? { ...c, mensagensNaoLidas: 0 } : c));
+
+    // 2. Chama a API para o backend zerar no banco de dados também
+    try {
+        await api.get(`${API_URL}/chamados/${item.id}`); 
+    } catch (error) { 
+        console.error("Erro ao marcar lido", error); 
+    }
   };
 
   // --- LÓGICA DE ARQUIVOS (ADMIN) ---
@@ -194,7 +197,6 @@ export default function KanbanBoardView() {
 
   // ✅ LÓGICA DE FILTRAGEM AVANÇADA
   const chamadosFiltrados = chamados.filter((c) => {
-    // 1. Filtro de Texto (Nome, ID, Serviço, Descrição)
     const termo = busca.toLowerCase();
     const matchTexto = 
       c.nomeEmpresa.toLowerCase().includes(termo) ||
@@ -202,27 +204,22 @@ export default function KanbanBoardView() {
       c.servico.toLowerCase().includes(termo) ||
       c.descricao.toLowerCase().includes(termo);
 
-    // 2. Filtro de Status
     const matchStatus = filtroStatus.includes(c.status);
 
-    // 3. Filtro de "Apenas Não Lidos"
-    const qtdNaoLida = naoLidos[c.id] || 0;
-    const matchNaoLidos = apenasNaoLidos ? qtdNaoLida > 0 : true;
+    // 3. Filtro de "Apenas Não Lidos" (Agora usa o campo do objeto)
+    const matchNaoLidos = apenasNaoLidos ? c.mensagensNaoLidas > 0 : true;
 
-    // 4. Filtro de Data (CreatedAt)
     let matchData = true;
     const dataChamado = new Date(c.createdAt);
     
     if (filtroDataInicio) {
         const dataInicio = new Date(filtroDataInicio);
-        // Zera hora para comparar apenas o dia
         dataInicio.setHours(0,0,0,0);
         matchData = matchData && dataChamado >= dataInicio;
     }
     
     if (filtroDataFim) {
         const dataFim = new Date(filtroDataFim);
-        // Define hora para final do dia (23:59)
         dataFim.setHours(23,59,59,999); 
         matchData = matchData && dataChamado <= dataFim;
     }
@@ -250,28 +247,33 @@ export default function KanbanBoardView() {
         toast.info(`💬 Nova resposta no chamado #${data.chamadoId}`, {
           position: "top-right", theme: "colored"
         });
-
-        // Incrementa contador se não estiver aberto
-        setNaoLidos((prev) => {
-            if (chamadoSelecionado && chamadoSelecionado.id === Number(data.chamadoId)) {
-                return prev;
-            }
-            return {
-                ...prev,
-                [data.chamadoId]: (prev[data.chamadoId] || 0) + 1
-            };
-        });
       }
 
       setChamados((prevLista) => prevLista.map(c => {
-        if (c.id === data.chamadoId) {
+        if (c.id === Number(data.chamadoId)) {
            const jaExiste = c.interacoes?.some(i => i.id === data.id);
            if (jaExiste) return c;
-           return { ...c, interacoes: [...(c.interacoes || []), data] };
+
+           // ✅ LÓGICA DE INCREMENTO REAL-TIME
+           let novasNaoLidas = c.mensagensNaoLidas;
+           
+           // Se for msg do cliente E o modal desse chamado NÃO estiver aberto agora
+           if (data.autor === 'CLIENTE') {
+               if (!chamadoSelecionado || chamadoSelecionado.id !== Number(data.chamadoId)) {
+                   novasNaoLidas = (c.mensagensNaoLidas || 0) + 1;
+               }
+           }
+
+           return { 
+               ...c, 
+               mensagensNaoLidas: novasNaoLidas, 
+               interacoes: [...(c.interacoes || []), data] 
+           };
         }
         return c;
       }));
 
+      // Se o modal estiver aberto, atualiza ele também
       if (chamadoSelecionado && chamadoSelecionado.id === data.chamadoId) {
         setChamadoSelecionado((prev) => {
            if (!prev) return null;
@@ -282,15 +284,14 @@ export default function KanbanBoardView() {
       }
     });
 
+    // ... (restante da lógica do socket igual) ...
     socket.on('novo_chamado', (novoChamado) => {
       audio.play().catch(() => {});
       toast.info(`🆕 Novo chamado de ${novoChamado.nomeEmpresa}!`, {
         position: "top-center", theme: "colored"
       });
+      // Novo chamado vem do backend já com mensagensNaoLidas = 0 (ou 1 se você quiser ajustar no back)
       setChamados((prev) => [novoChamado, ...prev]);
-      
-      // Marca como não lido o novo chamado
-      setNaoLidos(prev => ({ ...prev, [novoChamado.id]: 1 }));
     });
 
     socket.on('mudanca_status', (data) => {
@@ -340,7 +341,7 @@ export default function KanbanBoardView() {
         </Box>
       </Box>
 
-      {/* ✅ PAINEL DE FILTROS (EXPANSÍVEL) */}
+      {/* ✅ PAINEL DE FILTROS */}
       {mostrarFiltros && (
         <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }}>
             <Grid container spacing={2} alignItems="center">
@@ -360,7 +361,7 @@ export default function KanbanBoardView() {
                     />
                 </Grid>
 
-                {/* 2. Filtro Status (Multi-Select) */}
+                {/* 2. Filtro Status */}
                 <Grid item xs={12} md={3}>
                     <FormControl size="small" fullWidth>
                         <InputLabel>Status</InputLabel>
@@ -421,9 +422,7 @@ export default function KanbanBoardView() {
                         label={
                             <Box display="flex" alignItems="center" gap={0.5}>
                                 <Typography variant="caption" fontWeight="bold">Não Lidos</Typography>
-                                {Object.values(naoLidos).reduce((a,b) => a+b, 0) > 0 && (
-                                    <Box width={8} height={8} borderRadius="50%" bgcolor="success.main" />
-                                )}
+                                {/* Opcional: mostrar um indicador geral aqui */}
                             </Box>
                         }
                     />
@@ -475,7 +474,7 @@ export default function KanbanBoardView() {
                                 boxShadow: snapshot.isDragging ? 6 : 1,
                                 transition: 'transform 0.2s',
                                 '&:hover': { boxShadow: 4, transform: 'translateY(-2px)' },
-                                position: 'relative' // Obrigatório para o posicionamento absoluto funcionar
+                                position: 'relative' 
                               }}
                             >
                               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
@@ -483,7 +482,7 @@ export default function KanbanBoardView() {
                                   <Typography variant="caption" color="text.secondary">#{item.id}</Typography>
                                   
                                   {/* ✅ CONTADOR DE MENSAGENS (BOLA VERDE) */}
-                                  {naoLidos[item.id] > 0 && (
+                                  {item.mensagensNaoLidas > 0 && (
                                     <Box
                                       sx={{
                                         position: 'absolute',
@@ -492,7 +491,7 @@ export default function KanbanBoardView() {
                                         width: 24,
                                         height: 24,
                                         borderRadius: '50%',
-                                        backgroundColor: '#2e7d32', // Verde
+                                        backgroundColor: '#2e7d32', 
                                         color: 'white',
                                         display: 'flex',
                                         alignItems: 'center',
@@ -503,7 +502,7 @@ export default function KanbanBoardView() {
                                         zIndex: 10
                                       }}
                                     >
-                                      {naoLidos[item.id]}
+                                      {item.mensagensNaoLidas}
                                     </Box>
                                   )}
 
