@@ -26,17 +26,13 @@ export class ChamadosService {
     private readonly supabaseService: SupabaseService,
   ) {}
 
+  // ... (Método CREATE mantido igual) ...
   async create(data: CreateChamadoDto, files: Array<Express.Multer.File>) {
     let anexosData: any[] = [];
-    
     if (files && files.length > 0) {
       anexosData = await Promise.all(
         files.map(async (file) => {
-          const publicUrl = await this.supabaseService.uploadFile(
-            file.buffer, 
-            file.originalname
-          );
-
+          const publicUrl = await this.supabaseService.uploadFile(file.buffer, file.originalname);
           return {
             nomeOriginal: file.originalname,
             nomeArquivo: file.originalname,
@@ -53,31 +49,18 @@ export class ChamadosService {
         nomeEmpresa: data.nome,
         servico: data.servico,
         descricao: data.descricao,
-        // Ao criar, começa com 0 não lidas (padrão do banco)
-        
-        emails: {
-          create: data.emails.map((email) => ({ endereco: email })),
-        },
-        telefones: {
-          create: data.telefones.map((tel) => ({ numero: tel })),
-        },
-        anexos: {
-          create: anexosData,
-        },
+        emails: { create: data.emails.map((email) => ({ endereco: email })) },
+        telefones: { create: data.telefones.map((tel) => ({ numero: tel })) },
+        anexos: { create: anexosData },
       },
-      include: {
-        emails: true,
-        telefones: true,
-        anexos: true,
-        interacoes: true
-      },
+      include: { emails: true, telefones: true, anexos: true, interacoes: true },
     });
 
     this.gateway.emitirNovoChamado(chamado);
-
     return chamado;
   }
 
+  // ✅ MÉTODO ATUALIZADO COM NOTIFICAÇÕES DE FINALIZAÇÃO
   async updateStatus(id: number, novoStatus: StatusChamado) {
     const chamadoAtualizado = await this.prisma.chamado.update({
       where: { id },
@@ -85,134 +68,144 @@ export class ChamadosService {
       include: { emails: true, telefones: true } 
     });
 
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const linkFrontend = `${baseUrl}/acompanhamento/${id}`;
+
+    // 1. Notificação de EM ATENDIMENTO (Já existia)
     if (novoStatus === 'EM_ATENDIMENTO') {
-      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-      const linkFrontend = `${baseUrl}/acompanhamento/${id}`;
-
-      if (chamadoAtualizado.emails && chamadoAtualizado.emails.length > 0) {
+      if (chamadoAtualizado.emails?.length > 0) {
         const promessasEmail = chamadoAtualizado.emails.map(email => 
-          this.mailService.enviarAvisoInicioAtendimento(
-            email.endereco, 
-            chamadoAtualizado.nomeEmpresa, 
-            linkFrontend
-          )
+          this.mailService.enviarAvisoInicioAtendimento(email.endereco, chamadoAtualizado.nomeEmpresa, linkFrontend)
         );
-        Promise.all(promessasEmail).catch(err => console.error('Erro email:', err));
+        Promise.all(promessasEmail).catch(err => console.error('Erro email atendimento:', err));
       }
-
-      if (chamadoAtualizado.telefones && chamadoAtualizado.telefones.length > 0) {
+      if (chamadoAtualizado.telefones?.length > 0) {
         const promessasZap = chamadoAtualizado.telefones.map(tel => 
-          this.whatsappService.enviarAvisoInicioAtendimento(
-            tel.numero, 
-            chamadoAtualizado.nomeEmpresa, 
-            linkFrontend
-          )
+          this.whatsappService.enviarAvisoInicioAtendimento(tel.numero, chamadoAtualizado.nomeEmpresa, linkFrontend)
         );
-        Promise.all(promessasZap).catch(err => console.error('Erro zap:', err));
+        Promise.all(promessasZap).catch(err => console.error('Erro zap atendimento:', err));
       }
     }
-    this.gateway.emitirMudancaStatus(id, novoStatus);
 
+    // ✅ 2. NOVA NOTIFICAÇÃO DE FINALIZAÇÃO
+    if (novoStatus === 'FINALIZADO') {
+      const mensagemFinal = `Olá! O chamado #${id} da empresa *${chamadoAtualizado.nomeEmpresa}* foi finalizado. Caso precise de mais ajuda, por favor, abra um novo chamado.`;
+
+      // Email Finalização
+      if (chamadoAtualizado.emails?.length > 0) {
+        const promessasEmail = chamadoAtualizado.emails.map(email => 
+          // Reutilizando método genérico ou criando um específico se tiver no MailService
+          this.mailService.enviarNotificacaoGenerica(email.endereco, `Chamado #${id} Finalizado`, mensagemFinal, linkFrontend)
+        );
+        Promise.all(promessasEmail).catch(err => console.error('Erro email finalização:', err));
+      }
+
+      // WhatsApp Finalização
+      if (chamadoAtualizado.telefones?.length > 0) {
+        const promessasZap = chamadoAtualizado.telefones.map(tel => 
+          this.whatsappService.enviarMensagem(tel.numero, mensagemFinal)
+        );
+        Promise.all(promessasZap).catch(err => console.error('Erro zap finalização:', err));
+      }
+    }
+
+    this.gateway.emitirMudancaStatus(id, novoStatus);
     return chamadoAtualizado;
   }
 
+  // ... (findAll mantido igual) ...
   async findAll() {
     return this.prisma.chamado.findMany({
       include: {
-        emails: true,
-        telefones: true,
-        anexos: true,
-        interacoes: {
-          orderBy: { createdAt: 'asc' },
-          include: { anexos: true }
-        }
+        emails: true, telefones: true, anexos: true,
+        interacoes: { orderBy: { createdAt: 'asc' }, include: { anexos: true } }
       },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  // ✅ MÉTODO ATUALIZADO COM CONTADOR
+  // ✅ MÉTODO ATUALIZADO COM NOTIFICAÇÃO DE RESPOSTA DO SUPORTE
   async addInteracao(chamadoId: number, data: CreateInteracaoDto, files?: Array<Express.Multer.File>) {
-    
     let anexosData: any[] = [];
-
     if (files && files.length > 0) {
       anexosData = await Promise.all(
         files.map(async (file) => {
-          const publicUrl = await this.supabaseService.uploadFile(
-            file.buffer, 
-            file.originalname
-          );
-
+          const publicUrl = await this.supabaseService.uploadFile(file.buffer, file.originalname);
           return {
-            nomeOriginal: file.originalname,
-            nomeArquivo: file.originalname,
-            caminho: publicUrl,
-            mimetype: file.mimetype,
-            tamanho: file.size,
-            chamadoId: chamadoId 
+            nomeOriginal: file.originalname, nomeArquivo: file.originalname, caminho: publicUrl, mimetype: file.mimetype, tamanho: file.size, chamadoId: chamadoId 
           };
         })
       );
     }
     
-    // 1. Cria a interação
     const novaInteracao = await this.prisma.interacao.create({
       data: {
         texto: data.texto,
         autor: data.autor,
         chamadoId: chamadoId,
-        anexos: {
-          create: anexosData,
-        },
+        anexos: { create: anexosData },
       },
-      include: {
-        anexos: true,
-      }
+      include: { anexos: true }
     });
 
-    // 2. LÓGICA DE CONTADOR: Se for CLIENTE, incrementa mensagensNaoLidas
+    // Se for CLIENTE -> Incrementa contador (Já existente)
     if (data.autor === 'CLIENTE') {
       await this.prisma.chamado.update({
         where: { id: chamadoId },
-        data: {
-          mensagensNaoLidas: { increment: 1 } // Soma 1 ao valor atual
-        }
+        data: { mensagensNaoLidas: { increment: 1 } }
       });
     }
 
-    this.gateway.emitirNovaInteracao(chamadoId, novaInteracao);
+    // ✅ SE FOR SUPORTE -> NOTIFICA O CLIENTE
+    if (data.autor === 'SUPORTE') {
+        // Busca o chamado para pegar os contatos
+        const chamadoPai = await this.prisma.chamado.findUnique({
+            where: { id: chamadoId },
+            include: { emails: true, telefones: true }
+        });
 
+        if (chamadoPai) {
+            const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            const linkFrontend = `${baseUrl}/acompanhamento/${chamadoId}`;
+            const msgNotificacao = `O suporte respondeu ao chamado #${chamadoId}: "${data.texto.substring(0, 50)}${data.texto.length > 50 ? '...' : ''}". Acesse para ver: ${linkFrontend}`;
+
+            // Envia WhatsApp
+            if (chamadoPai.telefones?.length > 0) {
+                chamadoPai.telefones.forEach(tel => {
+                    this.whatsappService.enviarMensagem(tel.numero, msgNotificacao)
+                        .catch(err => console.error('Erro zap resposta:', err));
+                });
+            }
+
+            // Envia Email
+            if (chamadoPai.emails?.length > 0) {
+                chamadoPai.emails.forEach(email => {
+                    this.mailService.enviarNotificacaoGenerica(
+                        email.endereco, 
+                        `Nova resposta no Chamado #${chamadoId}`, 
+                        `O suporte respondeu: "${data.texto}"`,
+                        linkFrontend
+                    ).catch(err => console.error('Erro email resposta:', err));
+                });
+            }
+        }
+    }
+
+    this.gateway.emitirNovaInteracao(chamadoId, novaInteracao);
     return novaInteracao;
   }
 
-  // ✅ MÉTODO ATUALIZADO PARA ZERAR
+  // ... (findOne e getDashboardMetrics mantidos iguais) ...
   async findOne(id: number) {
-    
-    // 1. Zera o contador ao abrir o chamado (Admin leu)
-    await this.prisma.chamado.update({
-      where: { id },
-      data: { mensagensNaoLidas: 0 }
-    }).catch(() => {}); // Catch silencioso caso dê erro no update, mas não trava o fluxo
-
-    // 2. Busca os dados
+    await this.prisma.chamado.update({ where: { id }, data: { mensagensNaoLidas: 0 } }).catch(() => {});
     const chamado = await this.prisma.chamado.findUnique({
       where: { id },
       include: {
-        emails: true,
-        telefones: true,
-        anexos: true,
-        interacoes: {
-          orderBy: { createdAt: 'asc' },
-          include: { anexos: true }
-        },
+        emails: true, telefones: true, anexos: true,
+        interacoes: { orderBy: { createdAt: 'asc' }, include: { anexos: true } },
       },
     });
-
-    if (!chamado) {
-      throw new Error('Chamado não encontrado');
-    }
-
+    if (!chamado) throw new Error('Chamado não encontrado');
     return chamado;
   }
 
@@ -220,45 +213,23 @@ export class ChamadosService {
     const endDate = endStr ? endOfDay(parseISO(endStr)) : endOfDay(new Date());
     const startDate = startStr ? startOfDay(parseISO(startStr)) : startOfDay(new Date(new Date().setDate(new Date().getDate() - 7)));
 
-    const totalGeral = await this.prisma.chamado.count({
-      where: { createdAt: { gte: startDate, lte: endDate } }
-    });
-    const totalFinalizados = await this.prisma.chamado.count({ 
-      where: { status: 'FINALIZADO', createdAt: { gte: startDate, lte: endDate } } 
-    });
-
-    const porStatus = await this.prisma.chamado.groupBy({
-      by: ['status'],
-      where: { createdAt: { gte: startDate, lte: endDate } },
-      _count: { status: true },
-    });
-
-    const chamadosNoPeriodo = await this.prisma.chamado.findMany({
-      where: { createdAt: { gte: startDate, lte: endDate } },
-      select: { createdAt: true },
-    });
-
+    const totalGeral = await this.prisma.chamado.count({ where: { createdAt: { gte: startDate, lte: endDate } } });
+    const totalFinalizados = await this.prisma.chamado.count({ where: { status: 'FINALIZADO', createdAt: { gte: startDate, lte: endDate } } });
+    const porStatus = await this.prisma.chamado.groupBy({ by: ['status'], where: { createdAt: { gte: startDate, lte: endDate } }, _count: { status: true }, });
+    const chamadosNoPeriodo = await this.prisma.chamado.findMany({ where: { createdAt: { gte: startDate, lte: endDate } }, select: { createdAt: true }, });
     const diasDoIntervalo = eachDayOfInterval({ start: startDate, end: endDate });
     
     const graficoTimeline = diasDoIntervalo.map((dia) => {
       const diaFormatadoISO = format(dia, 'yyyy-MM-dd');
       const diaFormatadoExibicao = format(dia, 'dd/MM');
-
-      const quantidade = chamadosNoPeriodo.filter(c => 
-        format(c.createdAt, 'yyyy-MM-dd') === diaFormatadoISO
-      ).length;
-
+      const quantidade = chamadosNoPeriodo.filter(c => format(c.createdAt, 'yyyy-MM-dd') === diaFormatadoISO).length;
       return { name: diaFormatadoExibicao, chamados: quantidade };
     });
 
     return {
       statusData: porStatus.map(s => ({ name: s.status, value: s._count.status })),
       timelineData: graficoTimeline,
-      kpis: {
-        total: totalGeral,
-        finalizados: totalFinalizados,
-        pendentes: totalGeral - totalFinalizados
-      }
+      kpis: { total: totalGeral, finalizados: totalFinalizados, pendentes: totalGeral - totalFinalizados }
     };
   }
 }
