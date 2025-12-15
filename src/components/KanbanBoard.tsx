@@ -51,7 +51,7 @@ const SUPORTE_LINKS = [
   { title: 'Central de Ajuda Atendchat', url: 'https://ajudachat.hotmobile.com.br/', icon: <HelpIcon />, color: '#1976d2' },
   { title: 'Central de Ajuda Hotmenu', url: 'https://site.hotmenu.com.br/tutorial/', icon: <HelpIcon />, color: '#1976d2' },
   { title: 'Documentação Hot Api', url: 'https://api.hotmobile.com.br/index.html', icon: <BookIcon />, color: '#e65100' },
-  { title: 'Painel Hot', url: 'https://status.hotmobile.com.br', icon: <DnsIcon />, color: '#2e7d32' },
+  { title: 'Painel Hot', url: 'https://painel.hotmobile.com.br/a/', icon: <DnsIcon />, color: '#2e7d32' },
   { title: 'Site Institucional', url: 'https://hotmobile.com.br', icon: <PublicIcon />, color: '#555' },
 ];
 
