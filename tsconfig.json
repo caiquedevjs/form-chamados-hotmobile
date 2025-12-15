@@ -1,0 +1,6 @@
+{
+  "compilerOptions": {
+    // ... outras configurações ...
+    "types": ["vite/client"]
+  }
+}
