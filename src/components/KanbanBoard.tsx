@@ -3,8 +3,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { 
   Box, Typography, Paper, Card, CardContent, Chip, IconButton,
   TextField, InputAdornment, Dialog, DialogTitle, DialogContent, 
-  DialogActions, Button, Grid, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar,
-  Badge // <--- IMPORTANTE
+  DialogActions, Button, Grid, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar
 } from '@mui/material';
 import { 
   AttachFile as AttachIcon,
@@ -17,8 +16,7 @@ import {
   Send as SendIcon,
   Person as PersonIcon,
   SupportAgent as SupportAgentIcon,
-  BarChart as BarChartIcon,
-  WhatsApp as WhatsAppIcon // <--- ÍCONE DO ZAP
+  BarChart as BarChartIcon
 } from '@mui/icons-material';
 import api from '../services/api';
 import { toast } from 'react-toastify';
@@ -69,8 +67,7 @@ export default function KanbanBoardView() {
   
   const [chamadoSelecionado, setChamadoSelecionado] = useState<Chamado | null>(null);
   
-  // ✅ NOVO ESTADO: Contador de mensagens não lidas por ID do chamado
-  // Exemplo: { 15: 2, 20: 1 } (Chamado 15 tem 2 msgs, Chamado 20 tem 1)
+  // Contador de mensagens não lidas por ID do chamado
   const [naoLidos, setNaoLidos] = useState<Record<number, number>>({});
 
   // Estado do Chat e Arquivos
@@ -132,14 +129,12 @@ export default function KanbanBoardView() {
     }
   };
 
-  // ✅ FUNÇÃO PARA ABRIR O MODAL E LIMPAR CONTADOR
   const handleAbrirChamado = (item: Chamado) => {
     setChamadoSelecionado(item);
-    
     // Zera o contador deste chamado ao abrir
     setNaoLidos((prev) => {
       const novo = { ...prev };
-      delete novo[item.id]; // Remove a chave ou seta como 0
+      delete novo[item.id]; 
       return novo;
     });
   };
@@ -203,18 +198,14 @@ export default function KanbanBoardView() {
     // --- A. NOVA INTERAÇÃO (Chat) ---
     socket.on('nova_interacao', (data) => {
       
-      // 1. Lógica de Notificação e Contador
       if (data.autor === 'CLIENTE') {
         audio.play().catch(() => {});
         toast.info(`💬 Nova resposta no chamado #${data.chamadoId}`, {
           position: "top-right", theme: "colored"
         });
 
-        // ✅ LÓGICA DO CONTADOR:
-        // Só incrementa se o modal NÃO estiver aberto naquele chamado
-        // Usei uma função dentro do setNaoLidos para garantir o estado mais atual
+        // Incrementa contador se não estiver aberto
         setNaoLidos((prev) => {
-            // Se o admin já está com esse chamado aberto na tela, não conta como não lido
             if (chamadoSelecionado && chamadoSelecionado.id === Number(data.chamadoId)) {
                 return prev;
             }
@@ -225,7 +216,6 @@ export default function KanbanBoardView() {
         });
       }
 
-      // 2. Atualiza a lista geral
       setChamados((prevLista) => prevLista.map(c => {
         if (c.id === data.chamadoId) {
            const jaExiste = c.interacoes?.some(i => i.id === data.id);
@@ -235,7 +225,6 @@ export default function KanbanBoardView() {
         return c;
       }));
 
-      // 3. Atualiza Modal se aberto
       if (chamadoSelecionado && chamadoSelecionado.id === data.chamadoId) {
         setChamadoSelecionado((prev) => {
            if (!prev) return null;
@@ -253,7 +242,7 @@ export default function KanbanBoardView() {
       });
       setChamados((prev) => [novoChamado, ...prev]);
       
-      // Marca como não lido o novo chamado (opcional, começa com 1 notificação)
+      // Marca como não lido o novo chamado
       setNaoLidos(prev => ({ ...prev, [novoChamado.id]: 1 }));
     });
 
@@ -273,7 +262,7 @@ export default function KanbanBoardView() {
     return () => {
       socket.disconnect();
     };
-  }, [chamadoSelecionado]); // Dependência crucial para saber qual está aberto
+  }, [chamadoSelecionado]);
 
   return (
     <Box sx={{ p: 3, height: '90vh', backgroundColor: '#F4F5F7', display: 'flex', flexDirection: 'column', marginTop: 5}}>
@@ -340,42 +329,50 @@ export default function KanbanBoardView() {
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                              // ✅ MUDANÇA: Usa a nova função que zera o contador
                               onClick={() => handleAbrirChamado(item)}
                               sx={{
                                 mb: 2, borderRadius: 2, cursor: 'pointer',
                                 boxShadow: snapshot.isDragging ? 6 : 1,
                                 transition: 'transform 0.2s',
                                 '&:hover': { boxShadow: 4, transform: 'translateY(-2px)' },
-                                position: 'relative' // Para posicionar badge se quiser
+                                position: 'relative' // Obrigatório para o posicionamento absoluto funcionar
                               }}
                             >
                               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                                 <Box display="flex" justifyContent="space-between" mb={1}>
                                   <Typography variant="caption" color="text.secondary">#{item.id}</Typography>
-                                  
-                                  {/* ✅ CONTADOR DE NÃO LIDOS (BADGE) */}
-                                  {naoLidos[item.id] > 0 && (
-                                    <Badge 
-                                        badgeContent={naoLidos[item.id]} 
-                                        color="success" 
-                                        sx={{ 
-                                            '& .MuiBadge-badge': { 
-                                                fontSize: '0.8rem', 
-                                                fontWeight: 'bold',
-                                                boxShadow: '0 0 0 2px white'
-                                            } 
-                                        }}
-                                    >
-                                        <WhatsAppIcon color="success" />
-                                    </Badge>
-                                  )}
-                                  
                                   <Typography variant="caption" color="text.secondary">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</Typography>
                                 </Box>
                                 <Typography variant="subtitle1" fontWeight="bold" gutterBottom>{item.nomeEmpresa}</Typography>
                                 <Chip label={item.servico} size="small" sx={{ mb: 1, bgcolor: column.bg, color: '#444', fontWeight: '500' }} />
                                 <Typography variant="body2" color="text.secondary" noWrap>{item.descricao}</Typography>
+
+                                {/* ✅ CONTADOR DE MENSAGENS (BOLA VERDE) */}
+                                {/* Posicionado no canto inferior direito do card */}
+                                {naoLidos[item.id] > 0 && (
+                                  <Box
+                                    sx={{
+                                      position: 'absolute',
+                                      bottom: 12,
+                                      right: 12,
+                                      width: 24,
+                                      height: 24,
+                                      borderRadius: '50%',
+                                      backgroundColor: '#2e7d32', // Verde
+                                      color: 'white',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 'bold',
+                                      boxShadow: 2,
+                                      zIndex: 10
+                                    }}
+                                  >
+                                    {naoLidos[item.id]}
+                                  </Box>
+                                )}
+
                               </CardContent>
                             </Card>
                           )}
@@ -391,14 +388,13 @@ export default function KanbanBoardView() {
         </Box>
       </DragDropContext>
 
-      {/* --- MODAL DETALHES --- */}
+      {/* --- MODAL DETALHES (Sem alterações) --- */}
       <Dialog 
         open={Boolean(chamadoSelecionado)} 
         onClose={() => setChamadoSelecionado(null)}
         maxWidth="md"
         fullWidth
       >
-        {/* ... (Conteúdo do Modal continua igual, sem alterações necessárias) ... */}
         {chamadoSelecionado && (
           <>
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f5f5f5' }}>
@@ -449,7 +445,11 @@ export default function KanbanBoardView() {
                                       icon={<AttachIcon />}
                                       label={anexo.nomeOriginal.length > 20 ? anexo.nomeOriginal.substring(0, 17) + '...' : anexo.nomeOriginal}
                                       component="a"
-                                      href={anexo.caminho && anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`}
+                                      href={
+                                        anexo.caminho && anexo.caminho.startsWith('http') 
+                                          ? anexo.caminho 
+                                          : `${API_URL}/uploads/${anexo.nomeArquivo}`
+                                      }
                                       target="_blank"
                                       clickable
                                       size="small"
