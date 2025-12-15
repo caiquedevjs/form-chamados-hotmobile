@@ -3,7 +3,9 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { 
   Box, Typography, Paper, Card, CardContent, Chip, IconButton,
   TextField, InputAdornment, Dialog, DialogTitle, DialogContent, 
-  DialogActions, Button, Grid, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar
+  DialogActions, Button, Grid, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar,
+  Badge, FormControlLabel, Switch, Select, MenuItem, Checkbox, ListItemText as MuiListItemText,
+  InputLabel, FormControl, Stack
 } from '@mui/material';
 import { 
   AttachFile as AttachIcon,
@@ -16,7 +18,9 @@ import {
   Send as SendIcon,
   Person as PersonIcon,
   SupportAgent as SupportAgentIcon,
-  BarChart as BarChartIcon
+  BarChart as BarChartIcon,
+  FilterList as FilterListIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import api from '../services/api';
 import { toast } from 'react-toastify';
@@ -63,8 +67,15 @@ interface Chamado {
 export default function KanbanBoardView() {
   const navigate = useNavigate(); 
   const [chamados, setChamados] = useState<Chamado[]>([]);
-  const [busca, setBusca] = useState('');
   
+  // --- ESTADOS DE FILTRO ---
+  const [busca, setBusca] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState<string[]>(Object.keys(COLUMNS)); // Começa com todos selecionados
+  const [filtroDataInicio, setFiltroDataInicio] = useState('');
+  const [filtroDataFim, setFiltroDataFim] = useState('');
+  const [apenasNaoLidos, setApenasNaoLidos] = useState(false);
+  const [mostrarFiltros, setMostrarFiltros] = useState(false); // Expandir/Recolher painel
+
   const [chamadoSelecionado, setChamadoSelecionado] = useState<Chamado | null>(null);
   
   // Contador de mensagens não lidas por ID do chamado
@@ -181,15 +192,51 @@ export default function KanbanBoardView() {
     }
   };
 
+  // ✅ LÓGICA DE FILTRAGEM AVANÇADA
   const chamadosFiltrados = chamados.filter((c) => {
+    // 1. Filtro de Texto (Nome, ID, Serviço, Descrição)
     const termo = busca.toLowerCase();
-    return (
+    const matchTexto = 
       c.nomeEmpresa.toLowerCase().includes(termo) ||
       c.id.toString().includes(termo) ||
       c.servico.toLowerCase().includes(termo) ||
-      c.descricao.toLowerCase().includes(termo)
-    );
+      c.descricao.toLowerCase().includes(termo);
+
+    // 2. Filtro de Status
+    const matchStatus = filtroStatus.includes(c.status);
+
+    // 3. Filtro de "Apenas Não Lidos"
+    const qtdNaoLida = naoLidos[c.id] || 0;
+    const matchNaoLidos = apenasNaoLidos ? qtdNaoLida > 0 : true;
+
+    // 4. Filtro de Data (CreatedAt)
+    let matchData = true;
+    const dataChamado = new Date(c.createdAt);
+    
+    if (filtroDataInicio) {
+        const dataInicio = new Date(filtroDataInicio);
+        // Zera hora para comparar apenas o dia
+        dataInicio.setHours(0,0,0,0);
+        matchData = matchData && dataChamado >= dataInicio;
+    }
+    
+    if (filtroDataFim) {
+        const dataFim = new Date(filtroDataFim);
+        // Define hora para final do dia (23:59)
+        dataFim.setHours(23,59,59,999); 
+        matchData = matchData && dataChamado <= dataFim;
+    }
+
+    return matchTexto && matchStatus && matchNaoLidos && matchData;
   });
+
+  const limparFiltros = () => {
+      setBusca('');
+      setFiltroStatus(Object.keys(COLUMNS));
+      setFiltroDataInicio('');
+      setFiltroDataFim('');
+      setApenasNaoLidos(false);
+  };
 
   useEffect(() => {
     const socket = io(API_URL);
@@ -267,34 +314,127 @@ export default function KanbanBoardView() {
   return (
     <Box sx={{ p: 3, height: '90vh', backgroundColor: '#F4F5F7', display: 'flex', flexDirection: 'column', marginTop: 5}}>
       
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
+      {/* CABEÇALHO */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#444' }}>
           Fila de Chamados
         </Typography>
 
         <Box display="flex" gap={2}>
           <Button 
+            variant={mostrarFiltros ? "contained" : "outlined"} 
+            onClick={() => setMostrarFiltros(!mostrarFiltros)}
+            startIcon={<FilterListIcon />}
+          >
+            Filtros
+          </Button>
+          
+          <Button 
             variant="contained" 
             color="secondary" 
             startIcon={<BarChartIcon />}
             onClick={() => navigate('/dashboard')}
           >
-            Ver Relatórios
+            Relatórios
           </Button>
-
-          <TextField
-            variant="outlined"
-            placeholder="Pesquisar..."
-            size="small"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            sx={{ width: 300, bgcolor: 'white', borderRadius: 1 }}
-            InputProps={{
-              startAdornment: (<InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>),
-            }}
-          />
         </Box>
       </Box>
+
+      {/* ✅ PAINEL DE FILTROS (EXPANSÍVEL) */}
+      {mostrarFiltros && (
+        <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+            <Grid container spacing={2} alignItems="center">
+                
+                {/* 1. Busca Texto */}
+                <Grid item xs={12} md={3}>
+                    <TextField
+                        fullWidth
+                        variant="outlined"
+                        placeholder="Buscar por nome, ID ou serviço..."
+                        size="small"
+                        value={busca}
+                        onChange={(e) => setBusca(e.target.value)}
+                        InputProps={{
+                            startAdornment: (<InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>),
+                        }}
+                    />
+                </Grid>
+
+                {/* 2. Filtro Status (Multi-Select) */}
+                <Grid item xs={12} md={3}>
+                    <FormControl size="small" fullWidth>
+                        <InputLabel>Status</InputLabel>
+                        <Select
+                            multiple
+                            value={filtroStatus}
+                            label="Status"
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setFiltroStatus(typeof value === 'string' ? value.split(',') : value);
+                            }}
+                            renderValue={(selected) => selected.map(val => COLUMNS[val as keyof typeof COLUMNS].title.split(' ')[1]).join(', ')}
+                        >
+                            {Object.entries(COLUMNS).map(([key, col]) => (
+                                <MenuItem key={key} value={key}>
+                                    <Checkbox checked={filtroStatus.indexOf(key) > -1} />
+                                    <MuiListItemText primary={col.title} />
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Grid>
+
+                {/* 3. Filtro Datas */}
+                <Grid item xs={6} md={2}>
+                    <TextField
+                        fullWidth
+                        label="De"
+                        type="date"
+                        size="small"
+                        InputLabelProps={{ shrink: true }}
+                        value={filtroDataInicio}
+                        onChange={(e) => setFiltroDataInicio(e.target.value)}
+                    />
+                </Grid>
+                <Grid item xs={6} md={2}>
+                    <TextField
+                        fullWidth
+                        label="Até"
+                        type="date"
+                        size="small"
+                        InputLabelProps={{ shrink: true }}
+                        value={filtroDataFim}
+                        onChange={(e) => setFiltroDataFim(e.target.value)}
+                    />
+                </Grid>
+
+                {/* 4. Switch "Não Lidos" e Limpar */}
+                <Grid item xs={12} md={2} display="flex" alignItems="center" justifyContent="space-between">
+                    <FormControlLabel
+                        control={
+                            <Switch 
+                                checked={apenasNaoLidos} 
+                                onChange={(e) => setApenasNaoLidos(e.target.checked)} 
+                                color="success"
+                            />
+                        }
+                        label={
+                            <Box display="flex" alignItems="center" gap={0.5}>
+                                <Typography variant="caption" fontWeight="bold">Não Lidos</Typography>
+                                {Object.values(naoLidos).reduce((a,b) => a+b, 0) > 0 && (
+                                    <Box width={8} height={8} borderRadius="50%" bgcolor="success.main" />
+                                )}
+                            </Box>
+                        }
+                    />
+                    
+                    <IconButton onClick={limparFiltros} title="Limpar Filtros" size="small">
+                        <ClearIcon />
+                    </IconButton>
+                </Grid>
+            </Grid>
+        </Paper>
+      )}
 
       {/* KANBAN */}
       <DragDropContext onDragEnd={onDragEnd}>
@@ -341,37 +481,37 @@ export default function KanbanBoardView() {
                               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                                 <Box display="flex" justifyContent="space-between" mb={1}>
                                   <Typography variant="caption" color="text.secondary">#{item.id}</Typography>
+                                  
+                                  {/* ✅ CONTADOR DE MENSAGENS (BOLA VERDE) */}
+                                  {naoLidos[item.id] > 0 && (
+                                    <Box
+                                      sx={{
+                                        position: 'absolute',
+                                        bottom: 12,
+                                        right: 12,
+                                        width: 24,
+                                        height: 24,
+                                        borderRadius: '50%',
+                                        backgroundColor: '#2e7d32', // Verde
+                                        color: 'white',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 'bold',
+                                        boxShadow: 2,
+                                        zIndex: 10
+                                      }}
+                                    >
+                                      {naoLidos[item.id]}
+                                    </Box>
+                                  )}
+
                                   <Typography variant="caption" color="text.secondary">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</Typography>
                                 </Box>
                                 <Typography variant="subtitle1" fontWeight="bold" gutterBottom>{item.nomeEmpresa}</Typography>
                                 <Chip label={item.servico} size="small" sx={{ mb: 1, bgcolor: column.bg, color: '#444', fontWeight: '500' }} />
                                 <Typography variant="body2" color="text.secondary" noWrap>{item.descricao}</Typography>
-
-                                {/* ✅ CONTADOR DE MENSAGENS (BOLA VERDE) */}
-                                {/* Posicionado no canto inferior direito do card */}
-                                {naoLidos[item.id] > 0 && (
-                                  <Box
-                                    sx={{
-                                      position: 'absolute',
-                                      bottom: 12,
-                                      right: 12,
-                                      width: 24,
-                                      height: 24,
-                                      borderRadius: '50%',
-                                      backgroundColor: '#2e7d32', // Verde
-                                      color: 'white',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 'bold',
-                                      boxShadow: 2,
-                                      zIndex: 10
-                                    }}
-                                  >
-                                    {naoLidos[item.id]}
-                                  </Box>
-                                )}
 
                               </CardContent>
                             </Card>
@@ -388,13 +528,14 @@ export default function KanbanBoardView() {
         </Box>
       </DragDropContext>
 
-      {/* --- MODAL DETALHES (Sem alterações) --- */}
+      {/* --- MODAL DETALHES --- */}
       <Dialog 
         open={Boolean(chamadoSelecionado)} 
         onClose={() => setChamadoSelecionado(null)}
         maxWidth="md"
         fullWidth
       >
+        {/* ... (Modal mantido igual) ... */}
         {chamadoSelecionado && (
           <>
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f5f5f5' }}>
