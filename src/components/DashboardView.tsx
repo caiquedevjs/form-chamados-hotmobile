@@ -64,10 +64,10 @@ export default function DashboardView() {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 4 }, width: '100%', maxWidth: '1200px', margin: '0 auto'}}>
+    <Box sx={{ p: { xs: 2, md: 4 }, width: '100%', maxWidth: '1200px', marginTop : 60}}>
       
       {/* 1. CABEÇALHO E FILTROS */}
-      <Box display="flex" alignItems="center" mb={100}>
+      <Box display="flex" alignItems="center" mb={70}>
         <IconButton onClick={() => navigate('/admin')} sx={{ mr: 2 }}>
           <ArrowBackIcon />
         </IconButton>
