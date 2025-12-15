@@ -196,18 +196,51 @@ export default function KanbanBoardView() {
 
 // ... dentro do componente KanbanBoardView
 
-  useEffect(() => {
+ useEffect(() => {
     const socket = io('http://localhost:3000');
-    const audio = new Audio('/notification.mp3');
+    // Certifique-se de que o arquivo notification.mp3 está na pasta public
+    const audio = new Audio('/notification.mp3'); 
 
-    // 1. EVENTO DE CHAT (Já existia)
+    // 👇 1. EVENTO DE CHAT (INTERAÇÃO)
     socket.on('nova_interacao', (data) => {
-       // ... (seu código existente de chat) ...
+      
+      // A. Se foi o CLIENTE que mandou, avisa o Admin
+      if (data.autor === 'CLIENTE') {
+        toast.info(`💬 Nova resposta no chamado #${data.chamadoId}`, {
+          position: "top-right",
+          autoClose: 5000,
+          theme: "colored"
+        });
+        
+        // Tenta tocar o som (navegadores bloqueiam se não houver interação prévia)
+        audio.play().catch(() => {});
+      }
+
+      // B. Se o Modal desse chamado estiver aberto, atualiza a conversa na hora
+      if (chamadoSelecionado && chamadoSelecionado.id === data.chamadoId) {
+        setChamadoSelecionado((prev) => {
+           if (!prev) return null;
+           // Evita duplicidade (caso o socket envie 2x)
+           const jaExiste = prev.interacoes?.some(i => i.id === data.id);
+           if (jaExiste) return prev;
+
+           return { ...prev, interacoes: [...(prev.interacoes || []), data] };
+        });
+      }
+      
+      // C. Atualiza a lista geral (Kanban) para manter os dados frescos
+      setChamados((prevLista) => prevLista.map(c => {
+         if (c.id === data.chamadoId) {
+            const jaExiste = c.interacoes?.some(i => i.id === data.id);
+            if (jaExiste) return c;
+            return { ...c, interacoes: [...(c.interacoes || []), data] };
+         }
+         return c;
+      }));
     });
 
-    // 👇 2. NOVO EVENTO: CHEGOU UM CHAMADO NOVO DO FORMULÁRIO
+    // 👇 2. EVENTO: NOVO CHAMADO (Formulário)
     socket.on('novo_chamado', (novoChamado) => {
-      // Toca som para alertar o suporte
       audio.play().catch(() => {});
       
       toast.info(`🆕 Novo chamado de ${novoChamado.nomeEmpresa}!`, {
@@ -215,23 +248,21 @@ export default function KanbanBoardView() {
         theme: "colored"
       });
 
-      // Adiciona na lista imediatamente
       setChamados((prev) => [novoChamado, ...prev]);
     });
 
-    // 👇 3. NOVO EVENTO: STATUS MUDOU (Outro admin moveu o card)
+    // 👇 3. EVENTO: MUDANÇA DE STATUS (Outros Admins)
     socket.on('mudanca_status', (data) => {
       // data = { id: 15, status: 'EM_ATENDIMENTO' }
       
       setChamados((prev) => prev.map(chamado => {
         if (chamado.id === data.id) {
-          // Atualiza apenas o status daquele chamado específico
           return { ...chamado, status: data.status };
         }
         return chamado;
       }));
       
-      // Se o modal desse chamado estiver aberto, atualiza ele também
+      // Atualiza o modal se estiver aberto
       if (chamadoSelecionado && chamadoSelecionado.id === data.id) {
          setChamadoSelecionado(prev => prev ? { ...prev, status: data.status } : null);
       }
@@ -240,8 +271,7 @@ export default function KanbanBoardView() {
     return () => {
       socket.disconnect();
     };
-  }, [chamadoSelecionado]); // Dependências
-
+  }, [chamadoSelecionado]); // Dependência importante para saber qual modal está aberto
   return (
     <Box sx={{ p: 3, height: '90vh', backgroundColor: '#F4F5F7', display: 'flex', flexDirection: 'column', marginTop: 5}}>
       
