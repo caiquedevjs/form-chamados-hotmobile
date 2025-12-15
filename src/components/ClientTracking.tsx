@@ -211,7 +211,9 @@ export default function ClientTracking() {
       display: 'flex', 
       flexDirection: 'column',
       bgcolor: '#f5f5f5', 
-      overflow: 'hidden' // Evita scroll na página inteira, só no chat
+      overflow: 'hidden', // Evita scroll na página inteira, só no chat
+      marginTop: 20
+
     }}>
       
       {/* APP BAR FIXO */}
