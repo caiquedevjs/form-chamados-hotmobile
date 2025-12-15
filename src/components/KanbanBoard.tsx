@@ -7,6 +7,7 @@ import {
   Badge, FormControlLabel, Switch, Select, MenuItem, Checkbox, ListItemText as MuiListItemText,
   InputLabel, FormControl, Stack
 } from '@mui/material';
+import { ListAlt } from '@mui/icons-material';
 import { 
   AttachFile as AttachIcon,
   Business as BusinessIcon,
@@ -49,8 +50,10 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const SUPORTE_LINKS = [
   { title: 'Central de Ajuda Hotmobile', url: 'https://ajuda.hotmobile.com.br/', icon: <HelpIcon />, color: '#1976d2' },
   { title: 'Central de Ajuda Atendchat', url: 'https://ajudachat.hotmobile.com.br/', icon: <HelpIcon />, color: '#1976d2' },
-  { title: 'Central de Ajuda Hotmenu', url: 'https://site.hotmenu.com.br/tutorial/', icon: <HelpIcon />, color: '#1976d2' },
+  { title: 'Central de Ajuda Hotmenu', url: 'https://ajuda.hotmenu.com.br/', icon: <HelpIcon />, color: '#1976d2' },
+  { title: 'Formulario de Chamados', url: 'https://form-chamados-hotmobile.vercel.app/', icon: <ListAlt />, color:  '#9c27b0'}, 
   { title: 'Documentação Hot Api', url: 'https://api.hotmobile.com.br/index.html', icon: <BookIcon />, color: '#e65100' },
+  { title: 'Atualizações Atendchat', url: 'https://api.hotmobile.com.br/index.html', icon: <BookIcon />, color: '#e65100' },
   { title: 'Painel Hot', url: 'https://painel.hotmobile.com.br/a/', icon: <DnsIcon />, color: '#2e7d32' },
   { title: 'Site Institucional', url: 'https://hotmobile.com.br', icon: <PublicIcon />, color: '#555' },
 ];
