@@ -20,7 +20,13 @@ import {
   SupportAgent as SupportAgentIcon,
   BarChart as BarChartIcon,
   FilterList as FilterListIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  // ✅ NOVOS ÍCONES
+  Link as LinkIcon,
+  MenuBook as BookIcon,     // Para documentação
+  Dns as DnsIcon,           // Para status de sistema
+  Help as HelpIcon,         // Para central de ajuda
+  Public as PublicIcon      // Para site
 } from '@mui/icons-material';
 import api from '../services/api';
 import { toast } from 'react-toastify';
@@ -37,6 +43,17 @@ const COLUMNS = {
 const FLOW_ORDER = ['NOVO', 'EM_ATENDIMENTO', 'FINALIZADO'];
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+// ✅ LISTA DE LINKS ÚTEIS (LINKTREE)
+// Adicione aqui os links reais da sua empresa
+const SUPORTE_LINKS = [
+  { title: 'Central de Ajuda Hotmobile', url: 'https://ajuda.hotmobile.com.br/', icon: <HelpIcon />, color: '#1976d2' },
+  { title: 'Central de Ajuda Atendchat', url: 'https://ajudachat.hotmobile.com.br/', icon: <HelpIcon />, color: '#1976d2' },
+  { title: 'Central de Ajuda Hotmenu', url: 'https://site.hotmenu.com.br/tutorial/', icon: <HelpIcon />, color: '#1976d2' },
+  { title: 'Documentação Hot Api', url: 'https://api.hotmobile.com.br/index.html', icon: <BookIcon />, color: '#e65100' },
+  { title: 'Painel Hot', url: 'https://status.hotmobile.com.br', icon: <DnsIcon />, color: '#2e7d32' },
+  { title: 'Site Institucional', url: 'https://hotmobile.com.br', icon: <PublicIcon />, color: '#555' },
+];
 
 interface Email { id: number; endereco: string; }
 interface Telefone { id: number; numero: string; }
@@ -62,7 +79,7 @@ interface Chamado {
   emails: Email[];
   telefones: Telefone[];
   interacoes: Interacao[];
-  mensagensNaoLidas: number; // ✅ CAMPO NOVO QUE VEM DO BACKEND
+  mensagensNaoLidas: number; 
 }
 
 export default function KanbanBoardView() {
@@ -76,6 +93,9 @@ export default function KanbanBoardView() {
   const [filtroDataFim, setFiltroDataFim] = useState('');
   const [apenasNaoLidos, setApenasNaoLidos] = useState(false);
   const [mostrarFiltros, setMostrarFiltros] = useState(false); 
+
+  // ✅ ESTADO DO MODAL DE LINKS
+  const [modalLinksOpen, setModalLinksOpen] = useState(false);
 
   const [chamadoSelecionado, setChamadoSelecionado] = useState<Chamado | null>(null);
   
@@ -138,7 +158,6 @@ export default function KanbanBoardView() {
     }
   };
 
-  // ✅ FUNÇÃO PARA ABRIR O MODAL E LIMPAR CONTADOR
   const handleAbrirChamado = async (item: Chamado) => {
     setChamadoSelecionado(item);
     
@@ -206,7 +225,6 @@ export default function KanbanBoardView() {
 
     const matchStatus = filtroStatus.includes(c.status);
 
-    // 3. Filtro de "Apenas Não Lidos" (Agora usa o campo do objeto)
     const matchNaoLidos = apenasNaoLidos ? c.mensagensNaoLidas > 0 : true;
 
     let matchData = true;
@@ -239,7 +257,6 @@ export default function KanbanBoardView() {
     const socket = io(API_URL);
     const audio = new Audio('/notification.mp3');
 
-    // --- A. NOVA INTERAÇÃO (Chat) ---
     socket.on('nova_interacao', (data) => {
       
       if (data.autor === 'CLIENTE') {
@@ -254,10 +271,8 @@ export default function KanbanBoardView() {
            const jaExiste = c.interacoes?.some(i => i.id === data.id);
            if (jaExiste) return c;
 
-           // ✅ LÓGICA DE INCREMENTO REAL-TIME
+           // Lógica de incremento Real-Time
            let novasNaoLidas = c.mensagensNaoLidas;
-           
-           // Se for msg do cliente E o modal desse chamado NÃO estiver aberto agora
            if (data.autor === 'CLIENTE') {
                if (!chamadoSelecionado || chamadoSelecionado.id !== Number(data.chamadoId)) {
                    novasNaoLidas = (c.mensagensNaoLidas || 0) + 1;
@@ -273,7 +288,6 @@ export default function KanbanBoardView() {
         return c;
       }));
 
-      // Se o modal estiver aberto, atualiza ele também
       if (chamadoSelecionado && chamadoSelecionado.id === data.chamadoId) {
         setChamadoSelecionado((prev) => {
            if (!prev) return null;
@@ -284,13 +298,11 @@ export default function KanbanBoardView() {
       }
     });
 
-    // ... (restante da lógica do socket igual) ...
     socket.on('novo_chamado', (novoChamado) => {
       audio.play().catch(() => {});
       toast.info(`🆕 Novo chamado de ${novoChamado.nomeEmpresa}!`, {
         position: "top-center", theme: "colored"
       });
-      // Novo chamado vem do backend já com mensagensNaoLidas = 0 (ou 1 se você quiser ajustar no back)
       setChamados((prev) => [novoChamado, ...prev]);
     });
 
@@ -322,6 +334,17 @@ export default function KanbanBoardView() {
         </Typography>
 
         <Box display="flex" gap={2}>
+          
+          {/* ✅ NOVO BOTÃO: LINKS ÚTEIS */}
+          <Button 
+            variant="outlined" 
+            color="primary" 
+            startIcon={<LinkIcon />}
+            onClick={() => setModalLinksOpen(true)}
+          >
+            Links Úteis
+          </Button>
+
           <Button 
             variant={mostrarFiltros ? "contained" : "outlined"} 
             onClick={() => setMostrarFiltros(!mostrarFiltros)}
@@ -341,7 +364,7 @@ export default function KanbanBoardView() {
         </Box>
       </Box>
 
-      {/* ✅ PAINEL DE FILTROS */}
+      {/* PAINEL DE FILTROS */}
       {mostrarFiltros && (
         <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }}>
             <Grid container spacing={2} alignItems="center">
@@ -361,7 +384,7 @@ export default function KanbanBoardView() {
                     />
                 </Grid>
 
-                {/* 2. Filtro Status */}
+                {/* 2. Filtro Status (Multi-Select) */}
                 <Grid item xs={12} md={3}>
                     <FormControl size="small" fullWidth>
                         <InputLabel>Status</InputLabel>
@@ -422,7 +445,6 @@ export default function KanbanBoardView() {
                         label={
                             <Box display="flex" alignItems="center" gap={0.5}>
                                 <Typography variant="caption" fontWeight="bold">Não Lidos</Typography>
-                                {/* Opcional: mostrar um indicador geral aqui */}
                             </Box>
                         }
                     />
@@ -481,7 +503,7 @@ export default function KanbanBoardView() {
                                 <Box display="flex" justifyContent="space-between" mb={1}>
                                   <Typography variant="caption" color="text.secondary">#{item.id}</Typography>
                                   
-                                  {/* ✅ CONTADOR DE MENSAGENS (BOLA VERDE) */}
+                                  {/* CONTADOR DE MENSAGENS (BOLA VERDE) */}
                                   {item.mensagensNaoLidas > 0 && (
                                     <Box
                                       sx={{
@@ -534,7 +556,7 @@ export default function KanbanBoardView() {
         maxWidth="md"
         fullWidth
       >
-        {/* ... (Modal mantido igual) ... */}
+        {/* ... (Conteúdo do Modal do Chamado, sem alterações aqui) ... */}
         {chamadoSelecionado && (
           <>
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f5f5f5' }}>
@@ -661,6 +683,55 @@ export default function KanbanBoardView() {
           </>
         )}
       </Dialog>
+
+      {/* ✅ MODAL "LINKTREE" */}
+      <Dialog 
+        open={modalLinksOpen} 
+        onClose={() => setModalLinksOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', pb: 1 }}>
+          Links & Ferramentas
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" align="center" gutterBottom mb={3}>
+            Acesso rápido às ferramentas do suporte.
+          </Typography>
+          
+          <Stack spacing={2}>
+            {SUPORTE_LINKS.map((link, idx) => (
+              <Button
+                key={idx}
+                variant="outlined"
+                component="a"
+                href={link.url}
+                target="_blank"
+                startIcon={link.icon}
+                sx={{ 
+                  justifyContent: 'flex-start', 
+                  py: 1.5, 
+                  px: 3, 
+                  color: link.color, 
+                  borderColor: link.color,
+                  '&:hover': {
+                    backgroundColor: `${link.color}10`, // 10% de opacidade
+                    borderColor: link.color
+                  }
+                }}
+              >
+                {link.title}
+              </Button>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+          <Button onClick={() => setModalLinksOpen(false)} color="inherit">
+            Fechar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Box>
   );
 }
