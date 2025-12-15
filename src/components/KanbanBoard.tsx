@@ -32,7 +32,7 @@ const COLUMNS = {
 
 const FLOW_ORDER = ['NOVO', 'EM_ATENDIMENTO', 'FINALIZADO'];
 
-// URL DA API (Pega do .env ou usa localhost)
+// ✅ 1. URL DA API (Fundamental para o Socket funcionar na Vercel)
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 interface Email { id: number; endereco: string; }
@@ -83,7 +83,6 @@ export default function KanbanBoardView() {
 
   const carregarChamados = async () => {
     try {
-      // ✅ CORREÇÃO: Usando API_URL em vez de string fixa
       const response = await api.get(`${API_URL}/chamados`);
       setChamados(response.data);
     } catch (error) {
@@ -111,7 +110,6 @@ export default function KanbanBoardView() {
     }
 
     try {
-      // ✅ CORREÇÃO: Usando API_URL
       await api.patch(`${API_URL}/chamados/${id}/status`, { status: novoStatus });
       toast.success('Status atualizado!');
     } catch (error) {
@@ -155,7 +153,6 @@ export default function KanbanBoardView() {
     });
 
     try {
-      // ✅ CORREÇÃO: Usando API_URL
       await api.post(`${API_URL}/chamados/${chamadoSelecionado.id}/interacoes`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
@@ -182,27 +179,55 @@ export default function KanbanBoardView() {
     );
   });
 
+  // ✅ 2. LÓGICA COMPLETA DE SOCKET
   useEffect(() => {
-    const socket = io('http://localhost:3000');
+    // Conecta na URL correta (Produção ou Local)
+    const socket = io(API_URL);
     const audio = new Audio('/notification.mp3');
 
-    // 1. EVENTO DE CHAT (Já existia)
+    // --- A. NOVA INTERAÇÃO (Chat) ---
     socket.on('nova_interacao', (data) => {
-       // ... (seu código existente de chat) ...
+      // 1. Notifica se foi o Cliente que mandou
+      if (data.autor === 'CLIENTE') {
+        audio.play().catch(() => {});
+        toast.info(`💬 Nova resposta no chamado #${data.chamadoId}`, {
+          position: "top-right",
+          theme: "colored"
+        });
+      }
+
+      // 2. Atualiza a lista geral (Kanban) para ter os dados frescos
+      setChamados((prevLista) => prevLista.map(c => {
+        if (c.id === data.chamadoId) {
+           const jaExiste = c.interacoes?.some(i => i.id === data.id);
+           if (jaExiste) return c;
+           // Adiciona a nova interação na lista do card
+           return { ...c, interacoes: [...(c.interacoes || []), data] };
+        }
+        return c;
+      }));
+
+      // 3. Se o Modal estiver aberto neste chamado, atualiza o chat na hora
+      if (chamadoSelecionado && chamadoSelecionado.id === data.chamadoId) {
+        setChamadoSelecionado((prev) => {
+           if (!prev) return null;
+           const jaExiste = prev.interacoes?.some(i => i.id === data.id);
+           if (jaExiste) return prev;
+           return { ...prev, interacoes: [...(prev.interacoes || []), data] };
+        });
+      }
     });
 
-    // 👇 2. NOVO EVENTO: CHEGOU UM CHAMADO NOVO DO FORMULÁRIO
+    // --- B. NOVO CHAMADO (Toast + Lista) ---
     socket.on('novo_chamado', (novoChamado) => {
       audio.play().catch(() => {});
       toast.info(`🆕 Novo chamado de ${novoChamado.nomeEmpresa}!`, {
         position: "top-center", theme: "colored"
       });
-
-      // Adiciona na lista imediatamente
       setChamados((prev) => [novoChamado, ...prev]);
     });
 
-    // 👇 3. NOVO EVENTO: STATUS MUDOU (Outro admin moveu o card)
+    // --- C. MUDANÇA DE STATUS (Outros Admins) ---
     socket.on('mudanca_status', (data) => {
       setChamados((prev) => prev.map(chamado => {
         if (chamado.id === data.id) {
@@ -211,7 +236,6 @@ export default function KanbanBoardView() {
         return chamado;
       }));
       
-      // Se o modal desse chamado estiver aberto, atualiza ele também
       if (chamadoSelecionado && chamadoSelecionado.id === data.id) {
          setChamadoSelecionado(prev => prev ? { ...prev, status: data.status } : null);
       }
@@ -220,7 +244,7 @@ export default function KanbanBoardView() {
     return () => {
       socket.disconnect();
     };
-  }, [chamadoSelecionado]); // Dependências
+  }, [chamadoSelecionado]); // Importante depender do chamadoSelecionado para atualizar o modal correto
 
   return (
     <Box sx={{ p: 3, height: '90vh', backgroundColor: '#F4F5F7', display: 'flex', flexDirection: 'column', marginTop: 5}}>
@@ -233,7 +257,7 @@ export default function KanbanBoardView() {
         <Box display="flex" gap={2}>
           <Button 
             variant="contained" 
-            color="primary" 
+            color="secondary" 
             startIcon={<BarChartIcon />}
             onClick={() => navigate('/dashboard')}
           >
@@ -388,7 +412,7 @@ export default function KanbanBoardView() {
                                       href={
                                         anexo.caminho && anexo.caminho.startsWith('http') 
                                           ? anexo.caminho 
-                                          : `http://localhost:3000/uploads/${anexo.nomeArquivo}`
+                                          : `${API_URL}/uploads/${anexo.nomeArquivo}`
                                       }
                                       target="_blank"
                                       clickable
@@ -477,11 +501,10 @@ export default function KanbanBoardView() {
                                 label={anexo.nomeOriginal.substring(0,12)+'...'} 
                                 clickable 
                                 component="a" 
-                                // 👇 AQUI ESTAVA O ERRO FIXO. AGORA ESTÁ DINÂMICO:
                                 href={
                                     anexo.caminho && anexo.caminho.startsWith('http') 
                                         ? anexo.caminho 
-                                        : `http://localhost:3000/uploads/${anexo.nomeArquivo}`
+                                        : `${API_URL}/uploads/${anexo.nomeArquivo}`
                                 }
                                 target="_blank" 
                                 rel="noopener noreferrer" 
