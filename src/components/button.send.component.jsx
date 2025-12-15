@@ -7,6 +7,8 @@ import axios from 'axios'; // Certifique-se de ter instalado: npm install axios
 export default function LoadingButtonsTransition({ formData, setFormData }) {
   const [loading, setLoading] = React.useState(false);
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
   const handleClick = async () => {
     // 1. Validação Básica (Opcional)
     if (!formData.nome || !formData.servico) {
@@ -53,7 +55,7 @@ export default function LoadingButtonsTransition({ formData, setFormData }) {
 
       // 5. ENVIO REAL (AXIOS)
       // O Axios detecta FormData e configura o 'multipart/form-data' automaticamente
-      const response = await axios.post('http://localhost:3000/chamados', dataToSend);
+      const response = await axios.post($`{API_URL}/chamados`, dataToSend);
 
       console.log('✅ Sucesso:', response.data);
 
