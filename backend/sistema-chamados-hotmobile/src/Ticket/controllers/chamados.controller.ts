@@ -1,49 +1,39 @@
-import { 
-  Controller, 
+import {
+  Controller,
   Post,
   Get,
-  Body, 
+  Body,
   Query,
-  UploadedFiles, 
-  UseInterceptors, 
-  UsePipes, 
+  UploadedFiles,
+  UseInterceptors,
+  UsePipes,
   ValidationPipe,
-  UseGuards
+  UseGuards,
+  Patch,
+  Param,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import { ChamadosService } from '../services/chamados.service'; 
-import { CreateChamadoDto } from '../dtos/create-chamado.dto'; // Importe seu DTO
-import { Patch, Param, ParseIntPipe } from '@nestjs/common'; // Adicione esses imports
-import { UpdateStatusDto } from '../dtos/update-status.dto'; // Importe o DTO
+// Removidos: diskStorage e extname (não precisamos mais salvar no disco local)
+import { ChamadosService } from '../services/chamados.service';
+import { CreateChamadoDto } from '../dtos/create-chamado.dto';
+import { UpdateStatusDto } from '../dtos/update-status.dto';
 import { CreateInteracaoDto } from '../dtos/create-interacao.dto';
 import { AuthGuard } from '@nestjs/passport';
-
 
 @Controller('chamados')
 export class ChamadosController {
   constructor(private readonly chamadosService: ChamadosService) {}
 
   @Post()
-  @UseInterceptors(FilesInterceptor('arquivos', 10, {
-    storage: diskStorage({
-      destination: './uploads',
-      filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
-      },
-    }),
-  }))
-  // ATENÇÃO: transform: true é obrigatório para o @Transform do DTO funcionar
-  @UsePipes(new ValidationPipe({ transform: true, whitelist: true })) 
+  // 👇 MUDANÇA 1: Removemos o diskStorage. Agora ele guarda na Memória RAM.
+  @UseInterceptors(FilesInterceptor('arquivos', 10))
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   async create(
-    @Body() createChamadoDto: CreateChamadoDto, // Trocamos 'any' pelo DTO
-    @UploadedFiles() files: Array<Express.Multer.File>
+    @Body() createChamadoDto: CreateChamadoDto,
+    @UploadedFiles() files: Array<Express.Multer.File>,
   ) {
-    // --- ADICIONE ISSO AQUI ---
-    console.log('📂 Arquivos recebidos:', files); 
-    console.log('📝 Body recebido:', Body);
+    // Agora 'files' terá a propriedade .buffer preenchida!
     return this.chamadosService.create(createChamadoDto, files);
   }
 
@@ -51,7 +41,7 @@ export class ChamadosController {
   @Patch(':id/status')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: UpdateStatusDto
+    @Body() body: UpdateStatusDto,
   ) {
     return this.chamadosService.updateStatus(id, body.status);
   }
@@ -63,23 +53,13 @@ export class ChamadosController {
   }
 
   @Post(':id/interacoes')
-  @UseInterceptors(FilesInterceptor('files', 5, { // Aceita até 5 arquivos
-    storage: diskStorage({
-      destination: './uploads',
-      filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, uniqueSuffix + extname(file.originalname));
-      },
-    }),
-  }))
-
-  
+  // 👇 MUDANÇA 2: Mesma coisa aqui. Removemos o diskStorage.
+  @UseInterceptors(FilesInterceptor('files', 5))
   async addInteracao(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: CreateInteracaoDto,
-    @UploadedFiles() files: Array<Express.Multer.File> // <--- Recebe os arquivos
+    @UploadedFiles() files: Array<Express.Multer.File>,
   ) {
-    // Passamos os arquivos para o service
     return this.chamadosService.addInteracao(id, body, files);
   }
 
@@ -88,13 +68,9 @@ export class ChamadosController {
     return this.chamadosService.findOne(id);
   }
 
-  
-@UseGuards(AuthGuard('jwt'))
- @Get('dashboard/metrics')
-  async getMetrics(
-    @Query('start') start?: string, 
-    @Query('end') end?: string
-  ) {
+  @UseGuards(AuthGuard('jwt'))
+  @Get('dashboard/metrics')
+  async getMetrics(@Query('start') start?: string, @Query('end') end?: string) {
     return this.chamadosService.getDashboardMetrics(start, end);
   }
 }
