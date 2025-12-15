@@ -64,10 +64,10 @@ export default function DashboardView() {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 4 }, width: '100%', maxWidth: '1000px', margin: '0 auto'}}>
+    <Box sx={{ p: { xs: 2, md: 4 }, width: '100%', maxWidth: '1200px', margin: '0 auto'}}>
       
       {/* 1. CABEÇALHO E FILTROS */}
-      <Box display="flex" alignItems="center" mb={60}>
+      <Box display="flex" alignItems="center" mb={5}>
         <IconButton onClick={() => navigate('/admin')} sx={{ mr: 2 }}>
           <ArrowBackIcon />
         </IconButton>
@@ -111,7 +111,7 @@ export default function DashboardView() {
 
         <Button 
           variant="outlined" 
-          color="secondary"
+          color="primary"
           startIcon={<DownloadIcon />} 
           onClick={handleExportPDF}
           sx={{ width: { xs: '100%', md: 'auto' } }}

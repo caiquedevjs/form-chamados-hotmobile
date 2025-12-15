@@ -252,7 +252,7 @@ export default function KanbanBoardView() {
         <Box display="flex" gap={2}>
           <Button 
             variant="contained" 
-            color="secondary" 
+            color="primary" 
             startIcon={<BarChartIcon />}
             onClick={() => navigate('/dashboard')}
           >
