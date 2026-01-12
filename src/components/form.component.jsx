@@ -35,7 +35,7 @@ export default function MultilineTextFields() {
     anexos: null
   });
 
-  // Função que formata o telefone (Celular ou Fixo)
+  // Função que formata o telefone
   const formatPhoneNumber = (value) => {
     if (!value) return value;
     const phoneNumber = value.replace(/[^\d]/g, '');
@@ -145,9 +145,8 @@ export default function MultilineTextFields() {
 
           <Grid container spacing={2}>
             
-            {/* ✅ NOME DA EMPRESA (CORRIGIDO) */}
+            {/* NOME DA EMPRESA (11 colunas + 1 vazia) */}
             <Grid item xs={12} sm={6}>
-              {/* Adicionei este container interno para simular a estrutura do telefone */}
               <Grid container spacing={1}>
                 <Grid item xs={11}>
                   <TextField
@@ -164,14 +163,12 @@ export default function MultilineTextFields() {
                     }} 
                   />
                 </Grid>
-                {/* Espaço vazio (Grid item xs={1}) para alinhar com o botão de deletar dos outros campos */}
                 <Grid item xs={1} />
               </Grid>
             </Grid>
 
-            {/* Serviço */}
+            {/* ✅ SERVIÇO (AGORA ALINHADO: 11 colunas + 1 vazia) */}
             <Grid item xs={12} sm={6}>
-              {/* Também ajustei o serviço para manter a simetria, caso queira. Se não, pode remover o Grid container interno aqui. */}
                <Grid container spacing={1}>
                 <Grid item xs={11}>
                   <MultipleSelectCheckmarks
@@ -179,6 +176,7 @@ export default function MultilineTextFields() {
                     onChange={handleChange('servico')} 
                   />
                 </Grid>
+                {/* O "buraco" invisível para alinhar com o botão de delete dos outros campos */}
                 <Grid item xs={1} />
               </Grid>
             </Grid>
