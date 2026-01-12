@@ -7,15 +7,15 @@ import {
   InputAdornment,
   useMediaQuery,
   useTheme,
-  Typography, // Novo import
-  Avatar,     // Novo import
-  Divider     // Novo import
+  Typography,
+  Avatar,
+  Divider
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import BusinessIcon from '@mui/icons-material/Business';
-import SupportAgentIcon from '@mui/icons-material/SupportAgent'; // Novo ícone para o header
+import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import MultipleSelectCheckmarks from './priority.checkbox.component';
 import LoadingButtonsTransition from './button.send.component';
 import InputFileUpload from './button.file.upload.component';
@@ -35,49 +35,33 @@ export default function MultilineTextFields() {
     anexos: null
   });
 
-
   // Função que formata o telefone (Celular ou Fixo)
   const formatPhoneNumber = (value) => {
     if (!value) return value;
-
-    // 1. Remove tudo que não é número
     const phoneNumber = value.replace(/[^\d]/g, '');
-
-    // 2. Limita a 11 dígitos
     const phoneNumberLength = phoneNumber.length;
     if (phoneNumberLength < 4) return phoneNumber;
-
-    // 3. Máscara para números menores que 7 dígitos (apenas DDD)
     if (phoneNumberLength < 7) {
       return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2)}`;
     }
-
-    // 4. Máscara para Celular (11 dígitos): (99) 99999-9999
     if (phoneNumberLength === 11) {
       return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 7)}-${phoneNumber.slice(7)}`;
     }
-
-    // 5. Máscara Padrão/Fixo (10 dígitos): (99) 9999-9999
     return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 6)}-${phoneNumber.slice(6, 10)}`;
   };
 
-
- const handleChange = (field, index = null) => (event) => {
+  const handleChange = (field, index = null) => (event) => {
     let value = event.target.value;
 
-    // ✅ AQUI A MÁGICA ACONTECE:
-    // Se o campo for telefone, a gente força a formatação antes de salvar
     if (field === 'telefone') {
       value = formatPhoneNumber(value);
     }
 
     if (index !== null) {
-      // Lógica para Arrays (Telefones e Emails)
       const updated = [...formData[field]];
       updated[index] = value;
       setFormData((prev) => ({ ...prev, [field]: updated }));
     } else {
-      // Lógica para campos simples (Nome, Descrição)
       setFormData((prev) => ({ ...prev, [field]: value }));
     }
   };
@@ -119,16 +103,16 @@ export default function MultilineTextFields() {
           mt: 4,
           px: 2,
           height: '100%',
-          pb: 4 // Espaço extra embaixo antes do footer
+          pb: 4
         }}
       >
         <Box
           component="form"
           sx={{
-            p: 4, // Aumentei um pouco o padding interno
-            borderRadius: 3, // Bordas um pouco mais arredondadas
-            boxShadow: '0px 4px 20px rgba(0,0,0,0.1)', // Sombra mais suave e moderna
-            backgroundColor: '#ffffff', // Fundo branco puro para destaque
+            p: 4,
+            borderRadius: 3,
+            boxShadow: '0px 4px 20px rgba(0,0,0,0.1)',
+            backgroundColor: '#ffffff',
             width: '100%',
             maxWidth: '800px',
             overflowY: 'auto',
@@ -140,58 +124,63 @@ export default function MultilineTextFields() {
         >
           <div ref={topRef} />
 
-          {/* --- INÍCIO DO HEADER --- */}
+          {/* --- HEADER --- */}
           <Box sx={{ mb: 4, textAlign: 'center' }}>
             <Avatar 
-              sx={{ 
-                m: '0 auto', 
-                bgcolor: 'primary.main', 
-                width: 56, 
-                height: 56, 
-                mb: 2 
-              }}
+              sx={{ m: '0 auto', bgcolor: 'primary.main', width: 56, height: 56, mb: 2 }}
             >
               <SupportAgentIcon fontSize="large" />
             </Avatar>
-            
             <Typography component="h1" variant="h5" sx={{ fontWeight: 'bold', color: '#333' }}>
               Abertura de Chamados
             </Typography>
-            
             <Typography variant="subtitle1" sx={{ color: 'primary.main', fontWeight: 'medium' }}>
               Hotmobile
             </Typography>
-            
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               Preencha os dados abaixo para solicitar atendimento técnico.
             </Typography>
-
             <Divider sx={{ mt: 3 }} />
           </Box>
-          {/* --- FIM DO HEADER --- */}
 
           <Grid container spacing={2}>
-            {/* Nome da Empresa */}
+            
+            {/* ✅ NOME DA EMPRESA (CORRIGIDO) */}
             <Grid item xs={12} sm={6}>
-              <TextField
-                label="Nome da empresa"
-                value={formData.nome}
-                onChange={handleChange('nome')}
-                sx={{ width: '100%' }} // Ajustei para 100% para alinhar melhor
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <BusinessIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                }} />
+              {/* Adicionei este container interno para simular a estrutura do telefone */}
+              <Grid container spacing={1}>
+                <Grid item xs={11}>
+                  <TextField
+                    label="Nome da empresa"
+                    value={formData.nome}
+                    onChange={handleChange('nome')}
+                    fullWidth 
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <BusinessIcon fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    }} 
+                  />
+                </Grid>
+                {/* Espaço vazio (Grid item xs={1}) para alinhar com o botão de deletar dos outros campos */}
+                <Grid item xs={1} />
+              </Grid>
             </Grid>
 
             {/* Serviço */}
             <Grid item xs={12} sm={6}>
-              <MultipleSelectCheckmarks
-                value={formData.servico}
-                onChange={handleChange('servico')} />
+              {/* Também ajustei o serviço para manter a simetria, caso queira. Se não, pode remover o Grid container interno aqui. */}
+               <Grid container spacing={1}>
+                <Grid item xs={11}>
+                  <MultipleSelectCheckmarks
+                    value={formData.servico}
+                    onChange={handleChange('servico')} 
+                  />
+                </Grid>
+                <Grid item xs={1} />
+              </Grid>
             </Grid>
 
             {/* Telefones */}
@@ -202,32 +191,23 @@ export default function MultilineTextFields() {
                   spacing={1}
                   key={index}
                   alignItems="center"
-                  sx={{ mb: index === formData.telefone.length - 1 ? 0 : 2 }} // Margem dinâmica
+                  sx={{ mb: index === formData.telefone.length - 1 ? 0 : 2 }}
                 >
                   <Grid item xs={11}>
-                  <TextField
-  label={`Telefone ${index + 1}`}
-  
-  // O valor TEM que vir do estado para a máscara aparecer
-  value={tel} 
-  
-  // Chama a função que criamos acima
-  onChange={handleChange('telefone', index)} 
-  
-  fullWidth
-  placeholder="(11) 99999-9999"
-  
-  // ✅ Trava a quantidade de caracteres para não quebrar a máscara
-  inputProps={{ maxLength: 15 }} 
-
-  InputProps={{
-    startAdornment: (
-      <InputAdornment position="start">
-        <PhoneIcon fontSize="small" />
-      </InputAdornment>
-    ),
-  }} 
-/>
+                    <TextField
+                      label={`Telefone ${index + 1}`}
+                      value={tel}
+                      onChange={handleChange('telefone', index)}
+                      fullWidth
+                      inputProps={{ maxLength: 15 }}
+                      placeholder="(11) 99999-9999"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PhoneIcon fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      }} />
                   </Grid>
                   <Grid item xs={1}>
                     {index > 0 && (
@@ -308,7 +288,6 @@ export default function MultilineTextFields() {
                 <InputFileUpload onChange={handleFileChange} />
               </Box>
 
-              {/* Dica visual: Mostrar nomes dos arquivos selecionados */}
               {formData.anexos && (
                 <Box sx={{ mt: 1, p: 1, bgcolor: '#f0f0f0', borderRadius: 1 }}>
                    <Typography variant="caption" color="text.secondary">
