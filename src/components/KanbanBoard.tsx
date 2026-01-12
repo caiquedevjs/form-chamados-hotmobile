@@ -43,7 +43,7 @@ const COLUMNS = {
 
 const FLOW_ORDER = ['NOVO', 'EM_ATENDIMENTO', 'FINALIZADO'];
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = 'https://form-chamados-hotmobile-production.up.railway.app';
 
 // ✅ LISTA DE LINKS ÚTEIS (LINKTREE)
 // Adicione aqui os links reais da sua empresa
