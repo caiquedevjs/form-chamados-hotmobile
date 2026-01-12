@@ -7,7 +7,7 @@ import axios from 'axios'; // Certifique-se de ter instalado: npm install axios
 export default function LoadingButtonsTransition({ formData, setFormData }) {
   const [loading, setLoading] = React.useState(false);
 
-const API_URL =  'https://form-chamados-hotmobile-production.up.railway.app/';
+const API_URL =  'https://form-chamados-hotmobile-production.up.railway.app';
 
  const handleClick = async () => {
     // 1. Validação
