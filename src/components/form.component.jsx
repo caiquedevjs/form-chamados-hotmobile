@@ -35,13 +35,50 @@ export default function MultilineTextFields() {
     anexos: null
   });
 
-  const handleChange = (field, index = null) => (event) => {
+
+  // Função que formata o telefone (Celular ou Fixo)
+  const formatPhoneNumber = (value) => {
+    if (!value) return value;
+
+    // 1. Remove tudo que não é número
+    const phoneNumber = value.replace(/[^\d]/g, '');
+
+    // 2. Limita a 11 dígitos
+    const phoneNumberLength = phoneNumber.length;
+    if (phoneNumberLength < 4) return phoneNumber;
+
+    // 3. Máscara para números menores que 7 dígitos (apenas DDD)
+    if (phoneNumberLength < 7) {
+      return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2)}`;
+    }
+
+    // 4. Máscara para Celular (11 dígitos): (99) 99999-9999
+    if (phoneNumberLength === 11) {
+      return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 7)}-${phoneNumber.slice(7)}`;
+    }
+
+    // 5. Máscara Padrão/Fixo (10 dígitos): (99) 9999-9999
+    return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 6)}-${phoneNumber.slice(6, 10)}`;
+  };
+
+
+ const handleChange = (field, index = null) => (event) => {
+    let value = event.target.value;
+
+    // ✅ AQUI A MÁGICA ACONTECE:
+    // Se o campo for telefone, a gente força a formatação antes de salvar
+    if (field === 'telefone') {
+      value = formatPhoneNumber(value);
+    }
+
     if (index !== null) {
+      // Lógica para Arrays (Telefones e Emails)
       const updated = [...formData[field]];
-      updated[index] = event.target.value;
+      updated[index] = value;
       setFormData((prev) => ({ ...prev, [field]: updated }));
     } else {
-      setFormData((prev) => ({ ...prev, [field]: event.target.value }));
+      // Lógica para campos simples (Nome, Descrição)
+      setFormData((prev) => ({ ...prev, [field]: value }));
     }
   };
 
@@ -168,18 +205,29 @@ export default function MultilineTextFields() {
                   sx={{ mb: index === formData.telefone.length - 1 ? 0 : 2 }} // Margem dinâmica
                 >
                   <Grid item xs={11}>
-                    <TextField
-                      label={`Telefone ${index + 1}`}
-                      value={tel}
-                      onChange={handleChange('telefone', index)}
-                      fullWidth
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <PhoneIcon fontSize="small" />
-                          </InputAdornment>
-                        ),
-                      }} />
+                  <TextField
+  label={`Telefone ${index + 1}`}
+  
+  // O valor TEM que vir do estado para a máscara aparecer
+  value={tel} 
+  
+  // Chama a função que criamos acima
+  onChange={handleChange('telefone', index)} 
+  
+  fullWidth
+  placeholder="(11) 99999-9999"
+  
+  // ✅ Trava a quantidade de caracteres para não quebrar a máscara
+  inputProps={{ maxLength: 15 }} 
+
+  InputProps={{
+    startAdornment: (
+      <InputAdornment position="start">
+        <PhoneIcon fontSize="small" />
+      </InputAdornment>
+    ),
+  }} 
+/>
                   </Grid>
                   <Grid item xs={1}>
                     {index > 0 && (
