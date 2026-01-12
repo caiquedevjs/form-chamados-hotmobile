@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000', // Sua URL do Backend
+  baseURL: 'form-chamados-hotmobile.railway.internal', // Sua URL do Backend
 });
 
 // Interceptor: Antes de cada requisição, ele roda isso
