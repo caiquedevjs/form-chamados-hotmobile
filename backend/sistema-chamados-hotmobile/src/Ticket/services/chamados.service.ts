@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable prettier/prettier */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common'; // 👈 Adicione Inject
 import { PrismaService } from 'src/prisma.service'; 
 import { CreateChamadoDto } from '../dtos/create-chamado.dto';
 import { CreateInteracaoDto } from '../dtos/create-interacao.dto';
@@ -14,7 +14,9 @@ import { startOfDay, endOfDay, parseISO, eachDayOfInterval, format } from 'date-
 import { ChamadosGateway } from './chamados.gateway';
 import { MailService } from './mail.service';
 import { WhatsappService } from './whatsapp.service';
-import { SupabaseService } from 'src/supabase/supabase.service';
+// ❌ REMOVA: import { SupabaseService } ...
+// ✅ ADICIONE:
+import * as storageInterface from './storage.interface'; 
 
 @Injectable()
 export class ChamadosService {
@@ -23,16 +25,19 @@ export class ChamadosService {
     private readonly gateway: ChamadosGateway,
     private readonly mailService: MailService,
     private readonly whatsappService: WhatsappService,
-    private readonly supabaseService: SupabaseService,
+    
+    // ✅ MUDANÇA PRINCIPAL: Injeção pelo Token Genérico
+    @Inject('STORAGE_SERVICE') private readonly storageService: storageInterface.IStorageService,
   ) {}
 
-  // ... (Método CREATE mantido igual) ...
   async create(data: CreateChamadoDto, files: Array<Express.Multer.File>) {
     let anexosData: any[] = [];
     if (files && files.length > 0) {
       anexosData = await Promise.all(
         files.map(async (file) => {
-          const publicUrl = await this.supabaseService.uploadFile(file.buffer, file.originalname);
+          // ✅ AGORA USA O SERVIÇO GENÉRICO (Não sabe se é Supabase ou AWS)
+          const publicUrl = await this.storageService.uploadFile(file.buffer, file.originalname);
+          
           return {
             nomeOriginal: file.originalname,
             nomeArquivo: file.originalname,
@@ -60,7 +65,7 @@ export class ChamadosService {
     return chamado;
   }
 
-  // ✅ MÉTODO ATUALIZADO COM NOTIFICAÇÕES DE FINALIZAÇÃO
+  // ... (updateStatus MANTIDO IGUAL - Não muda nada aqui) ...
   async updateStatus(id: number, novoStatus: StatusChamado) {
     const chamadoAtualizado = await this.prisma.chamado.update({
       where: { id },
@@ -71,7 +76,6 @@ export class ChamadosService {
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const linkFrontend = `${baseUrl}/acompanhamento/${id}`;
 
-    // 1. Notificação de EM ATENDIMENTO (Já existia)
     if (novoStatus === 'EM_ATENDIMENTO') {
       if (chamadoAtualizado.emails?.length > 0) {
         const promessasEmail = chamadoAtualizado.emails.map(email => 
@@ -87,20 +91,16 @@ export class ChamadosService {
       }
     }
 
-    // ✅ 2. NOVA NOTIFICAÇÃO DE FINALIZAÇÃO
     if (novoStatus === 'FINALIZADO') {
       const mensagemFinal = `Olá! O chamado #${id} da empresa *${chamadoAtualizado.nomeEmpresa}* foi finalizado. Caso precise de mais ajuda, por favor, abra um novo chamado.`;
 
-      // Email Finalização
       if (chamadoAtualizado.emails?.length > 0) {
         const promessasEmail = chamadoAtualizado.emails.map(email => 
-          // Reutilizando método genérico ou criando um específico se tiver no MailService
           this.mailService.enviarNotificacaoGenerica(email.endereco, `Chamado #${id} Finalizado`, mensagemFinal, linkFrontend)
         );
         Promise.all(promessasEmail).catch(err => console.error('Erro email finalização:', err));
       }
 
-      // WhatsApp Finalização
       if (chamadoAtualizado.telefones?.length > 0) {
         const promessasZap = chamadoAtualizado.telefones.map(tel => 
           this.whatsappService.enviarMensagem(tel.numero, mensagemFinal)
@@ -113,7 +113,7 @@ export class ChamadosService {
     return chamadoAtualizado;
   }
 
-  // ... (findAll mantido igual) ...
+  // ... (findAll MANTIDO IGUAL) ...
   async findAll() {
     return this.prisma.chamado.findMany({
       include: {
@@ -124,13 +124,14 @@ export class ChamadosService {
     });
   }
 
-  // ✅ MÉTODO ATUALIZADO COM NOTIFICAÇÃO DE RESPOSTA DO SUPORTE
   async addInteracao(chamadoId: number, data: CreateInteracaoDto, files?: Array<Express.Multer.File>) {
     let anexosData: any[] = [];
     if (files && files.length > 0) {
       anexosData = await Promise.all(
         files.map(async (file) => {
-          const publicUrl = await this.supabaseService.uploadFile(file.buffer, file.originalname);
+          // ✅ AQUI TAMBÉM: USA O SERVIÇO GENÉRICO
+          const publicUrl = await this.storageService.uploadFile(file.buffer, file.originalname);
+          
           return {
             nomeOriginal: file.originalname, nomeArquivo: file.originalname, caminho: publicUrl, mimetype: file.mimetype, tamanho: file.size, chamadoId: chamadoId 
           };
@@ -148,7 +149,6 @@ export class ChamadosService {
       include: { anexos: true }
     });
 
-    // Se for CLIENTE -> Incrementa contador (Já existente)
     if (data.autor === 'CLIENTE') {
       await this.prisma.chamado.update({
         where: { id: chamadoId },
@@ -156,9 +156,7 @@ export class ChamadosService {
       });
     }
 
-    // ✅ SE FOR SUPORTE -> NOTIFICA O CLIENTE
     if (data.autor === 'SUPORTE') {
-        // Busca o chamado para pegar os contatos
         const chamadoPai = await this.prisma.chamado.findUnique({
             where: { id: chamadoId },
             include: { emails: true, telefones: true }
@@ -169,7 +167,6 @@ export class ChamadosService {
             const linkFrontend = `${baseUrl}/acompanhamento/${chamadoId}`;
             const msgNotificacao = `O suporte respondeu ao chamado #${chamadoId}: "${data.texto.substring(0, 50)}${data.texto.length > 50 ? '...' : ''}". Acesse para ver: ${linkFrontend}`;
 
-            // Envia WhatsApp
             if (chamadoPai.telefones?.length > 0) {
                 chamadoPai.telefones.forEach(tel => {
                     this.whatsappService.enviarMensagem(tel.numero, msgNotificacao)
@@ -177,7 +174,6 @@ export class ChamadosService {
                 });
             }
 
-            // Envia Email
             if (chamadoPai.emails?.length > 0) {
                 chamadoPai.emails.forEach(email => {
                     this.mailService.enviarNotificacaoGenerica(
@@ -195,7 +191,7 @@ export class ChamadosService {
     return novaInteracao;
   }
 
-  // ... (findOne e getDashboardMetrics mantidos iguais) ...
+  // ... (findOne e getDashboardMetrics MANTIDOS IGUAIS) ...
   async findOne(id: number) {
     await this.prisma.chamado.update({ where: { id }, data: { mensagensNaoLidas: 0 } }).catch(() => {});
     const chamado = await this.prisma.chamado.findUnique({

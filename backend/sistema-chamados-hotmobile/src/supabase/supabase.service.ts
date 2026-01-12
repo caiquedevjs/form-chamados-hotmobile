@@ -4,16 +4,16 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
 import { createClient } from '@supabase/supabase-js';
+// Certifique-se que o caminho da importação está correto para o seu projeto
+import { IStorageService } from 'src/Ticket/services/storage.interface';
 
 @Injectable()
-export class SupabaseService {
+export class SupabaseService implements IStorageService {
   private supabase;
 
   constructor() {
     const SUPABASE_URL = process.env.SUPABASE_URL;
-    // Use a chave de serviço (Service Role) para ignorar RLS e ter permissão total
-    const SUPABASE_KEY =
-      process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
+    const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
 
     if (!SUPABASE_URL || !SUPABASE_KEY) {
       throw new Error('Supabase URL ou Key não configuradas.');
@@ -22,20 +22,21 @@ export class SupabaseService {
     this.supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   }
 
+  // ✅ CORREÇÃO AQUI: Removida a duplicação de parâmetros
   async uploadFile(
     fileBuffer: Buffer,
     fileName: string,
     bucket: string = 'anexos',
   ): Promise<string> {
-    // 👇 1. LÓGICA DE LIMPEZA DO NOME (Sanitization)
+    
+    // 1. LÓGICA DE LIMPEZA DO NOME
     const nomeLimpo = fileName
-      .normalize('NFD') // Separa acentos das letras (ex: 'ç' vira 'c' + cedilha)
-      .replace(/[\u0300-\u036f]/g, '') // Remove os acentos
-      .replace(/\s+/g, '-') // Troca espaços por traços
-      .replace(/[^a-zA-Z0-9.-]/g, '') // Remove qualquer coisa que não seja letra, número, ponto ou traço
-      .toLowerCase(); // Deixa tudo minúsculo
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/[^a-zA-Z0-9.-]/g, '')
+      .toLowerCase();
 
-    // Cria um caminho seguro: timestamp + random + nomeLimpo
     const filePath = `${Date.now()}-${Math.random().toString(36).substring(2)}-${nomeLimpo}`;
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -48,7 +49,7 @@ export class SupabaseService {
       });
 
     if (error) {
-      console.error('Erro detalhado Supabase:', error); // Log para ajudar no debug
+      console.error('Erro detalhado Supabase:', error);
       throw new Error(`Falha no upload: ${error.message}`);
     }
 

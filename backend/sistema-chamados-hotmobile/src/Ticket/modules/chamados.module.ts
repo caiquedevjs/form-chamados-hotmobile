@@ -12,6 +12,19 @@ import { SupabaseService } from 'src/supabase/supabase.service';
 @Module({
   imports: [HttpModule],
   controllers: [ChamadosController],
-  providers: [ChamadosService, PrismaService, ChamadosGateway, MailService, WhatsappService, SupabaseService],
+  providers: [
+    ChamadosService, 
+    PrismaService, 
+    ChamadosGateway, 
+    MailService, 
+    WhatsappService, 
+    
+    // ✅ MUDANÇA AQUI:
+    // Em vez de apenas 'SupabaseService', usamos esta estrutura:
+    {
+      provide: 'STORAGE_SERVICE', // O "Crachá" (Token)
+      useClass: SupabaseService,  // Quem trabalha de verdade hoje
+    }
+  ],
 })
 export class ChamadosModule {}
