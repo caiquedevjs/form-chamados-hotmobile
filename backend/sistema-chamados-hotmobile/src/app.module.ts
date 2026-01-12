@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { ChamadosModule } from './Ticket/modules/chamados.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
@@ -11,6 +12,9 @@ import { AppController } from './app.controller';
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'), // Pega a pasta 'uploads' na raiz do projeto
       serveRoot: '/uploads', // Define que a URL será http://.../uploads/...
+    }),
+    ConfigModule.forRoot({
+      isGlobal: true, 
     }),
 
     // eslint-disable-next-line prettier/prettier
