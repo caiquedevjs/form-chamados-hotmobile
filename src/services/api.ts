@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'form-chamados-hotmobile.railway.internal', // Sua URL do Backend
+  baseURL: 'https://form-chamados-hotmobile-production.up.railway.app', // Sua URL do Backend
 });
 
 // Interceptor: Antes de cada requisição, ele roda isso
