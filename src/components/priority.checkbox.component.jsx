@@ -8,12 +8,16 @@ import {
   InputAdornment,
 } from '@mui/material';
 import AppsIcon from '@mui/icons-material/Apps';
+import HelpPortalModal from './HelpPortalModal';
 
 const names = ['Atendchat', 'Hotmobile', 'Hotmenu'];
 
 // ✅ Adicionei a prop 'sx' para aceitar estilos vindos de fora se precisar
 export default function SingleSelectService({ value, onChange, sx }) {
   return (
+    <>
+    {/* 2. Adicione ele aqui no topo, antes de tudo */}
+      <HelpPortalModal />
     <FormControl 
       variant="outlined" 
       fullWidth // ✅ MUDANÇA: Ocupa 100% do pai (Grid xs=11)
@@ -49,5 +53,6 @@ export default function SingleSelectService({ value, onChange, sx }) {
         ))}
       </Select>
     </FormControl>
+    </>
   );
 }
