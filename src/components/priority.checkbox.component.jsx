@@ -11,37 +11,23 @@ import AppsIcon from '@mui/icons-material/Apps';
 
 const names = ['Atendchat', 'Hotmobile', 'Hotmenu'];
 
-export default function SingleSelectService({ value, onChange }) {
+export default function MultipleSelectCheckmarks({ value, onChange, sx }) { // Receba o sx aqui
   return (
-    <FormControl  variant="outlined" sx={{ mb: 1, width: '91%' }}>
-      <InputLabel
-        id="single-service-label"
-        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+    <div>
+      <FormControl 
+        fullWidth // <--- ISSO É O MAIS IMPORTANTE!
+        sx={{ ...sx }} // <--- Para aceitar estilos vindos de fora
       >
-        Serviço
-      </InputLabel>
-      <Select
-        labelId="single-service-label"
-        id="single-service"
-        value={value}
-        onChange={onChange}
-        input={
-          <OutlinedInput
-            label="Serviço"
-            startAdornment={
-              <InputAdornment position="start">
-                <AppsIcon fontSize="small" />
-              </InputAdornment>
-            }
-          />
-        }
-      >
-        {names.map((name) => (
-          <MenuItem key={name} value={name}>
-            {name}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+        <InputLabel>Serviços</InputLabel>
+        <Select
+          multiple
+          value={value}
+          onChange={onChange}
+          // ... resto das props
+        >
+          {/* ... menus items ... */}
+        </Select>
+      </FormControl>
+    </div>
   );
 }

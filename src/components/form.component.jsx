@@ -35,7 +35,6 @@ export default function MultilineTextFields() {
     anexos: null
   });
 
-  // Função que formata o telefone
   const formatPhoneNumber = (value) => {
     if (!value) return value;
     const phoneNumber = value.replace(/[^\d]/g, '');
@@ -145,7 +144,7 @@ export default function MultilineTextFields() {
 
           <Grid container spacing={2}>
             
-            {/* NOME DA EMPRESA (11 colunas + 1 vazia) */}
+            {/* Nome da Empresa */}
             <Grid item xs={12} sm={6}>
               <Grid container spacing={1}>
                 <Grid item xs={11}>
@@ -167,16 +166,19 @@ export default function MultilineTextFields() {
               </Grid>
             </Grid>
 
-            {/* ✅ SERVIÇO (AGORA ALINHADO: 11 colunas + 1 vazia) */}
+            {/* ✅ Serviço (Correção aqui) */}
             <Grid item xs={12} sm={6}>
                <Grid container spacing={1}>
                 <Grid item xs={11}>
-                  <MultipleSelectCheckmarks
-                    value={formData.servico}
-                    onChange={handleChange('servico')} 
-                  />
+                  {/* Passei width 100% e fullWidth aqui */}
+                  <Box sx={{ width: '100%' }}>
+                    <MultipleSelectCheckmarks
+                      value={formData.servico}
+                      onChange={handleChange('servico')} 
+                      sx={{ width: '100%' }}
+                    />
+                  </Box>
                 </Grid>
-                {/* O "buraco" invisível para alinhar com o botão de delete dos outros campos */}
                 <Grid item xs={1} />
               </Grid>
             </Grid>
