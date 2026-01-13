@@ -169,7 +169,6 @@ export default function KanbanBoardView() {
   // --- LÓGICA DE SLA / PRIORIDADE ---
   const handleChangePriority = async (novaPrioridade) => {
     try {
-        // Atualiza localmente
         setChamadoSelecionado(prev => ({ ...prev, prioridade: novaPrioridade }));
         setChamados(prev => prev.map(c => c.id === chamadoSelecionado.id ? { ...c, prioridade: novaPrioridade } : c));
 
@@ -497,7 +496,7 @@ export default function KanbanBoardView() {
                       {cardsDaColuna.map((item, index) => (
                         <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
                           {(provided, snapshot) => {
-                            // ✅ Lógica de Cor da Borda baseada na Prioridade
+                            // ✅ Cor da Borda (SLA)
                             const prioridadeInfo = PRIORITY_CONFIG[item.prioridade || 'BAIXA'];
                             
                             return (
@@ -517,35 +516,55 @@ export default function KanbanBoardView() {
                               }}
                             >
                               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                                <Box display="flex" justifyContent="space-between" mb={1}>
+                                {/* --- CABEÇALHO LIMPO (Sem o Chip Urgente aqui) --- */}
+                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                                   <Typography variant="caption" color="text.secondary">#{item.id}</Typography>
 
-                                  {/* Badge para Críticos */}
-                                  {item.prioridade === 'CRITICA' && (
-                                      <Chip label="URGENTE" size="small" color="error" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 'bold' }} />
-                                  )}
-
+                                  {/* USUÁRIO */}
                                   {item.responsavel && (
-                                    <Box display="flex" alignItems="center" gap={1} sx={{ bgcolor: `${item.responsavelCor || '#1976d2'}15`, p: 0.5, borderRadius: 1 }}>
+                                    <Box display="flex" alignItems="center" gap={1} sx={{ bgcolor: `${item.responsavelCor || '#1976d2'}15`, p: 0.5, borderRadius: 1, maxWidth: '140px' }}>
                                       <Avatar sx={{ width: 20, height: 20, fontSize: 10, bgcolor: item.responsavelCor || '#1976d2', color: '#fff' }}>
                                         {item.responsavel.charAt(0).toUpperCase()}
                                       </Avatar>
-                                      <Typography variant="caption" fontWeight="bold" sx={{ color: item.responsavelCor || '#1976d2' }}>
+                                      <Typography variant="caption" fontWeight="bold" noWrap sx={{ color: item.responsavelCor || '#1976d2' }}>
                                         {item.responsavel}
                                       </Typography>
                                     </Box>
                                   )}
                                   
+                                  {/* CONTADOR MSG */}
                                   {item.mensagensNaoLidas > 0 && (
-                                    <Box sx={{ position: 'absolute', bottom: 12, right: 12, width: 24, height: 24, borderRadius: '50%', backgroundColor: '#2e7d32', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: 2, zIndex: 10 }}>
+                                    <Box sx={{ position: 'absolute', top: -8, right: -8, width: 24, height: 24, borderRadius: '50%', backgroundColor: '#2e7d32', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: 2, zIndex: 10 }}>
                                       {item.mensagensNaoLidas}
                                     </Box>
                                   )}
 
                                   <Typography variant="caption" color="text.secondary">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</Typography>
                                 </Box>
+
+                                {/* --- TÍTULO --- */}
                                 <Typography variant="subtitle1" fontWeight="bold" gutterBottom>{item.nomeEmpresa}</Typography>
-                                <Chip label={item.servico} size="small" sx={{ mb: 1, bgcolor: column.bg, color: '#444', fontWeight: '500' }} />
+                                
+                                {/* --- NOVA LINHA DE ETIQUETAS (Serviço + Prioridade) --- */}
+                                <Box display="flex" gap={1} mb={1} flexWrap="wrap">
+                                    <Chip label={item.servico} size="small" sx={{ bgcolor: column.bg, color: '#444', fontWeight: 'bold', fontSize: '0.75rem' }} />
+                                    
+                                    {/* 👇 O CHIP URGENTE FICA AQUI AGORA */}
+                                    {item.prioridade === 'CRITICA' && (
+                                        <Chip 
+                                            label="URGENTE" 
+                                            size="small" 
+                                            sx={{ 
+                                                bgcolor: '#ffebee', 
+                                                color: '#d32f2f', 
+                                                fontWeight: 'bold', 
+                                                fontSize: '0.75rem',
+                                                border: '1px solid #ffcdd2'
+                                            }} 
+                                        />
+                                    )}
+                                </Box>
+
                                 <Typography variant="body2" color="text.secondary" noWrap>{item.descricao}</Typography>
                               </CardContent>
                             </Card>
@@ -562,6 +581,8 @@ export default function KanbanBoardView() {
         </Box>
       </DragDropContext>
 
+      {/* ... MODAL DETALHES, MACROS, LINKTREE (MANTIDOS IGUAIS) ... */}
+      
       {/* --- MODAL DETALHES --- */}
       <Dialog 
         open={Boolean(chamadoSelecionado)} 
