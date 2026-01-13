@@ -95,25 +95,33 @@ export default function RegisterForm() {
 
   return (
     // 👇 ALTERAÇÃO 1: Container agora permite altura total
-    <Container component="main" maxWidth="xs">
+    <Container 
+      component="main" 
+      maxWidth="xs" 
+      sx={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        flexDirection: 'column',
+      }}
+    >
       <ToastContainer position="top-right" autoClose={3000} />
       
+      {/* 👇 2. O Box interno usa 'my: auto'. 
+          Isso empurra ele para o centro verticalmente, 
+          mas se a tela for pequena, ele respeita o scroll e o padding. */}
       <Box
         sx={{
-          // 👇 ALTERAÇÃO 2: Centralização vertical perfeita e segura
-          minHeight: '100vh', 
+          my: 'auto', // O segredo da centralização segura!
+          py: 4,      // Espaço em cima e embaixo para não grudar nas bordas
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center',
           alignItems: 'center',
-          py: 4 // Padding vertical para não grudar nas bordas se a tela for pequena
         }}
       >
         <Paper 
           elevation={3} 
           sx={{ 
-            // 👇 ALTERAÇÃO 3: Padding responsivo (menor no celular 'xs', maior no PC 'sm')
-            p: { xs: 2, sm: 4 }, 
+            p: { xs: 3, sm: 4 }, // Padding interno responsivo
             display: 'flex', 
             flexDirection: 'column', 
             alignItems: 'center',
