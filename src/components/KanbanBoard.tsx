@@ -8,6 +8,7 @@ import {
   InputLabel, FormControl, Stack
 } from '@mui/material';
 import { ListAlt } from '@mui/icons-material';
+import LockIcon from '@mui/icons-material/Lock'; // ✅ Ícone de Cadeado
 import { 
   AttachFile as AttachIcon,
   Business as BusinessIcon,
@@ -22,13 +23,12 @@ import {
   BarChart as BarChartIcon,
   FilterList as FilterListIcon,
   Clear as ClearIcon,
-  // ✅ NOVOS ÍCONES
   Link as LinkIcon,
-  MenuBook as BookIcon,     // Para documentação
-  Dns as DnsIcon,           // Para status de sistema
-  Help as HelpIcon,         // Para central de ajuda
+  MenuBook as BookIcon,
+  Dns as DnsIcon,
+  Help as HelpIcon,
   Public as PublicIcon,
-  Logout as LogoutIcon     // Para site
+  Logout as LogoutIcon
 } from '@mui/icons-material';
 import api from '../services/api';
 import { toast } from 'react-toastify';
@@ -47,8 +47,7 @@ const FLOW_ORDER = ['NOVO', 'EM_ATENDIMENTO', 'FINALIZADO'];
 
 const API_URL = 'https://form-chamados-hotmobile-production.up.railway.app';
 
-// ✅ LISTA DE LINKS ÚTEIS (LINKTREE)
-// Adicione aqui os links reais da sua empresa
+// LINKS ÚTEIS
 const SUPORTE_LINKS = [
   { title: 'Central de Ajuda Hotmobile', url: 'https://ajuda.hotmobile.com.br/', icon: <HelpIcon />, color: '#1976d2' },
   { title: 'Central de Ajuda Atendchat', url: 'https://ajudachat.hotmobile.com.br/', icon: <HelpIcon />, color: '#1976d2' },
@@ -62,69 +61,34 @@ const SUPORTE_LINKS = [
   { title: 'Site Institucional', url: 'https://hotmobile.com.br', icon: <PublicIcon />, color: '#555' }
 ];
 
-interface Email { id: number; endereco: string; }
-interface Telefone { id: number; numero: string; }
-interface Anexo {
-  caminho: any; id: number; nomeOriginal: string; nomeArquivo: string; 
-}
-interface Interacao { 
-  id: number; 
-  texto: string; 
-  autor: 'CLIENTE' | 'SUPORTE'; 
-  createdAt: string; 
-  anexos?: Anexo[];
-}
-
-interface Chamado {
-  id: number;
-  nomeEmpresa: string;
-  servico: string;
-  descricao: string;
-  status: string;
-  responsavel?: string;
-  responsavelCor?: string;
-  createdAt: string;
-  anexos: Anexo[];
-  emails: Email[];
-  telefones: Telefone[];
-  interacoes: Interacao[];
-  mensagensNaoLidas: number; 
-}
-
 export default function KanbanBoardView() {
   const navigate = useNavigate(); 
-  const [chamados, setChamados] = useState<Chamado[]>([]);
-
- const { logout, user } = useAuth();
+  const [chamados, setChamados] = useState([]);
+  const { logout, user } = useAuth();
   
   // --- ESTADOS DE FILTRO ---
   const [busca, setBusca] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState<string[]>(Object.keys(COLUMNS)); 
+  const [filtroStatus, setFiltroStatus] = useState(Object.keys(COLUMNS)); 
   const [filtroDataInicio, setFiltroDataInicio] = useState('');
   const [filtroDataFim, setFiltroDataFim] = useState('');
   const [apenasNaoLidos, setApenasNaoLidos] = useState(false);
   const [mostrarFiltros, setMostrarFiltros] = useState(false); 
-
-  // ✅ ESTADO DO MODAL DE LINKS
   const [modalLinksOpen, setModalLinksOpen] = useState(false);
-
-  const [chamadoSelecionado, setChamadoSelecionado] = useState<Chamado | null>(null);
+  const [chamadoSelecionado, setChamadoSelecionado] = useState(null);
   
   // Estado do Chat e Arquivos
   const [novoComentario, setNovoComentario] = useState('');
   const [enviandoComentario, setEnviandoComentario] = useState(false);
-  const [files, setFiles] = useState<File[]>([]); 
-  const fileInputRef = useRef<HTMLInputElement>(null); 
+  const [files, setFiles] = useState([]); 
+  
+  // ✅ NOVO ESTADO: Nota Interna
+  const [notaInterna, setNotaInterna] = useState(false);
 
+  const fileInputRef = useRef(null); 
 
   const handleLogout = () => {
-    // 1. Chama a função do contexto que limpa o token/localStorage
     logout(); 
-    
-    // 2. Avisa o usuário
     toast.info('Você saiu do sistema.');
-    
-    // 3. Redireciona para o login
     navigate('/login');
   };
 
@@ -144,7 +108,7 @@ export default function KanbanBoardView() {
     }
   };
 
-  const onDragEnd = async (result: DropResult) => {
+  const onDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
@@ -155,44 +119,38 @@ export default function KanbanBoardView() {
     atualizarStatus(chamadoId, novoStatus);
   };
 
-const atualizarStatus = async (id: number, novoStatus: string) => {
+  const atualizarStatus = async (id, novoStatus) => {
     const chamadosAntigos = [...chamados];
-    const dadosAtualizacao: any = { status: novoStatus };
+    const dadosAtualizacao = { status: novoStatus };
     
-    // 1. Lógica de Atribuição (Nome + Cor)
     if (novoStatus === 'EM_ATENDIMENTO') {
         const nomeResponsavel = user?.nome || user?.name || user?.email;
-        
-        // 👇 PEGA A COR DO USUÁRIO (ou usa azul padrão se não tiver)
         const corResponsavel = user?.cor || '#1976d2'; 
 
         if (nomeResponsavel) {
             dadosAtualizacao.responsavel = nomeResponsavel;
-            dadosAtualizacao.responsavelCor = corResponsavel; // 👈 Manda a cor pro backend
+            dadosAtualizacao.responsavelCor = corResponsavel;
         }
     }
 
-    // 2. Atualização Otimista (Visual Imediato)
     setChamados((prev) => prev.map((c) => {
         if (c.id === id) {
             return { 
                 ...c, 
                 status: novoStatus,
-                // Atualiza visualmente na hora
                 responsavel: dadosAtualizacao.responsavel || c.responsavel,
-                responsavelCor: dadosAtualizacao.responsavelCor || c.responsavelCor // 👈 Atualiza a cor
+                responsavelCor: dadosAtualizacao.responsavelCor || c.responsavelCor 
             };
         }
         return c;
     }));
     
-    // Atualiza o modal se estiver aberto
     if (chamadoSelecionado && chamadoSelecionado.id === id) {
       setChamadoSelecionado((prev) => prev ? { 
           ...prev, 
           status: novoStatus,
           responsavel: dadosAtualizacao.responsavel || prev.responsavel,
-          responsavelCor: dadosAtualizacao.responsavelCor || prev.responsavelCor // 👈 Atualiza a cor
+          responsavelCor: dadosAtualizacao.responsavelCor || prev.responsavelCor 
       } : null);
     }
 
@@ -215,13 +173,9 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
     }
   };
 
-  const handleAbrirChamado = async (item: Chamado) => {
+  const handleAbrirChamado = async (item) => {
     setChamadoSelecionado(item);
-    
-    // 1. Atualiza visualmente na hora (zera a bolinha)
     setChamados(prev => prev.map(c => c.id === item.id ? { ...c, mensagensNaoLidas: 0 } : c));
-
-    // 2. Chama a API para o backend zerar no banco de dados também
     try {
         await api.get(`${API_URL}/chamados/${item.id}`); 
     } catch (error) { 
@@ -229,15 +183,14 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
     }
   };
 
-  // --- LÓGICA DE ARQUIVOS (ADMIN) ---
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
       setFiles((prev) => [...prev, ...newFiles]);
     }
   };
 
-  const removeFile = (index: number) => {
+  const removeFile = (index) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -249,6 +202,11 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
     const formData = new FormData();
     formData.append('texto', novoComentario || 'Segue anexo.');
     formData.append('autor', 'SUPORTE');
+
+    // ✅ ENVIA A FLAG INTERNO SE ESTIVER MARCADO
+    if (notaInterna) {
+        formData.append('interno', 'true');
+    }
     
     files.forEach((file) => {
       formData.append('files', file);
@@ -261,9 +219,10 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
       
       setNovoComentario('');
       setFiles([]);
+      setNotaInterna(false); // ✅ Reseta o switch após enviar
       if (fileInputRef.current) fileInputRef.current.value = '';
 
-      toast.success('Mensagem enviada!');
+      toast.success(notaInterna ? 'Nota interna adicionada!' : 'Mensagem enviada!');
     } catch (error) {
       toast.error('Erro ao enviar mensagem.');
     } finally {
@@ -271,7 +230,6 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
     }
   };
 
-  // ✅ LÓGICA DE FILTRAGEM AVANÇADA
   const chamadosFiltrados = chamados.filter((c) => {
     const termo = busca.toLowerCase();
     const matchTexto = 
@@ -281,9 +239,7 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
       c.descricao.toLowerCase().includes(termo);
 
     const matchStatus = filtroStatus.includes(c.status);
-
     const matchNaoLidos = apenasNaoLidos ? c.mensagensNaoLidas > 0 : true;
-
     let matchData = true;
     const dataChamado = new Date(c.createdAt);
     
@@ -311,11 +267,10 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
   };
 
   useEffect(() => {
-    const socket = io(API_URL);
+    const socket = io(API_URL, { transports: ['websocket', 'polling'], reconnection: true });
     const audio = new Audio('/notification.mp3');
 
     socket.on('nova_interacao', (data) => {
-      
       if (data.autor === 'CLIENTE') {
         audio.play().catch(() => {});
         toast.info(`💬 Nova resposta no chamado #${data.chamadoId}`, {
@@ -328,14 +283,12 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
            const jaExiste = c.interacoes?.some(i => i.id === data.id);
            if (jaExiste) return c;
 
-           // Lógica de incremento Real-Time
            let novasNaoLidas = c.mensagensNaoLidas;
            if (data.autor === 'CLIENTE') {
                if (!chamadoSelecionado || chamadoSelecionado.id !== Number(data.chamadoId)) {
                    novasNaoLidas = (c.mensagensNaoLidas || 0) + 1;
                }
            }
-
            return { 
                ...c, 
                mensagensNaoLidas: novasNaoLidas, 
@@ -366,13 +319,23 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
     socket.on('mudanca_status', (data) => {
       setChamados((prev) => prev.map(chamado => {
         if (chamado.id === data.id) {
-          return { ...chamado, status: data.status };
+          return { 
+              ...chamado, 
+              status: data.status,
+              responsavel: data.responsavel || chamado.responsavel,
+              responsavelCor: data.responsavelCor || chamado.responsavelCor
+          };
         }
         return chamado;
       }));
       
       if (chamadoSelecionado && chamadoSelecionado.id === data.id) {
-         setChamadoSelecionado(prev => prev ? { ...prev, status: data.status } : null);
+         setChamadoSelecionado(prev => prev ? { 
+             ...prev, 
+             status: data.status,
+             responsavel: data.responsavel || prev.responsavel,
+             responsavelCor: data.responsavelCor || prev.responsavelCor
+         } : null);
       }
     });
 
@@ -391,45 +354,10 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
         </Typography>
 
         <Box display="flex" gap={2}>
-          
-          {/* ✅ NOVO BOTÃO: LINKS ÚTEIS */}
-          <Button 
-            variant="outlined" 
-            color="primary" 
-            startIcon={<LinkIcon />}
-            onClick={() => setModalLinksOpen(true)}
-          >
-            Links Úteis
-          </Button>
-
-          <Button 
-            variant={mostrarFiltros ? "contained" : "outlined"} 
-            onClick={() => setMostrarFiltros(!mostrarFiltros)}
-            startIcon={<FilterListIcon />}
-          >
-            Filtros
-          </Button>
-          
-          <Button 
-            variant="contained" 
-            color="secondary" 
-            startIcon={<BarChartIcon />}
-            onClick={() => navigate('/dashboard')}
-          >
-            Relatórios
-          </Button>
-
-
-          {/* 🔴 NOVO BOTÃO DE SAIR (Adicione aqui) */}
-          <Button 
-            variant="outlined" 
-            color="error" // Cor vermelha para indicar saída
-            startIcon={<LogoutIcon />}
-            onClick={handleLogout}
-            sx={{ fontWeight: 'bold' }}
-          >
-            Sair
-          </Button>
+          <Button variant="outlined" color="primary" startIcon={<LinkIcon />} onClick={() => setModalLinksOpen(true)}>Links Úteis</Button>
+          <Button variant={mostrarFiltros ? "contained" : "outlined"} onClick={() => setMostrarFiltros(!mostrarFiltros)} startIcon={<FilterListIcon />}>Filtros</Button>
+          <Button variant="contained" color="secondary" startIcon={<BarChartIcon />} onClick={() => navigate('/dashboard')}>Relatórios</Button>
+          <Button variant="outlined" color="error" startIcon={<LogoutIcon />} onClick={handleLogout} sx={{ fontWeight: 'bold' }}>Sair</Button>
         </Box>
       </Box>
 
@@ -437,90 +365,28 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
       {mostrarFiltros && (
         <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }}>
             <Grid container spacing={2} alignItems="center">
-                
-                {/* 1. Busca Texto */}
                 <Grid item xs={12} md={3}>
-                    <TextField
-                        fullWidth
-                        variant="outlined"
-                        placeholder="Buscar por nome, ID ou serviço..."
-                        size="small"
-                        value={busca}
-                        onChange={(e) => setBusca(e.target.value)}
-                        InputProps={{
-                            startAdornment: (<InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>),
-                        }}
-                    />
+                    <TextField fullWidth variant="outlined" placeholder="Buscar..." size="small" value={busca} onChange={(e) => setBusca(e.target.value)} InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>) }} />
                 </Grid>
-
-                {/* 2. Filtro Status (Multi-Select) */}
                 <Grid item xs={12} md={3}>
                     <FormControl size="small" fullWidth>
                         <InputLabel>Status</InputLabel>
-                        <Select
-                            multiple
-                            value={filtroStatus}
-                            label="Status"
-                            onChange={(e) => {
-                                const value = e.target.value;
-                                setFiltroStatus(typeof value === 'string' ? value.split(',') : value);
-                            }}
-                            renderValue={(selected) => selected.map(val => COLUMNS[val as keyof typeof COLUMNS].title.split(' ')[1]).join(', ')}
-                        >
+                        <Select multiple value={filtroStatus} label="Status" onChange={(e) => { const value = e.target.value; setFiltroStatus(typeof value === 'string' ? value.split(',') : value); }} renderValue={(selected) => selected.map(val => COLUMNS[val].title.split(' ')[1]).join(', ')}>
                             {Object.entries(COLUMNS).map(([key, col]) => (
-                                <MenuItem key={key} value={key}>
-                                    <Checkbox checked={filtroStatus.indexOf(key) > -1} />
-                                    <MuiListItemText primary={col.title} />
-                                </MenuItem>
+                                <MenuItem key={key} value={key}><Checkbox checked={filtroStatus.indexOf(key) > -1} /><MuiListItemText primary={col.title} /></MenuItem>
                             ))}
                         </Select>
                     </FormControl>
                 </Grid>
-
-                {/* 3. Filtro Datas */}
                 <Grid item xs={6} md={2}>
-                    <TextField
-                        fullWidth
-                        label="De"
-                        type="date"
-                        size="small"
-                        InputLabelProps={{ shrink: true }}
-                        value={filtroDataInicio}
-                        onChange={(e) => setFiltroDataInicio(e.target.value)}
-                    />
+                    <TextField fullWidth label="De" type="date" size="small" InputLabelProps={{ shrink: true }} value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} />
                 </Grid>
                 <Grid item xs={6} md={2}>
-                    <TextField
-                        fullWidth
-                        label="Até"
-                        type="date"
-                        size="small"
-                        InputLabelProps={{ shrink: true }}
-                        value={filtroDataFim}
-                        onChange={(e) => setFiltroDataFim(e.target.value)}
-                    />
+                    <TextField fullWidth label="Até" type="date" size="small" InputLabelProps={{ shrink: true }} value={filtroDataFim} onChange={(e) => setFiltroDataFim(e.target.value)} />
                 </Grid>
-
-                {/* 4. Switch "Não Lidos" e Limpar */}
                 <Grid item xs={12} md={2} display="flex" alignItems="center" justifyContent="space-between">
-                    <FormControlLabel
-                        control={
-                            <Switch 
-                                checked={apenasNaoLidos} 
-                                onChange={(e) => setApenasNaoLidos(e.target.checked)} 
-                                color="success"
-                            />
-                        }
-                        label={
-                            <Box display="flex" alignItems="center" gap={0.5}>
-                                <Typography variant="caption" fontWeight="bold">Não Lidos</Typography>
-                            </Box>
-                        }
-                    />
-                    
-                    <IconButton onClick={limparFiltros} title="Limpar Filtros" size="small">
-                        <ClearIcon />
-                    </IconButton>
+                    <FormControlLabel control={<Switch checked={apenasNaoLidos} onChange={(e) => setApenasNaoLidos(e.target.checked)} color="success" />} label={<Typography variant="caption" fontWeight="bold">Não Lidos</Typography>} />
+                    <IconButton onClick={limparFiltros} title="Limpar Filtros" size="small"><ClearIcon /></IconButton>
                 </Grid>
             </Grid>
         </Paper>
@@ -572,64 +438,19 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
                                 <Box display="flex" justifyContent="space-between" mb={1}>
                                   <Typography variant="caption" color="text.secondary">#{item.id}</Typography>
 
-                              {/* Se item.responsavel existir, mostra o box com a cor personalizada */}
-                              {item.responsavel && (
-                                <Box 
-                                  display="flex" 
-                                  alignItems="center" 
-                                  gap={1} 
-                                  mt={1} 
-                                  sx={{ 
-                                    // Fundo levemente transparente da cor escolhida (adiciona '15' ao hex para opacidade)
-                                    bgcolor: `${item.responsavelCor || '#1976d2'}15`, 
-                                    p: 0.5, 
-                                    borderRadius: 1 
-                                  }}
-                                >
-                                  <Avatar 
-                                      sx={{ 
-                                          width: 20, 
-                                          height: 20, 
-                                          fontSize: 10, 
-                                          // Cor de fundo do avatar = cor do usuário
-                                          bgcolor: item.responsavelCor || '#1976d2',
-                                          color: '#fff' // Texto sempre branco pra contrastar
-                                      }}
-                                  >
-                                      {item.responsavel.charAt(0).toUpperCase()}
-                                  </Avatar>
-                                  <Typography 
-                                      variant="caption" 
-                                      fontWeight="bold"
-                                      // Cor do texto = cor do usuário
-                                      sx={{ color: item.responsavelCor || '#1976d2' }}
-                                  >
-                                      {item.responsavel}
-                                  </Typography>
-                                </Box>
-                              )}
+                                  {item.responsavel && (
+                                    <Box display="flex" alignItems="center" gap={1} mt={1} sx={{ bgcolor: `${item.responsavelCor || '#1976d2'}15`, p: 0.5, borderRadius: 1 }}>
+                                      <Avatar sx={{ width: 20, height: 20, fontSize: 10, bgcolor: item.responsavelCor || '#1976d2', color: '#fff' }}>
+                                        {item.responsavel.charAt(0).toUpperCase()}
+                                      </Avatar>
+                                      <Typography variant="caption" fontWeight="bold" sx={{ color: item.responsavelCor || '#1976d2' }}>
+                                        {item.responsavel}
+                                      </Typography>
+                                    </Box>
+                                  )}
                                   
-                                  {/* CONTADOR DE MENSAGENS (BOLA VERDE) */}
                                   {item.mensagensNaoLidas > 0 && (
-                                    <Box
-                                      sx={{
-                                        position: 'absolute',
-                                        bottom: 12,
-                                        right: 12,
-                                        width: 24,
-                                        height: 24,
-                                        borderRadius: '50%',
-                                        backgroundColor: '#2e7d32', 
-                                        color: 'white',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '0.75rem',
-                                        fontWeight: 'bold',
-                                        boxShadow: 2,
-                                        zIndex: 10
-                                      }}
-                                    >
+                                    <Box sx={{ position: 'absolute', bottom: 12, right: 12, width: 24, height: 24, borderRadius: '50%', backgroundColor: '#2e7d32', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: 2, zIndex: 10 }}>
                                       {item.mensagensNaoLidas}
                                     </Box>
                                   )}
@@ -639,7 +460,6 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
                                 <Typography variant="subtitle1" fontWeight="bold" gutterBottom>{item.nomeEmpresa}</Typography>
                                 <Chip label={item.servico} size="small" sx={{ mb: 1, bgcolor: column.bg, color: '#444', fontWeight: '500' }} />
                                 <Typography variant="body2" color="text.secondary" noWrap>{item.descricao}</Typography>
-
                               </CardContent>
                             </Card>
                           )}
@@ -662,15 +482,14 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
         maxWidth="md"
         fullWidth
       >
-        {/* ... (Conteúdo do Modal do Chamado, sem alterações aqui) ... */}
         {chamadoSelecionado && (
           <>
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f5f5f5' }}>
               <Box display="flex" alignItems="center" gap={2}>
                 <Typography variant="h6">Chamado #{chamadoSelecionado.id}</Typography>
                 <Chip 
-                  label={COLUMNS[chamadoSelecionado.status as keyof typeof COLUMNS]?.title || chamadoSelecionado.status} 
-                  sx={{ bgcolor: COLUMNS[chamadoSelecionado.status as keyof typeof COLUMNS]?.bg || '#eee' }}
+                  label={COLUMNS[chamadoSelecionado.status]?.title || chamadoSelecionado.status} 
+                  sx={{ bgcolor: COLUMNS[chamadoSelecionado.status]?.bg || '#eee' }}
                 />
               </Box>
               <IconButton onClick={() => setChamadoSelecionado(null)}>
@@ -683,6 +502,8 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
                 <Grid item xs={12} md={8} display="flex" flexDirection="column">
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>Histórico do Chamado</Typography>
                   <Box sx={{ flexGrow: 1, bgcolor: '#f9f9f9', borderRadius: 2, p: 2, mb: 2, border: '1px solid #eee', maxHeight: '400px', overflowY: 'auto' }}>
+                    
+                    {/* Descrição Inicial */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mb: 2 }}>
                         <Box display="flex" alignItems="center" gap={1} mb={0.5}>
                           <Avatar sx={{ width: 24, height: 24, bgcolor: '#9e9e9e' }}><PersonIcon fontSize="small" /></Avatar>
@@ -693,8 +514,13 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
                           <Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{chamadoSelecionado.descricao}</Typography>
                         </Paper>
                     </Box>
+
+                    {/* Loop de Mensagens */}
                     {chamadoSelecionado.interacoes?.map((interacao, idx) => {
                       const isSuporte = interacao.autor === 'SUPORTE';
+                      // ✅ VERIFICA SE É NOTA INTERNA
+                      const isInterno = interacao.interno; 
+
                       return (
                         <Box key={idx} sx={{ display: 'flex', flexDirection: 'column', alignItems: isSuporte ? 'flex-end' : 'flex-start', mb: 2 }}>
                             <Box display="flex" alignItems="center" gap={1} mb={0.5} flexDirection={isSuporte ? 'row-reverse' : 'row'}>
@@ -703,8 +529,28 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
                               <Typography variant="caption" color="text.secondary">{new Date(interacao.createdAt).toLocaleString()}</Typography>
                             </Box>
                             
-                            <Paper elevation={0} sx={{ p: 2, bgcolor: isSuporte ? '#E3F2FD' : '#ffffff', border: isSuporte ? 'none' : '1px solid #ddd', borderRadius: isSuporte ? '12px 0 12px 12px' : '0 12px 12px 12px', maxWidth: '90%', color: isSuporte ? '#0d47a1' : 'inherit' }}>
+                            {/* ✅ MUDANÇA VISUAL SE FOR INTERNO */}
+                            <Paper 
+                                elevation={0} 
+                                sx={{ 
+                                    p: 2, 
+                                    bgcolor: isInterno ? '#FFF3E0' : (isSuporte ? '#E3F2FD' : '#ffffff'), // Fundo Amarelo se interno
+                                    border: isInterno ? '1px dashed #FF9800' : (isSuporte ? 'none' : '1px solid #ddd'), // Borda se interno
+                                    borderRadius: isSuporte ? '12px 0 12px 12px' : '0 12px 12px 12px', 
+                                    maxWidth: '90%', 
+                                    color: isSuporte ? '#0d47a1' : 'inherit' 
+                                }}
+                            >
+                              {/* SE FOR INTERNO, MOSTRA ÍCONE */}
+                              {isInterno && (
+                                  <Box display="flex" alignItems="center" gap={0.5} mb={0.5} color="warning.main">
+                                      <LockIcon style={{ fontSize: 14 }} />
+                                      <Typography variant="caption" fontWeight="bold">NOTA INTERNA (Cliente não vê)</Typography>
+                                  </Box>
+                              )}
+
                               <Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{interacao.texto}</Typography>
+                              
                               {interacao.anexos && interacao.anexos.length > 0 && (
                                 <Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">
                                   {interacao.anexos.map(anexo => (
@@ -713,11 +559,7 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
                                       icon={<AttachIcon />}
                                       label={anexo.nomeOriginal.length > 20 ? anexo.nomeOriginal.substring(0, 17) + '...' : anexo.nomeOriginal}
                                       component="a"
-                                      href={
-                                        anexo.caminho && anexo.caminho.startsWith('http') 
-                                          ? anexo.caminho 
-                                          : `${API_URL}/uploads/${anexo.nomeArquivo}`
-                                      }
+                                      href={anexo.caminho && anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`}
                                       target="_blank"
                                       clickable
                                       size="small"
@@ -731,7 +573,31 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
                       )
                     })}
                   </Box>
+                  
+                  {/* ÁREA DE RESPOSTA */}
                   <Box>
+                    {/* Switch Nota Interna */}
+                    <Box display="flex" justifyContent="flex-end" mb={1}>
+                        <FormControlLabel 
+                            control={
+                                <Switch 
+                                    checked={notaInterna} 
+                                    onChange={(e) => setNotaInterna(e.target.checked)} 
+                                    color="warning" 
+                                    size="small"
+                                />
+                            } 
+                            label={
+                                <Box display="flex" alignItems="center" gap={0.5}>
+                                    {notaInterna && <LockIcon fontSize="small" color="warning" />}
+                                    <Typography variant="caption" sx={{ color: notaInterna ? '#ed6c02' : 'gray', fontWeight: 'bold' }}>
+                                        Nota Interna (Privado)
+                                    </Typography>
+                                </Box>
+                            } 
+                        />
+                    </Box>
+
                     {files.length > 0 && (
                       <Box mb={1} display="flex" gap={1} flexWrap="wrap">
                         {files.map((file, i) => (
@@ -742,39 +608,57 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
                     <Box display="flex" gap={1} alignItems="flex-end">
                       <input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
                       <IconButton onClick={() => fileInputRef.current?.click()} sx={{ border: '1px solid #ccc', borderRadius: 1 }}><AttachIcon /></IconButton>
-                      <TextField fullWidth size="small" placeholder="Adicionar resposta..." value={novoComentario} onChange={(e) => setNovoComentario(e.target.value)} multiline maxRows={3} />
-                      <Button variant="contained" onClick={handleAddInteracao} disabled={enviandoComentario || (!novoComentario.trim() && files.length === 0)}><SendIcon /></Button>
+                      
+                      <TextField 
+                        fullWidth 
+                        size="small" 
+                        placeholder={notaInterna ? "Escreva uma nota interna..." : "Responder ao cliente..."}
+                        value={novoComentario} 
+                        onChange={(e) => setNovoComentario(e.target.value)} 
+                        multiline 
+                        maxRows={3} 
+                        sx={{ bgcolor: notaInterna ? '#FFF3E0' : 'white' }} // Muda a cor do input pra avisar
+                      />
+                      
+                      <Button 
+                        variant="contained" 
+                        onClick={handleAddInteracao} 
+                        disabled={enviandoComentario || (!novoComentario.trim() && files.length === 0)}
+                        color={notaInterna ? "warning" : "primary"} // Botão fica Laranja se for nota interna
+                      >
+                        <SendIcon />
+                      </Button>
                     </Box>
                   </Box>
                 </Grid>
                 <Grid item xs={12} md={4}>
-                   <Box mb={2}>
-                     <Typography variant="subtitle2" color="text.secondary">Empresa</Typography>
-                     <Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gap={1}><BusinessIcon color="primary" fontSize="small"/> {chamadoSelecionado.nomeEmpresa}</Typography>
-                   </Box>
-                   {chamadoSelecionado.anexos?.length > 0 && (
-                     <Box mb={2}>
-                       <Typography variant="subtitle2" color="text.secondary" gutterBottom>Anexos Iniciais</Typography>
-                       <Box display="flex" gap={1} flexWrap="wrap">
-                         {chamadoSelecionado.anexos?.map((anexo, idx) => (
-                            <Chip key={idx} icon={<AttachIcon />} label={anexo.nomeOriginal.substring(0,12)+'...'} clickable component="a" href={anexo.caminho && anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`} target="_blank" rel="noopener noreferrer" variant="outlined" color="primary" size="small" />
-                         ))}
-                       </Box>
-                     </Box>
-                   )}
-                   <Divider sx={{ my: 2 }} />
-                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>Contatos</Typography>
-                   <List dense disablePadding>
-                     {chamadoSelecionado.emails?.map((email, idx) => (
-                       <ListItem key={idx} disableGutters><ListItemIcon sx={{ minWidth: 30 }}><EmailIcon fontSize="small" /></ListItemIcon><ListItemText primary={email.endereco} /></ListItem>
-                     ))}
-                     {chamadoSelecionado.telefones?.map((tel, idx) => (
-                       <ListItem key={idx} disableGutters>
-                         <ListItemIcon sx={{ minWidth: 30 }}><PhoneIcon fontSize="small" /></ListItemIcon>
-                         <ListItemText primary={tel.numero} secondary={<a href={`https://wa.me/55${tel.numero.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: '#25D366', fontSize: '0.8rem', fontWeight: 'bold' }}>Abrir WhatsApp</a>} />
-                       </ListItem>
-                     ))}
-                   </List>
+                    <Box mb={2}>
+                      <Typography variant="subtitle2" color="text.secondary">Empresa</Typography>
+                      <Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gap={1}><BusinessIcon color="primary" fontSize="small"/> {chamadoSelecionado.nomeEmpresa}</Typography>
+                    </Box>
+                    {chamadoSelecionado.anexos?.length > 0 && (
+                      <Box mb={2}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>Anexos Iniciais</Typography>
+                        <Box display="flex" gap={1} flexWrap="wrap">
+                          {chamadoSelecionado.anexos?.map((anexo, idx) => (
+                             <Chip key={idx} icon={<AttachIcon />} label={anexo.nomeOriginal.substring(0,12)+'...'} clickable component="a" href={anexo.caminho && anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`} target="_blank" rel="noopener noreferrer" variant="outlined" color="primary" size="small" />
+                          ))}
+                        </Box>
+                      </Box>
+                    )}
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>Contatos</Typography>
+                    <List dense disablePadding>
+                      {chamadoSelecionado.emails?.map((email, idx) => (
+                        <ListItem key={idx} disableGutters><ListItemIcon sx={{ minWidth: 30 }}><EmailIcon fontSize="small" /></ListItemIcon><ListItemText primary={email.endereco} /></ListItem>
+                      ))}
+                      {chamadoSelecionado.telefones?.map((tel, idx) => (
+                        <ListItem key={idx} disableGutters>
+                          <ListItemIcon sx={{ minWidth: 30 }}><PhoneIcon fontSize="small" /></ListItemIcon>
+                          <ListItemText primary={tel.numero} secondary={<a href={`https://wa.me/55${tel.numero.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: '#25D366', fontSize: '0.8rem', fontWeight: 'bold' }}>Abrir WhatsApp</a>} />
+                        </ListItem>
+                      ))}
+                    </List>
                 </Grid>
               </Grid>
             </DialogContent>

@@ -60,11 +60,21 @@ export class ChamadosController {
     return this.chamadosService.addInteracao(id, body, files);
   }
 
+ // Rota do Admin (Com AuthGuard, vê tudo)
+  @UseGuards(AuthGuard('jwt')) 
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.chamadosService.findOne(id);
   }
 
+  
+// 👇 NOVA ROTA PÚBLICA (Cliente acessa esta)
+  // Sem AuthGuard (ou validação leve)
+  @Get('public/:id')
+  async findOnePublic(@Param('id', ParseIntPipe) id: number) {
+    return this.chamadosService.findOnePublic(id);
+  }
+  
   @UseGuards(AuthGuard('jwt'))
   @Get('dashboard/metrics')
   async getMetrics(@Query('start') start?: string, @Query('end') end?: string) {

@@ -64,7 +64,7 @@ model Interacao {
   autor     TipoAutor
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  interno   Boolean  @default(false)
   chamadoId Int
   chamado   Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
 

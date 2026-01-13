@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsEnum } from 'class-validator';
+import { IsNotEmpty, IsString, IsEnum, IsBoolean, IsOptional } from 'class-validator';
 import { TipoAutor } from '@prisma/client';
 
 export class CreateInteracaoDto {
@@ -9,4 +9,8 @@ export class CreateInteracaoDto {
   @IsNotEmpty()
   @IsEnum(TipoAutor)
   autor: TipoAutor; // O Front vai mandar se é SUPORTE ou CLIENTE
+
+  @IsOptional()
+  @IsBoolean()
+  interno?: boolean;
 }
