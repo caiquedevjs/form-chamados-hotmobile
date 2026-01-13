@@ -148,7 +148,7 @@ export default function ClientTracking() {
 
   const fetchChamado = async () => {
     try {
-      const response = await api.get(`${API_URL}/chamados/${id}`);
+      const response = await api.get(`${API_URL}/chamados/public/${id}`);
       setChamado(response.data);
     } catch (error) {
       toast.error('Chamado não encontrado.');
