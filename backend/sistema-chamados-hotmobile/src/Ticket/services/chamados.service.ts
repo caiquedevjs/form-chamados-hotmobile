@@ -7,6 +7,7 @@ import { ChamadosGateway } from './chamados.gateway';
 import { MailService } from './mail.service';
 import { WhatsappService } from './whatsapp.service';
 import * as storageInterface from './storage.interface'; 
+import { startOfDay, endOfDay, parseISO, eachDayOfInterval, format } from 'date-fns';
 
 @Injectable()
 export class ChamadosService {
@@ -213,8 +214,50 @@ export class ChamadosService {
     return chamado;
   }
 
-  async getDashboardMetrics(startStr?: string, endStr?: string) {
-    // ... Código mantido, se tiver lógica aqui ...
-    return {}; 
+ async getDashboardMetrics(startStr?: string, endStr?: string) {
+    const endDate = endStr ? endOfDay(parseISO(endStr)) : endOfDay(new Date());
+    const startDate = startStr ? startOfDay(parseISO(startStr)) : startOfDay(new Date(new Date().setDate(new Date().getDate() - 7)));
+
+    // 1. Totais Gerais
+    const totalGeral = await this.prisma.chamado.count({ 
+        where: { createdAt: { gte: startDate, lte: endDate } } 
+    });
+    
+    const totalFinalizados = await this.prisma.chamado.count({ 
+        where: { status: 'FINALIZADO', createdAt: { gte: startDate, lte: endDate } } 
+    });
+
+    // 2. Agrupamento por Status (Gráfico de Pizza)
+    const porStatus = await this.prisma.chamado.groupBy({ 
+        by: ['status'], 
+        where: { createdAt: { gte: startDate, lte: endDate } }, 
+        _count: { status: true }, 
+    });
+
+    // 3. Dados para Timeline (Gráfico de Linha)
+    const chamadosNoPeriodo = await this.prisma.chamado.findMany({ 
+        where: { createdAt: { gte: startDate, lte: endDate } }, 
+        select: { createdAt: true }, 
+    });
+    
+    const diasDoIntervalo = eachDayOfInterval({ start: startDate, end: endDate });
+    
+    const graficoTimeline = diasDoIntervalo.map((dia) => {
+      const diaFormatadoISO = format(dia, 'yyyy-MM-dd');
+      const diaFormatadoExibicao = format(dia, 'dd/MM');
+      const quantidade = chamadosNoPeriodo.filter(c => format(c.createdAt, 'yyyy-MM-dd') === diaFormatadoISO).length;
+      return { name: diaFormatadoExibicao, chamados: quantidade };
+    });
+
+    // 4. Retorno Estruturado (O que o Frontend espera)
+    return {
+      statusData: porStatus.map(s => ({ name: s.status, value: s._count.status })),
+      timelineData: graficoTimeline,
+      kpis: { 
+          total: totalGeral, 
+          finalizados: totalFinalizados, 
+          pendentes: totalGeral - totalFinalizados 
+      }
+    };
   }
 }
