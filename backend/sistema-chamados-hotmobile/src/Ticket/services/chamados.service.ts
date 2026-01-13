@@ -275,12 +275,6 @@ export class ChamadosService {
     if (!chamado) throw new Error('Chamado não encontrado');
     return chamado;
   }
-
-  // Método Existente (Admin vê tudo)
-  async findOne(id: number) {
-    // ... seu código atual ...
-  }
-
   
   async getDashboardMetrics(startStr?: string, endStr?: string) {
     const endDate = endStr ? endOfDay(parseISO(endStr)) : endOfDay(new Date());
