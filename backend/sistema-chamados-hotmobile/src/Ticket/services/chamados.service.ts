@@ -91,7 +91,7 @@ export class ChamadosService {
         );
         Promise.all(promessasEmail).catch(err => console.error('Erro ao enviar email de criação:', err));
     }
-    
+
     this.gateway.emitirNovoChamado(chamado);
     return chamado;
   }
@@ -170,13 +170,12 @@ export class ChamadosService {
   }
 
   async addInteracao(chamadoId: number, data: CreateInteracaoDto, files?: Array<Express.Multer.File>) {
+    // 1. Uploads (Mantido)
     let anexosData: any[] = [];
     if (files && files.length > 0) {
       anexosData = await Promise.all(
         files.map(async (file) => {
-          // ✅ AQUI TAMBÉM: USA O SERVIÇO GENÉRICO
           const publicUrl = await this.storageService.uploadFile(file.buffer, file.originalname);
-          
           return {
             nomeOriginal: file.originalname, nomeArquivo: file.originalname, caminho: publicUrl, mimetype: file.mimetype, tamanho: file.size, chamadoId: chamadoId 
           };
@@ -184,6 +183,7 @@ export class ChamadosService {
       );
     }
     
+    // 2. Salva no Banco (Mantido)
     const novaInteracao = await this.prisma.interacao.create({
       data: {
         texto: data.texto,
@@ -194,6 +194,11 @@ export class ChamadosService {
       include: { anexos: true }
     });
 
+    // 🚀 MUDANÇA: Emite o Socket IMEDIATAMENTE aqui!
+    // Assim, o chat atualiza na hora, mesmo se o email demorar 5 segundos.
+    this.gateway.emitirNovaInteracao(chamadoId, novaInteracao);
+
+    // 3. Atualiza contador de não lidas (Mantido)
     if (data.autor === 'CLIENTE') {
       await this.prisma.chamado.update({
         where: { id: chamadoId },
@@ -201,38 +206,40 @@ export class ChamadosService {
       });
     }
 
+    // 4. Notificações (Email/Zap) - Fica por último e sem 'await' bloqueante
     if (data.autor === 'SUPORTE') {
-        const chamadoPai = await this.prisma.chamado.findUnique({
+        // Não use await aqui no findUnique pra não travar o retorno, 
+        // mas como precisamos dos dados pra notificar, vamos fazer uma promise separada não bloqueante
+        this.prisma.chamado.findUnique({
             where: { id: chamadoId },
             include: { emails: true, telefones: true }
-        });
+        }).then(chamadoPai => {
+            if (chamadoPai) {
+                const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+                const linkFrontend = `${baseUrl}/acompanhamento/${chamadoId}`;
+                const msgNotificacao = `O suporte respondeu ao chamado #${chamadoId}: "${data.texto.substring(0, 50)}${data.texto.length > 50 ? '...' : ''}". Acesse para ver: ${linkFrontend}`;
 
-        if (chamadoPai) {
-            const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-            const linkFrontend = `${baseUrl}/acompanhamento/${chamadoId}`;
-            const msgNotificacao = `O suporte respondeu ao chamado #${chamadoId}: "${data.texto.substring(0, 50)}${data.texto.length > 50 ? '...' : ''}". Acesse para ver: ${linkFrontend}`;
+                if (chamadoPai.telefones?.length > 0) {
+                    chamadoPai.telefones.forEach(tel => {
+                        this.whatsappService.enviarMensagem(tel.numero, msgNotificacao)
+                            .catch(err => console.error('Erro zap resposta:', err));
+                    });
+                }
 
-            if (chamadoPai.telefones?.length > 0) {
-                chamadoPai.telefones.forEach(tel => {
-                    this.whatsappService.enviarMensagem(tel.numero, msgNotificacao)
-                        .catch(err => console.error('Erro zap resposta:', err));
-                });
+                if (chamadoPai.emails?.length > 0) {
+                    chamadoPai.emails.forEach(email => {
+                        this.mailService.enviarNotificacaoGenerica(
+                            email.endereco, 
+                            `Nova resposta no Chamado #${chamadoId}`, 
+                            `O suporte respondeu: "${data.texto}"`,
+                            linkFrontend
+                        ).catch(err => console.error('Erro email resposta:', err));
+                    });
+                }
             }
-
-            if (chamadoPai.emails?.length > 0) {
-                chamadoPai.emails.forEach(email => {
-                    this.mailService.enviarNotificacaoGenerica(
-                        email.endereco, 
-                        `Nova resposta no Chamado #${chamadoId}`, 
-                        `O suporte respondeu: "${data.texto}"`,
-                        linkFrontend
-                    ).catch(err => console.error('Erro email resposta:', err));
-                });
-            }
-        }
+        }).catch(err => console.error("Erro ao buscar chamado para notificação:", err));
     }
 
-    this.gateway.emitirNovaInteracao(chamadoId, novaInteracao);
     return novaInteracao;
   }
 
