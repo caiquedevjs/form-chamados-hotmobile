@@ -18,7 +18,7 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
-    // 2. Compara a senha digitada com o Hash do banco
+    // 2. Compara a senha
     const isMatch = await bcrypt.compare(pass, user.senha);
     if (!isMatch) {
       throw new UnauthorizedException('Credenciais inválidas');
@@ -26,13 +26,20 @@ export class AuthService {
 
     // 3. Gera o Token
     const payload = { sub: user.id, email: user.email, nome: user.nome };
+    
     return {
       access_token: this.jwtService.sign(payload),
-      user: { id: user.id, nome: user.nome, email: user.email }
+      // 👇 AQUI ESTAVA O ERRO: Faltava enviar a 'cor' de volta pro frontend
+      user: { 
+          id: user.id, 
+          nome: user.nome, 
+          email: user.email, 
+          cor: user.cor // ✅ Agora o frontend vai receber a cor certa!
+      }
     };
   }
 
-  // Registro: Cria usuário com senha criptografada
+  // Registro (Mantido igual, já está correto)
   async register(data: { email: string; senha: string; nome: string; cor: string }) {
     const hashedPassword = await bcrypt.hash(data.senha, 10);
     
@@ -40,9 +47,8 @@ export class AuthService {
       data: {
         email: data.email,
         nome: data.nome,
-        cor: data.cor,
+        cor: data.cor || '#1976d2', // Garante um fallback se vier vazio
         senha: hashedPassword,
-
       },
     });
   }
