@@ -16,8 +16,11 @@ export class UpdateStatusDto {
   status: StatusChamado;
   
   @IsOptional()
-  @IsEnum(PrioridadeEnum)
+  @IsEnum(PrioridadeEnum, { 
+    message: 'Prioridade deve ser BAIXA, MEDIA, ALTA ou CRITICA' 
+  })
   prioridade?: PrioridadeEnum;
+
 
   @IsString()
   @IsOptional()
