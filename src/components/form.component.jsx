@@ -9,13 +9,19 @@ import {
   useTheme,
   Typography,
   Avatar,
-  Divider
+  Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import BusinessIcon from '@mui/icons-material/Business';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'; // Ícone de alerta
 import MultipleSelectCheckmarks from './priority.checkbox.component';
 import LoadingButtonsTransition from './button.send.component';
 import InputFileUpload from './button.file.upload.component';
@@ -25,6 +31,9 @@ export default function MultilineTextFields() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const topRef = React.useRef();
+
+  // ✅ Estado para controlar o Modal de Aviso
+  const [openWarning, setOpenWarning] = React.useState(false);
 
   const [formData, setFormData] = React.useState({
     nome: '',
@@ -82,12 +91,10 @@ export default function MultilineTextFields() {
     });
   };
 
-  // ✅ NOVA LÓGICA DE VALIDAÇÃO DE ARQUIVOS
+  // ✅ LÓGICA DE VALIDAÇÃO COM MODAL
   const handleFileChange = (event) => {
-    // Converte FileList para Array para facilitar a manipulação
     const files = Array.from(event.target.files || []);
     
-    // Tipos permitidos
     const allowedTypes = [
       'image/jpeg', 
       'image/png', 
@@ -95,23 +102,20 @@ export default function MultilineTextFields() {
       'application/pdf'
     ];
 
-    // Filtra apenas os arquivos válidos
     const validFiles = files.filter(file => allowedTypes.includes(file.type));
 
-    // Se houver arquivos inválidos, avisa o usuário
+    // Se houver arquivos inválidos, abre o Modal ao invés do alert
     if (validFiles.length < files.length) {
-      alert('Atenção: Apenas arquivos JPG, JPEG, PNG e PDF são permitidos. Arquivos inválidos foram removidos.');
+      setOpenWarning(true);
     }
 
     if (validFiles.length > 0) {
       setFormData((prev) => ({
         ...prev,
-        anexos: validFiles // Salva o array filtrado
+        anexos: validFiles
       }));
-      console.log(`${validFiles.length} arquivos válidos selecionados`);
     } else {
-      // Se nenhum arquivo for válido, limpa o input (opcional)
-      event.target.value = '';
+      event.target.value = ''; // Limpa se tudo for inválido
     }
   };
 
@@ -306,7 +310,6 @@ export default function MultilineTextFields() {
               />
               
               <Box sx={{ mt: 2 }}>
-                {/* ✅ PASSEI O ACCEPT AQUI */}
                 <InputFileUpload 
                   onChange={handleFileChange} 
                   accept=".jpg,.jpeg,.png,.pdf"
@@ -332,6 +335,32 @@ export default function MultilineTextFields() {
         </Box>
       </Box>
       <Footer />
+
+      {/* ✅ MODAL DE AVISO (Dialog) */}
+      <Dialog
+        open={openWarning}
+        onClose={() => setOpenWarning(false)}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title" sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#ed6c02' }}>
+          <WarningAmberRoundedIcon />
+          Tipo de Arquivo Inválido
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Apenas arquivos nos formatos <strong>JPG, JPEG, PNG e PDF</strong> são permitidos.
+            <br /><br />
+            Os arquivos que não correspondem a esses formatos foram removidos da sua seleção.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenWarning(false)} variant="contained" color="primary" autoFocus>
+            Entendi
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </>
   );
 }
