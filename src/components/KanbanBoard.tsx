@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { 
   Box, Typography, Paper, Card, CardContent, Chip, IconButton,
@@ -27,12 +27,14 @@ import {
   MenuBook as BookIcon,     // Para documentação
   Dns as DnsIcon,           // Para status de sistema
   Help as HelpIcon,         // Para central de ajuda
-  Public as PublicIcon      // Para site
+  Public as PublicIcon,
+  Logout as LogoutIcon     // Para site
 } from '@mui/icons-material';
 import api from '../services/api';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom'; 
 import { io } from 'socket.io-client';
+import { useAuth } from '../contexts/AuthContext';
 
 // --- CONFIGURAÇÃO DAS COLUNAS ---
 const COLUMNS = {
@@ -90,6 +92,8 @@ interface Chamado {
 export default function KanbanBoardView() {
   const navigate = useNavigate(); 
   const [chamados, setChamados] = useState<Chamado[]>([]);
+
+ const { logout } = useAuth();
   
   // --- ESTADOS DE FILTRO ---
   const [busca, setBusca] = useState('');
@@ -109,6 +113,18 @@ export default function KanbanBoardView() {
   const [enviandoComentario, setEnviandoComentario] = useState(false);
   const [files, setFiles] = useState<File[]>([]); 
   const fileInputRef = useRef<HTMLInputElement>(null); 
+
+
+  const handleLogout = () => {
+    // 1. Chama a função do contexto que limpa o token/localStorage
+    logout(); 
+    
+    // 2. Avisa o usuário
+    toast.info('Você saiu do sistema.');
+    
+    // 3. Redireciona para o login
+    navigate('/login');
+  };
 
   useEffect(() => {
     carregarChamados();
@@ -365,6 +381,18 @@ export default function KanbanBoardView() {
             onClick={() => navigate('/dashboard')}
           >
             Relatórios
+          </Button>
+
+
+          {/* 🔴 NOVO BOTÃO DE SAIR (Adicione aqui) */}
+          <Button 
+            variant="outlined" 
+            color="error" // Cor vermelha para indicar saída
+            startIcon={<LogoutIcon />}
+            onClick={handleLogout}
+            sx={{ fontWeight: 'bold' }}
+          >
+            Sair
           </Button>
         </Box>
       </Box>
