@@ -7,6 +7,8 @@ import { AuthModule } from './auth/auth.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { AppController } from './app.controller';
 import { RespostasController } from './respostas/respostas.controller';
+import { PrismaService } from './prisma.service';
+
 
 @Module({
   imports: [
@@ -21,6 +23,6 @@ import { RespostasController } from './respostas/respostas.controller';
     // eslint-disable-next-line prettier/prettier
     ChamadosModule, AuthModule, SupabaseModule],
   controllers: [AppController, RespostasController],
-  providers: [],
+  providers: [PrismaService],
 })
 export class AppModule {}
