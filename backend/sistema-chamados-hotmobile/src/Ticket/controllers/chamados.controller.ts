@@ -1,22 +1,11 @@
 import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  Query,
-  UploadedFiles,
-  UseInterceptors,
-  UsePipes,
-  ValidationPipe,
-  UseGuards,
-  Patch,
-  Param,
-  ParseIntPipe,
+  Controller, Post, Get, Body, Query, UploadedFiles, UseInterceptors,
+  UsePipes, ValidationPipe, UseGuards, Patch, Param, ParseIntPipe,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ChamadosService } from '../services/chamados.service';
 import { CreateChamadoDto } from '../dtos/create-chamado.dto';
-import { UpdateStatusDto } from '../dtos/update-status.dto'; // Verifique se este DTO tem os campos novos (responsavel, cor)
+import { UpdateStatusDto } from '../dtos/update-status.dto';
 import { CreateInteracaoDto } from '../dtos/create-interacao.dto';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -40,7 +29,6 @@ export class ChamadosController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateStatusDto,
   ) {
-    // ✅ CORREÇÃO AQUI: Passa o 'body' inteiro
     return this.chamadosService.updateStatus(id, body);
   }
 
@@ -50,6 +38,7 @@ export class ChamadosController {
     return this.chamadosService.findAll();
   }
 
+  // 🔓 ROTA PÚBLICA: Permite cliente enviar mensagem sem login
   @Post(':id/interacoes')
   @UseInterceptors(FilesInterceptor('files', 5))
   async addInteracao(
@@ -60,21 +49,19 @@ export class ChamadosController {
     return this.chamadosService.addInteracao(id, body, files);
   }
 
- // Rota do Admin (Com AuthGuard, vê tudo)
-  @UseGuards(AuthGuard('jwt')) 
+  // 🔒 ROTA PRIVADA: Admin vê tudo
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.chamadosService.findOne(id);
   }
 
-  
-// 👇 NOVA ROTA PÚBLICA (Cliente acessa esta)
-  // Sem AuthGuard (ou validação leve)
+  // 🔓 ROTA PÚBLICA: Cliente vê apenas o necessário
   @Get('public/:id')
   async findOnePublic(@Param('id', ParseIntPipe) id: number) {
     return this.chamadosService.findOnePublic(id);
   }
-  
+
   @UseGuards(AuthGuard('jwt'))
   @Get('dashboard/metrics')
   async getMetrics(@Query('start') start?: string, @Query('end') end?: string) {
