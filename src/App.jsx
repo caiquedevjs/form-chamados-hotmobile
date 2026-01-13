@@ -1,6 +1,5 @@
 // src/App.jsx
 import React from 'react';
-// 1. ADICIONEI OS IMPORTS QUE FALTAVAM AQUI:
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext'
 import ThemeProviderContext from './contexts/ThemeProviderContext';
@@ -11,11 +10,12 @@ import LogoHeader from './components/LogoHeader';
 import Footer from './components/Footer';
 import KanbanBoardView from './components/KanbanBoard';
 import DashboardView from './components/DashboardView';
-import LoginView from './components/LoginView'; // Tela de Login
-import PrivateRoute from './components/PrivateRoute'; // Proteção de Rota
-
-// 2. CORRIGI O CAMINHO (agora busca dentro de components):
+import LoginView from './components/LoginView'; 
+import PrivateRoute from './components/PrivateRoute'; 
 import ClientTracking from './components/ClientTracking'; 
+
+// 👇 1. IMPORT NOVO (Certifique-se que o arquivo está na pasta components)
+import RegisterForm from './components/RegisterForm'; // <--- AQUI
 
 export default function App() {
   return (
@@ -30,7 +30,7 @@ export default function App() {
           justifyContent: 'center',
           alignItems: 'center',
           position: 'relative',
-          overflow: 'scroll', // 🔒 bloqueia scroll externo
+          overflow: 'scroll', 
           backgroundColor: 'inherit',
           
         }}
@@ -49,23 +49,25 @@ export default function App() {
             zIndex: 999,
           }}
         >
-          
+          {/* <ToggleThemeButton /> Se quiser ativar o botão */}
         </div>
 
         {/* Roteamento */}
         <BrowserRouter>
-          {/* Se você tiver um menu de navegação, ele deve ficar aqui dentro */}
           
           <Routes>
                   {/* --- ROTAS PÚBLICAS --- */}
                   
-                  {/* Formulário Inicial (Centralizado por padrão) */}
+                  {/* Formulário Inicial (Abertura de Chamado) */}
                   <Route path="/" element={<MultilineTextFields />} />
                   
                   {/* Login */}
                   <Route path="/login" element={<LoginView />} />
+
+                  {/* 👇 2. NOVA ROTA DE CADASTRO */}
+                  <Route path="/register" element={<RegisterForm />} /> 
                   
-                  {/* Acompanhamento (Cliente) - Precisa de largura total */}
+                  {/* Acompanhamento (Cliente) */}
                   <Route 
                     path="/acompanhamento/:id" 
                     element={<div style={{ width: '100%' }}><ClientTracking /></div>} 
