@@ -99,8 +99,12 @@ export default function ClientTracking() {
       });
     };
 
-    socket.on('nova_interacao', (data) => {
-      // Verifica se a mensagem pertence a este chamado
+   socket.on('nova_interacao', (data) => {
+      // 🚨 BLINDAGEM DE SEGURANÇA 🚨
+      // Se a mensagem for interna, O CLIENTE IGNORA TOTALMENTE.
+      if (data.interno === true) return; 
+
+      // Verifica se é deste chamado
       if (Number(data.chamadoId) === Number(id)) {
         
         setChamado((prev) => {
@@ -110,19 +114,9 @@ export default function ClientTracking() {
           return { ...prev, interacoes: [...prev.interacoes, data] };
         });
 
-        // Se a mensagem veio do SUPORTE, notifica o cliente
         if (data.autor === 'SUPORTE') {
-          playNotificationSound(); // Toca o som
-          
-          toast.info("🔔 Nova mensagem do suporte!", { 
-            position: "top-center", 
-            theme: "colored",
-            autoClose: 3000
-          });
-          
-          if (document.hidden) {
-            dispararNotificacaoNativa("Nova mensagem do Suporte", data.texto);
-          }
+          audio.play().catch(() => {});
+          toast.info("🔔 Nova mensagem do suporte!", { position: "top-center", theme: "colored" });
         }
       }
     });
