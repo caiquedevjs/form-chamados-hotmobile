@@ -8,7 +8,8 @@ import {
   Paper,
   InputAdornment,
   IconButton,
-  Avatar
+  Avatar,
+  Tooltip // 👈 Adicionei Tooltip pra ficar chique
 } from '@mui/material';
 import LoadingButton from '@mui/lab/LoadingButton';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -17,6 +18,18 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { toast, ToastContainer } from 'react-toastify';
 import axios from 'axios';
 import 'react-toastify/dist/ReactToastify.css';
+
+// 🎨 Paleta de Cores Disponíveis
+const CORES_DISPONIVEIS = [
+  '#1976d2', // Azul (Padrão)
+  '#d32f2f', // Vermelho
+  '#2e7d32', // Verde
+  '#ed6c02', // Laranja
+  '#9c27b0', // Roxo
+  '#0288d1', // Azul Claro
+  '#7b1fa2', // Violeta
+  '#455a64', // Cinza Azulado
+];
 
 export default function RegisterForm() {
   const [loading, setLoading] = useState(false);
@@ -27,7 +40,8 @@ export default function RegisterForm() {
     nome: '',
     email: '',
     senha: '',
-    confirmarSenha: ''
+    confirmarSenha: '',
+    cor: '#1976d2' // 👈 Cor padrão inicial
   });
 
   // Pega a URL do .env (A mesma que consertamos pro Railway)
@@ -37,6 +51,14 @@ export default function RegisterForm() {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
+    });
+  };
+
+  // 👇 Função para escolher a cor
+  const handleColorSelect = (corEscolhida) => {
+    setFormData({
+      ...formData,
+      cor: corEscolhida
     });
   };
 
@@ -64,12 +86,12 @@ export default function RegisterForm() {
     setLoading(true);
 
     try {
-      // 2. Prepara o payload (o backend espera: nome, email, senha)
-      // O 'role' ou 'cargo' geralmente o backend define como padrão se não enviar
+      // 2. Prepara o payload (Agora com a cor!)
       const payload = {
         nome: formData.nome,
         email: formData.email,
-        senha: formData.senha
+        senha: formData.senha,
+        cor: formData.cor // 👈 Enviando a cor pro Backend
       };
 
       // 3. Envia para o Railway
@@ -82,16 +104,18 @@ export default function RegisterForm() {
         nome: '',
         email: '',
         senha: '',
-        confirmarSenha: ''
+        confirmarSenha: '',
+        cor: '#1976d2'
       });
 
-      // Opcional: Redirecionar para o Login aqui
-       window.location.href = '/login'; 
+      // Redireciona para Login após 1.5s pra dar tempo de ler o toast
+      setTimeout(() => {
+         window.location.href = '/login'; 
+      }, 1500);
 
     } catch (error) {
       console.error(error);
       const msg = error.response?.data?.message || "Erro ao cadastrar usuário.";
-      // Se vier array de erros do backend, junta eles
       if (Array.isArray(msg)) {
         toast.error(msg.join(', '));
       } else {
@@ -125,7 +149,8 @@ export default function RegisterForm() {
             borderRadius: 2
           }}
         >
-          <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>
+          {/* O Avatar do topo já mostra a cor escolhida */}
+          <Avatar sx={{ m: 1, bgcolor: formData.cor, transition: 'background-color 0.3s' }}>
             <PersonAddIcon />
           </Avatar>
           
@@ -162,6 +187,33 @@ export default function RegisterForm() {
               value={formData.email}
               onChange={handleChange}
             />
+
+            {/* 👇 SELETOR DE CORES */}
+            <Box sx={{ mt: 2, mb: 1 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                    Escolha sua cor de identificação:
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1.5, mt: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    {CORES_DISPONIVEIS.map((cor) => (
+                        <Tooltip title="Escolher esta cor" key={cor}>
+                            <Box
+                                onClick={() => handleColorSelect(cor)}
+                                sx={{
+                                    width: 32,
+                                    height: 32,
+                                    bgcolor: cor,
+                                    borderRadius: '50%',
+                                    cursor: 'pointer',
+                                    transition: 'transform 0.2s, border 0.2s',
+                                    transform: formData.cor === cor ? 'scale(1.2)' : 'scale(1)',
+                                    border: formData.cor === cor ? '3px solid #333' : '2px solid transparent',
+                                    boxShadow: formData.cor === cor ? 3 : 1
+                                }}
+                            />
+                        </Tooltip>
+                    ))}
+                </Box>
+            </Box>
 
             {/* Campo Senha */}
             <TextField
@@ -214,17 +266,26 @@ export default function RegisterForm() {
               fullWidth
               variant="contained"
               loading={loading}
-              sx={{ mt: 3, mb: 2, py: 1.5, fontWeight: 'bold' }}
+              // Botão pega a cor escolhida também pra dar um charme
+              sx={{ 
+                  mt: 3, 
+                  mb: 2, 
+                  py: 1.5, 
+                  fontWeight: 'bold', 
+                  bgcolor: formData.cor,
+                  '&:hover': { bgcolor: formData.cor, filter: 'brightness(0.9)' }
+              }}
             >
               CADASTRAR
             </LoadingButton>
             
-            {/* Link para Login (Futuro) */}
+            {/* Link para Login */}
             <Button 
                 fullWidth 
                 variant="text" 
                 size="small"
-                onClick={() =>  window.location.href = '/login'}
+                onClick={() => window.location.href = '/login'}
+                sx={{ color: formData.cor }}
             >
                 Já tem uma conta? Faça Login
             </Button>
