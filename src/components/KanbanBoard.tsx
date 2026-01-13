@@ -81,6 +81,7 @@ interface Chamado {
   servico: string;
   descricao: string;
   status: string;
+  responsavel?: string;
   createdAt: string;
   anexos: Anexo[];
   emails: Email[];
@@ -93,7 +94,7 @@ export default function KanbanBoardView() {
   const navigate = useNavigate(); 
   const [chamados, setChamados] = useState<Chamado[]>([]);
 
- const { logout } = useAuth();
+ const { logout, user } = useAuth();
   
   // --- ESTADOS DE FILTRO ---
   const [busca, setBusca] = useState('');
@@ -153,20 +154,47 @@ export default function KanbanBoardView() {
     atualizarStatus(chamadoId, novoStatus);
   };
 
-  const atualizarStatus = async (id: number, novoStatus: string) => {
+const atualizarStatus = async (id: number, novoStatus: string) => {
     const chamadosAntigos = [...chamados];
-    setChamados((prev) => prev.map((c) => c.id === id ? { ...c, status: novoStatus } : c));
     
+    // 1. Prepara o objeto de atualização
+    const dadosAtualizacao: any = { status: novoStatus };
+    
+    // 2. Lógica Inteligente: Se moveu para "Em Atendimento", define o responsável
+    // (Só define se ainda não tiver ninguém ou se quiser sobrescrever)
+    if (novoStatus === 'EM_ATENDIMENTO' && user && user.nome) {
+        dadosAtualizacao.responsavel = user.nome;
+    }
+
+    // 3. Atualização Otimista (Visual)
+    setChamados((prev) => prev.map((c) => {
+        if (c.id === id) {
+            return { 
+                ...c, 
+                status: novoStatus,
+                // Se tiver responsável no payload, atualiza visualmente na hora
+                responsavel: dadosAtualizacao.responsavel || c.responsavel 
+            };
+        }
+        return c;
+    }));
+    
+    // Atualiza também o selecionado se estiver aberto
     if (chamadoSelecionado && chamadoSelecionado.id === id) {
-      setChamadoSelecionado({ ...chamadoSelecionado, status: novoStatus });
+      setChamadoSelecionado((prev) => prev ? { 
+          ...prev, 
+          status: novoStatus,
+          responsavel: dadosAtualizacao.responsavel || prev.responsavel
+      } : null);
     }
 
     try {
-      await api.patch(`${API_URL}/chamados/${id}/status`, { status: novoStatus });
+      // 4. Envia para o Backend (O Backend precisa estar pronto para receber 'responsavel')
+      await api.patch(`${API_URL}/chamados/${id}/status`, dadosAtualizacao);
       toast.success('Status atualizado!');
     } catch (error) {
       toast.error('Erro ao atualizar status.');
-      setChamados(chamadosAntigos);
+      setChamados(chamadosAntigos); // Reverte se der erro
     }
   };
 
@@ -535,6 +563,19 @@ export default function KanbanBoardView() {
                               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                                 <Box display="flex" justifyContent="space-between" mb={1}>
                                   <Typography variant="caption" color="text.secondary">#{item.id}</Typography>
+
+                                  {/* 👇 ADICIONE ISSO: Mostra quem está cuidando */}
+                                {item.responsavel && (
+                                  <Box display="flex" alignItems="center" gap={1} mt={1} sx={{ bgcolor: 'rgba(0,0,0,0.03)', p: 0.5, borderRadius: 1 }}>
+                                    <Avatar 
+                                        sx={{ width: 20, height: 20, fontSize: 10, bgcolor: '#1976d2' }}
+                                    >
+                                        {item.responsavel.charAt(0).toUpperCase()}
+                                    </Avatar>
+                                    <Typography variant="caption" color="text.secondary" fontWeight="bold">
+                                        {item.responsavel}
+                                    </Typography>
+                                  </Box>
                                   
                                   {/* CONTADOR DE MENSAGENS (BOLA VERDE) */}
                                   {item.mensagensNaoLidas > 0 && (
