@@ -82,14 +82,36 @@ export default function MultilineTextFields() {
     });
   };
 
+  // ✅ NOVA LÓGICA DE VALIDAÇÃO DE ARQUIVOS
   const handleFileChange = (event) => {
-    const files = event.target.files;
-    if (files && files.length > 0) {
+    // Converte FileList para Array para facilitar a manipulação
+    const files = Array.from(event.target.files || []);
+    
+    // Tipos permitidos
+    const allowedTypes = [
+      'image/jpeg', 
+      'image/png', 
+      'image/jpg', 
+      'application/pdf'
+    ];
+
+    // Filtra apenas os arquivos válidos
+    const validFiles = files.filter(file => allowedTypes.includes(file.type));
+
+    // Se houver arquivos inválidos, avisa o usuário
+    if (validFiles.length < files.length) {
+      alert('Atenção: Apenas arquivos JPG, JPEG, PNG e PDF são permitidos. Arquivos inválidos foram removidos.');
+    }
+
+    if (validFiles.length > 0) {
       setFormData((prev) => ({
         ...prev,
-        anexos: files
+        anexos: validFiles // Salva o array filtrado
       }));
-      console.log(`${files.length} arquivos selecionados`);
+      console.log(`${validFiles.length} arquivos válidos selecionados`);
+    } else {
+      // Se nenhum arquivo for válido, limpa o input (opcional)
+      event.target.value = '';
     }
   };
 
@@ -166,11 +188,10 @@ export default function MultilineTextFields() {
               </Grid>
             </Grid>
 
-            {/* ✅ Serviço (Correção aqui) */}
+            {/* Serviço */}
             <Grid item xs={12} sm={6}>
                <Grid container spacing={1}>
                 <Grid item xs={11}>
-                  {/* Passei width 100% e fullWidth aqui */}
                   <Box sx={{ width: '100%' }}>
                     <MultipleSelectCheckmarks
                       value={formData.servico}
@@ -285,10 +306,14 @@ export default function MultilineTextFields() {
               />
               
               <Box sx={{ mt: 2 }}>
-                <InputFileUpload onChange={handleFileChange} />
+                {/* ✅ PASSEI O ACCEPT AQUI */}
+                <InputFileUpload 
+                  onChange={handleFileChange} 
+                  accept=".jpg,.jpeg,.png,.pdf"
+                />
               </Box>
 
-              {formData.anexos && (
+              {formData.anexos && formData.anexos.length > 0 && (
                 <Box sx={{ mt: 1, p: 1, bgcolor: '#f0f0f0', borderRadius: 1 }}>
                    <Typography variant="caption" color="text.secondary">
                      Arquivos: {Array.from(formData.anexos).map(f => f.name).join(', ')}
