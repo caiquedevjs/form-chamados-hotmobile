@@ -82,6 +82,7 @@ interface Chamado {
   descricao: string;
   status: string;
   responsavel?: string;
+  responsavelCor?: string;
   createdAt: string;
   anexos: Anexo[];
   emails: Email[];
@@ -156,35 +157,30 @@ export default function KanbanBoardView() {
 
 const atualizarStatus = async (id: number, novoStatus: string) => {
     const chamadosAntigos = [...chamados];
-    
-    // --- DEBUG: VAMOS VER O QUE ESTÁ ACONTECENDO ---
-    console.log("🔄 Tentando mover para:", novoStatus);
-    console.log("👤 User Logado:", user);
-    // -----------------------------------------------
-
     const dadosAtualizacao: any = { status: novoStatus };
     
-    // 1. Lógica Inteligente (Aceitando 'nome' ou 'name')
+    // 1. Lógica de Atribuição (Nome + Cor)
     if (novoStatus === 'EM_ATENDIMENTO') {
-        // Tenta pegar o nome de várias formas
-        const nomeResponsavel = user?.nome || user?.name || user?.email; // Fallback para email se não tiver nome
+        const nomeResponsavel = user?.nome || user?.name || user?.email;
+        
+        // 👇 PEGA A COR DO USUÁRIO (ou usa azul padrão se não tiver)
+        const corResponsavel = user?.cor || '#1976d2'; 
 
         if (nomeResponsavel) {
-            console.log("✅ Definindo responsável como:", nomeResponsavel);
             dadosAtualizacao.responsavel = nomeResponsavel;
-        } else {
-            console.warn("⚠️ ALERTA: Usuário logado não tem propriedade 'nome' ou 'name'!");
+            dadosAtualizacao.responsavelCor = corResponsavel; // 👈 Manda a cor pro backend
         }
     }
 
-    // 2. Atualização Otimista (Visual)
+    // 2. Atualização Otimista (Visual Imediato)
     setChamados((prev) => prev.map((c) => {
         if (c.id === id) {
             return { 
                 ...c, 
                 status: novoStatus,
-                // Força a atualização visual se tivermos o dado
-                responsavel: dadosAtualizacao.responsavel || c.responsavel 
+                // Atualiza visualmente na hora
+                responsavel: dadosAtualizacao.responsavel || c.responsavel,
+                responsavelCor: dadosAtualizacao.responsavelCor || c.responsavelCor // 👈 Atualiza a cor
             };
         }
         return c;
@@ -195,7 +191,8 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
       setChamadoSelecionado((prev) => prev ? { 
           ...prev, 
           status: novoStatus,
-          responsavel: dadosAtualizacao.responsavel || prev.responsavel
+          responsavel: dadosAtualizacao.responsavel || prev.responsavel,
+          responsavelCor: dadosAtualizacao.responsavelCor || prev.responsavelCor // 👈 Atualiza a cor
       } : null);
     }
 
@@ -203,7 +200,7 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
       await api.patch(`${API_URL}/chamados/${id}/status`, dadosAtualizacao);
       toast.success('Status atualizado!');
     } catch (error) {
-      console.error("❌ Erro ao salvar no banco:", error);
+      console.error("❌ Erro ao salvar:", error);
       toast.error('Erro ao atualizar status.');
       setChamados(chamadosAntigos);
     }
@@ -575,17 +572,42 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
                                 <Box display="flex" justifyContent="space-between" mb={1}>
                                   <Typography variant="caption" color="text.secondary">#{item.id}</Typography>
 
-                               {/* Se item.responsavel existir, mostra o box */}
-                                  {item.responsavel ? (
-                                    <Box display="flex" alignItems="center" gap={1} mt={1} sx={{ bgcolor: '#e3f2fd', p: 0.5, borderRadius: 1 }}>
-                                      <Avatar sx={{ width: 20, height: 20, fontSize: 10, bgcolor: '#1565c0' }}>
-                                          {item.responsavel.charAt(0).toUpperCase()}
-                                      </Avatar>
-                                      <Typography variant="caption" color="primary" fontWeight="bold">
-                                          {item.responsavel}
-                                      </Typography>
-                                    </Box>
-                                  ) : null}
+                              {/* Se item.responsavel existir, mostra o box com a cor personalizada */}
+                              {item.responsavel && (
+                                <Box 
+                                  display="flex" 
+                                  alignItems="center" 
+                                  gap={1} 
+                                  mt={1} 
+                                  sx={{ 
+                                    // Fundo levemente transparente da cor escolhida (adiciona '15' ao hex para opacidade)
+                                    bgcolor: `${item.responsavelCor || '#1976d2'}15`, 
+                                    p: 0.5, 
+                                    borderRadius: 1 
+                                  }}
+                                >
+                                  <Avatar 
+                                      sx={{ 
+                                          width: 20, 
+                                          height: 20, 
+                                          fontSize: 10, 
+                                          // Cor de fundo do avatar = cor do usuário
+                                          bgcolor: item.responsavelCor || '#1976d2',
+                                          color: '#fff' // Texto sempre branco pra contrastar
+                                      }}
+                                  >
+                                      {item.responsavel.charAt(0).toUpperCase()}
+                                  </Avatar>
+                                  <Typography 
+                                      variant="caption" 
+                                      fontWeight="bold"
+                                      // Cor do texto = cor do usuário
+                                      sx={{ color: item.responsavelCor || '#1976d2' }}
+                                  >
+                                      {item.responsavel}
+                                  </Typography>
+                                </Box>
+                              )}
                                   
                                   {/* CONTADOR DE MENSAGENS (BOLA VERDE) */}
                                   {item.mensagensNaoLidas > 0 && (
