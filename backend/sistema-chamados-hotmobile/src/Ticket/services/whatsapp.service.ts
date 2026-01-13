@@ -1,14 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config'; // 1. Importar ConfigService
+import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
   
-  
-  // 2. Apenas declarar as variáveis (sem valor fixo)
   private apiUrl: string;
   private apiUser: string;
   private apiPass: string;
@@ -16,18 +14,22 @@ export class WhatsappService {
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly configService: ConfigService // 3. Injetar o ConfigService
+    private readonly configService: ConfigService
   ) {
-    // 4. Carregar os valores do .env no construtor
     this.apiUrl = this.configService.getOrThrow<string>('HOTMOBILE_API_URL');
     this.apiUser = this.configService.getOrThrow<string>('HOTMOBILE_API_USER');
     this.apiPass = this.configService.getOrThrow<string>('HOTMOBILE_API_PASS');
     this.instanciaId = Number(this.configService.getOrThrow<string>('HOTMOBILE_INSTANCIA_ID'));
 
-    // Validação de segurança (opcional, mas recomendado)
     if (!this.apiUser || !this.apiPass) {
       this.logger.error('❌ AS CREDENCIAIS DA HOTMOBILE NÃO FORAM CONFIGURADAS NO .ENV');
     }
+  }
+
+  // 👇 NOVO MÉTODO: AVISO DE CRIAÇÃO
+  async enviarAvisoCriacaoChamado(telefone: string, nomeEmpresa: string, idChamado: number, linkAcompanhamento: string) {
+    const mensagemTexto = `Olá *${nomeEmpresa}*! 👋\n\nRecebemos seu chamado *#${idChamado}* com sucesso.\n\nEle já está na nossa fila aguardando um atendente.\n\n🔗 Acompanhe o status aqui:\n${linkAcompanhamento}`;
+    return this.enviarMensagemBase(telefone, mensagemTexto);
   }
 
   async enviarAvisoInicioAtendimento(telefone: string, nomeEmpresa: string, linkAcompanhamento: string) {

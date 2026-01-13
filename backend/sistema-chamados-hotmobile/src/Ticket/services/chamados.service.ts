@@ -60,6 +60,38 @@ export class ChamadosService {
       include: { emails: true, telefones: true, anexos: true, interacoes: true },
     });
 
+
+    // 👇 2. NOVA LÓGICA: Enviar notificação de "Recebido com Sucesso"
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const linkFrontend = `${baseUrl}/acompanhamento/${chamado.id}`;
+
+    // Dispara WhatsApp
+    if (chamado.telefones?.length > 0) {
+      const promessasZap = chamado.telefones.map(tel => 
+        this.whatsappService.enviarAvisoCriacaoChamado(
+            tel.numero, 
+            chamado.nomeEmpresa, 
+            chamado.id, 
+            linkFrontend
+        )
+      );
+      // "Fire and forget": Não usamos await aqui pro cliente não ficar esperando o zap chegar pra tela liberar
+      Promise.all(promessasZap).catch(err => console.error('Erro ao enviar zap de criação:', err));
+    }
+
+    // Dispara Email (Opcional, se quiser avisar por email também)
+    if (chamado.emails?.length > 0) {
+        const promessasEmail = chamado.emails.map(email => 
+            this.mailService.enviarNotificacaoGenerica(
+                email.endereco,
+                `Chamado #${chamado.id} Recebido`,
+                `Olá ${chamado.nomeEmpresa}, recebemos seu chamado com sucesso. Aguarde atendimento.`,
+                linkFrontend
+            )
+        );
+        Promise.all(promessasEmail).catch(err => console.error('Erro ao enviar email de criação:', err));
+    }
+    
     this.gateway.emitirNovoChamado(chamado);
     return chamado;
   }
