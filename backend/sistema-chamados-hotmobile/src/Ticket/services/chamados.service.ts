@@ -9,13 +9,12 @@ import { Injectable, Inject } from '@nestjs/common'; // 👈 Adicione Inject
 import { PrismaService } from 'src/prisma.service'; 
 import { CreateChamadoDto } from '../dtos/create-chamado.dto';
 import { CreateInteracaoDto } from '../dtos/create-interacao.dto';
-import { StatusChamado } from '@prisma/client';
+import { UpdateStatusDto } from '../dtos/update-status.dto'; 
 import { startOfDay, endOfDay, parseISO, eachDayOfInterval, format } from 'date-fns';
 import { ChamadosGateway } from './chamados.gateway';
 import { MailService } from './mail.service';
 import { WhatsappService } from './whatsapp.service';
-// ❌ REMOVA: import { SupabaseService } ...
-// ✅ ADICIONE:
+
 import * as storageInterface from './storage.interface'; 
 
 @Injectable()
@@ -66,16 +65,27 @@ export class ChamadosService {
   }
 
   // ... (updateStatus MANTIDO IGUAL - Não muda nada aqui) ...
-  async updateStatus(id: number, novoStatus: StatusChamado) {
+ // ✅ CORREÇÃO: Recebe o DTO completo, não só a string
+  async updateStatus(id: number, dto: UpdateStatusDto) {
+    
+    // Captura o status novo para usar nas notificações abaixo
+    const novoStatus = dto.status;
+
     const chamadoAtualizado = await this.prisma.chamado.update({
       where: { id },
-      data: { status: novoStatus },
+      data: { 
+        // ✅ Agora usa 'dto' corretamente
+        ...(dto.status && { status: dto.status }),
+        ...(dto.responsavel && { responsavel: dto.responsavel }),
+        ...(dto.responsavelCor && { responsavelCor: dto.responsavelCor }),
+       },
       include: { emails: true, telefones: true } 
     });
 
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const linkFrontend = `${baseUrl}/acompanhamento/${id}`;
 
+    // ✅ Verifica se o status mudou antes de notificar
     if (novoStatus === 'EM_ATENDIMENTO') {
       if (chamadoAtualizado.emails?.length > 0) {
         const promessasEmail = chamadoAtualizado.emails.map(email => 
@@ -109,10 +119,13 @@ export class ChamadosService {
       }
     }
 
-    this.gateway.emitirMudancaStatus(id, novoStatus);
+    // Se houve mudança de status, emite o evento
+    if (novoStatus) {
+        this.gateway.emitirMudancaStatus(id, novoStatus);
+    }
+    
     return chamadoAtualizado;
   }
-
   // ... (findAll MANTIDO IGUAL) ...
   async findAll() {
     return this.prisma.chamado.findMany({

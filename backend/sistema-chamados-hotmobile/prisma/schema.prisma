@@ -30,6 +30,8 @@ model Chamado {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   status      StatusChamado @default(NOVO)
+  responsavel    String?  // Nome de quem assumiu
+  responsavelCor String?  // 👇 NOVA COLUNA (Para pintar a bolinha no card)
   mensagensNaoLidas Int @default(0)
   emails    Email[]
   telefones Telefone[]
@@ -96,6 +98,7 @@ model Usuario {
   email     String   @unique
   senha     String   // Será salva criptografada (hash)
   nome      String
+  cor       String   @default("#1976d2")
   createdAt DateTime @default(now())
 
   @@map("usuarios")

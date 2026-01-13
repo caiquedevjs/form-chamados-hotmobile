@@ -33,14 +33,16 @@ export class AuthService {
   }
 
   // Registro: Cria usuário com senha criptografada
-  async register(data: { email: string; senha: string; nome: string }) {
+  async register(data: { email: string; senha: string; nome: string; cor: string }) {
     const hashedPassword = await bcrypt.hash(data.senha, 10);
     
     return this.prisma.usuario.create({
       data: {
         email: data.email,
         nome: data.nome,
+        cor: data.cor,
         senha: hashedPassword,
+
       },
     });
   }
