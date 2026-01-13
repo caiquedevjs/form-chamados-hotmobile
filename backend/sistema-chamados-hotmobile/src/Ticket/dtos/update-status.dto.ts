@@ -1,5 +1,12 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { StatusChamado } from '@prisma/client'; 
+import { IsOptional, IsString, IsEnum } from 'class-validator';
+
+// 1. Defina os Enums para garantir que o NestJS saiba o que é válido
+export enum StatusChamado {
+  NOVO = 'NOVO',
+  EM_ATENDIMENTO = 'EM_ATENDIMENTO',
+  AGUARDANDO_CLIENTE = 'AGUARDANDO_CLIENTE',
+  FINALIZADO = 'FINALIZADO',
+}
 
 export enum PrioridadeEnum {
   BAIXA = 'BAIXA',
@@ -9,24 +16,25 @@ export enum PrioridadeEnum {
 }
 
 export class UpdateStatusDto {
-  @IsNotEmpty()
+  // 👇 O SEGREDO ESTÁ AQUI: @IsOptional()
+  // Se não colocar isso, o NestJS acha que 'status' é obrigatório em todo request
+  @IsOptional()
   @IsEnum(StatusChamado, {
-    message: 'Status inválido. Valores permitidos: NOVO, EM_ATENDIMENTO, AGUARDANDO_CLIENTE, FINALIZADO',
+    message: 'Status inválido. Valores permitidos: NOVO, EM_ATENDIMENTO, AGUARDANDO_CLIENTE, FINALIZADO'
   })
-  status: StatusChamado;
-  
+  status?: StatusChamado;
+
   @IsOptional()
-  @IsEnum(PrioridadeEnum, { 
-    message: 'Prioridade deve ser BAIXA, MEDIA, ALTA ou CRITICA' 
-  })
-  prioridade?: PrioridadeEnum;
-
-
   @IsString()
-  @IsOptional()
   responsavel?: string;
 
-  @IsString()
   @IsOptional()
+  @IsString()
   responsavelCor?: string;
+
+  @IsOptional()
+  @IsEnum(PrioridadeEnum, {
+    message: 'Prioridade inválida. Valores permitidos: BAIXA, MEDIA, ALTA, CRITICA'
+  })
+  prioridade?: PrioridadeEnum;
 }
