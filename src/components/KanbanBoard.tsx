@@ -157,29 +157,40 @@ export default function KanbanBoardView() {
 const atualizarStatus = async (id: number, novoStatus: string) => {
     const chamadosAntigos = [...chamados];
     
-    // 1. Prepara o objeto de atualização
+    // --- DEBUG: VAMOS VER O QUE ESTÁ ACONTECENDO ---
+    console.log("🔄 Tentando mover para:", novoStatus);
+    console.log("👤 User Logado:", user);
+    // -----------------------------------------------
+
     const dadosAtualizacao: any = { status: novoStatus };
     
-    // 2. Lógica Inteligente: Se moveu para "Em Atendimento", define o responsável
-    // (Só define se ainda não tiver ninguém ou se quiser sobrescrever)
-    if (novoStatus === 'EM_ATENDIMENTO' && user && user.nome) {
-        dadosAtualizacao.responsavel = user.nome;
+    // 1. Lógica Inteligente (Aceitando 'nome' ou 'name')
+    if (novoStatus === 'EM_ATENDIMENTO') {
+        // Tenta pegar o nome de várias formas
+        const nomeResponsavel = user?.nome || user?.name || user?.email; // Fallback para email se não tiver nome
+
+        if (nomeResponsavel) {
+            console.log("✅ Definindo responsável como:", nomeResponsavel);
+            dadosAtualizacao.responsavel = nomeResponsavel;
+        } else {
+            console.warn("⚠️ ALERTA: Usuário logado não tem propriedade 'nome' ou 'name'!");
+        }
     }
 
-    // 3. Atualização Otimista (Visual)
+    // 2. Atualização Otimista (Visual)
     setChamados((prev) => prev.map((c) => {
         if (c.id === id) {
             return { 
                 ...c, 
                 status: novoStatus,
-                // Se tiver responsável no payload, atualiza visualmente na hora
+                // Força a atualização visual se tivermos o dado
                 responsavel: dadosAtualizacao.responsavel || c.responsavel 
             };
         }
         return c;
     }));
     
-    // Atualiza também o selecionado se estiver aberto
+    // Atualiza o modal se estiver aberto
     if (chamadoSelecionado && chamadoSelecionado.id === id) {
       setChamadoSelecionado((prev) => prev ? { 
           ...prev, 
@@ -189,12 +200,12 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
     }
 
     try {
-      // 4. Envia para o Backend (O Backend precisa estar pronto para receber 'responsavel')
       await api.patch(`${API_URL}/chamados/${id}/status`, dadosAtualizacao);
       toast.success('Status atualizado!');
     } catch (error) {
+      console.error("❌ Erro ao salvar no banco:", error);
       toast.error('Erro ao atualizar status.');
-      setChamados(chamadosAntigos); // Reverte se der erro
+      setChamados(chamadosAntigos);
     }
   };
 
@@ -564,18 +575,17 @@ const atualizarStatus = async (id: number, novoStatus: string) => {
                                 <Box display="flex" justifyContent="space-between" mb={1}>
                                   <Typography variant="caption" color="text.secondary">#{item.id}</Typography>
 
-                                  {/* 👇 ADICIONE ISSO: Mostra quem está cuidando */}
-                                {item.responsavel && (
-                                  <Box display="flex" alignItems="center" gap={1} mt={1} sx={{ bgcolor: 'rgba(0,0,0,0.03)', p: 0.5, borderRadius: 1 }}>
-                                    <Avatar 
-                                        sx={{ width: 20, height: 20, fontSize: 10, bgcolor: '#1976d2' }}
-                                    >
-                                        {item.responsavel.charAt(0).toUpperCase()}
-                                    </Avatar>
-                                    <Typography variant="caption" color="text.secondary" fontWeight="bold">
-                                        {item.responsavel}
-                                    </Typography>
-                                  </Box>
+                               {/* Se item.responsavel existir, mostra o box */}
+                                  {item.responsavel ? (
+                                    <Box display="flex" alignItems="center" gap={1} mt={1} sx={{ bgcolor: '#e3f2fd', p: 0.5, borderRadius: 1 }}>
+                                      <Avatar sx={{ width: 20, height: 20, fontSize: 10, bgcolor: '#1565c0' }}>
+                                          {item.responsavel.charAt(0).toUpperCase()}
+                                      </Avatar>
+                                      <Typography variant="caption" color="primary" fontWeight="bold">
+                                          {item.responsavel}
+                                      </Typography>
+                                    </Box>
+                                  ) : null}
                                   
                                   {/* CONTADOR DE MENSAGENS (BOLA VERDE) */}
                                   {item.mensagensNaoLidas > 0 && (
