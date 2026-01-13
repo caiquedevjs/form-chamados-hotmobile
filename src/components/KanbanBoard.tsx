@@ -5,10 +5,15 @@ import {
   TextField, InputAdornment, Dialog, DialogTitle, DialogContent, 
   DialogActions, Button, Grid, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar,
   Badge, FormControlLabel, Switch, Select, MenuItem, Checkbox, ListItemText as MuiListItemText,
-  InputLabel, FormControl, Stack
+  InputLabel, FormControl, Stack, Popover, ListSubheader // 👈 Adicionado Popover e ListSubheader
 } from '@mui/material';
 import { ListAlt } from '@mui/icons-material';
-import LockIcon from '@mui/icons-material/Lock'; // ✅ Ícone de Cadeado
+import LockIcon from '@mui/icons-material/Lock'; 
+// ✅ Ícones Novos para Macros
+import BoltIcon from '@mui/icons-material/Bolt';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+
 import { 
   AttachFile as AttachIcon,
   Business as BusinessIcon,
@@ -81,8 +86,14 @@ export default function KanbanBoardView() {
   const [enviandoComentario, setEnviandoComentario] = useState(false);
   const [files, setFiles] = useState([]); 
   
-  // ✅ NOVO ESTADO: Nota Interna
+  // Estado Nota Interna
   const [notaInterna, setNotaInterna] = useState(false);
+
+  // ⚡ ESTADOS DE RESPOSTAS PRONTAS (MACROS)
+  const [respostasProntas, setRespostasProntas] = useState([]);
+  const [anchorElMacros, setAnchorElMacros] = useState(null); // Menu flutuante
+  const [modalMacrosOpen, setModalMacrosOpen] = useState(false); // Modal Gerenciar
+  const [novaMacro, setNovaMacro] = useState({ titulo: '', texto: '' });
 
   const fileInputRef = useRef(null); 
 
@@ -94,6 +105,7 @@ export default function KanbanBoardView() {
 
   useEffect(() => {
     carregarChamados();
+    carregarMacros(); // Carrega as macros ao iniciar
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission();
     }
@@ -107,6 +119,44 @@ export default function KanbanBoardView() {
       toast.error('Erro ao carregar chamados.');
     }
   };
+
+  // --- LÓGICA DE MACROS ---
+  const carregarMacros = async () => {
+    try {
+      const { data } = await api.get(`${API_URL}/respostas-prontas`);
+      setRespostasProntas(data);
+    } catch (error) {
+      console.error("Erro ao carregar macros (verifique se criou a tabela no banco)");
+    }
+  };
+
+  const handleCriarMacro = async () => {
+    if (!novaMacro.titulo || !novaMacro.texto) return toast.warning("Preencha título e texto!");
+    try {
+      await api.post(`${API_URL}/respostas-prontas`, novaMacro);
+      toast.success("Resposta salva!");
+      setNovaMacro({ titulo: '', texto: '' });
+      carregarMacros(); 
+    } catch (error) {
+      toast.error("Erro ao salvar macro.");
+    }
+  };
+
+  const handleDeleteMacro = async (id) => {
+    try {
+      await api.delete(`${API_URL}/respostas-prontas/${id}`);
+      carregarMacros();
+      toast.success("Resposta removida.");
+    } catch (error) {
+      toast.error("Erro ao excluir.");
+    }
+  };
+
+  const handleUsarMacro = (texto) => {
+    setNovoComentario(texto); // Preenche o input
+    setAnchorElMacros(null); // Fecha o menu
+  };
+  // ------------------------
 
   const onDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
@@ -203,7 +253,6 @@ export default function KanbanBoardView() {
     formData.append('texto', novoComentario || 'Segue anexo.');
     formData.append('autor', 'SUPORTE');
 
-    // ✅ ENVIA A FLAG INTERNO SE ESTIVER MARCADO
     if (notaInterna) {
         formData.append('interno', 'true');
     }
@@ -219,7 +268,7 @@ export default function KanbanBoardView() {
       
       setNovoComentario('');
       setFiles([]);
-      setNotaInterna(false); // ✅ Reseta o switch após enviar
+      setNotaInterna(false); 
       if (fileInputRef.current) fileInputRef.current.value = '';
 
       toast.success(notaInterna ? 'Nota interna adicionada!' : 'Mensagem enviada!');
@@ -518,7 +567,6 @@ export default function KanbanBoardView() {
                     {/* Loop de Mensagens */}
                     {chamadoSelecionado.interacoes?.map((interacao, idx) => {
                       const isSuporte = interacao.autor === 'SUPORTE';
-                      // ✅ VERIFICA SE É NOTA INTERNA
                       const isInterno = interacao.interno; 
 
                       return (
@@ -529,19 +577,17 @@ export default function KanbanBoardView() {
                               <Typography variant="caption" color="text.secondary">{new Date(interacao.createdAt).toLocaleString()}</Typography>
                             </Box>
                             
-                            {/* ✅ MUDANÇA VISUAL SE FOR INTERNO */}
                             <Paper 
                                 elevation={0} 
                                 sx={{ 
                                     p: 2, 
-                                    bgcolor: isInterno ? '#FFF3E0' : (isSuporte ? '#E3F2FD' : '#ffffff'), // Fundo Amarelo se interno
-                                    border: isInterno ? '1px dashed #FF9800' : (isSuporte ? 'none' : '1px solid #ddd'), // Borda se interno
+                                    bgcolor: isInterno ? '#FFF3E0' : (isSuporte ? '#E3F2FD' : '#ffffff'), 
+                                    border: isInterno ? '1px dashed #FF9800' : (isSuporte ? 'none' : '1px solid #ddd'), 
                                     borderRadius: isSuporte ? '12px 0 12px 12px' : '0 12px 12px 12px', 
                                     maxWidth: '90%', 
                                     color: isSuporte ? '#0d47a1' : 'inherit' 
                                 }}
                             >
-                              {/* SE FOR INTERNO, MOSTRA ÍCONE */}
                               {isInterno && (
                                   <Box display="flex" alignItems="center" gap={0.5} mb={0.5} color="warning.main">
                                       <LockIcon style={{ fontSize: 14 }} />
@@ -576,7 +622,6 @@ export default function KanbanBoardView() {
                   
                   {/* ÁREA DE RESPOSTA */}
                   <Box>
-                    {/* Switch Nota Interna */}
                     <Box display="flex" justifyContent="flex-end" mb={1}>
                         <FormControlLabel 
                             control={
@@ -609,6 +654,15 @@ export default function KanbanBoardView() {
                       <input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
                       <IconButton onClick={() => fileInputRef.current?.click()} sx={{ border: '1px solid #ccc', borderRadius: 1 }}><AttachIcon /></IconButton>
                       
+                      {/* ⚡ BOTÃO DE MACROS */}
+                      <IconButton 
+                        onClick={(e) => setAnchorElMacros(e.currentTarget)} 
+                        sx={{ border: '1px solid #ff9800', color: '#ff9800', borderRadius: 1 }}
+                        title="Respostas Prontas"
+                      >
+                        <BoltIcon />
+                      </IconButton>
+
                       <TextField 
                         fullWidth 
                         size="small" 
@@ -617,14 +671,14 @@ export default function KanbanBoardView() {
                         onChange={(e) => setNovoComentario(e.target.value)} 
                         multiline 
                         maxRows={3} 
-                        sx={{ bgcolor: notaInterna ? '#FFF3E0' : 'white' }} // Muda a cor do input pra avisar
+                        sx={{ bgcolor: notaInterna ? '#FFF3E0' : 'white' }} 
                       />
                       
                       <Button 
                         variant="contained" 
                         onClick={handleAddInteracao} 
                         disabled={enviandoComentario || (!novoComentario.trim() && files.length === 0)}
-                        color={notaInterna ? "warning" : "primary"} // Botão fica Laranja se for nota interna
+                        color={notaInterna ? "warning" : "primary"}
                       >
                         <SendIcon />
                       </Button>
@@ -672,6 +726,60 @@ export default function KanbanBoardView() {
             </DialogActions>
           </>
         )}
+      </Dialog>
+
+      {/* ✅ MENU FLUTUANTE DE RESPOSTAS RÁPIDAS (MACROS) */}
+      <Popover
+        open={Boolean(anchorElMacros)}
+        anchorEl={anchorElMacros}
+        onClose={() => setAnchorElMacros(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Box sx={{ width: 300, maxHeight: 400, overflow: 'auto' }}>
+          <Box p={2} bgcolor="#f5f5f5" borderBottom="1px solid #ddd" display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="subtitle2" fontWeight="bold">Respostas Prontas</Typography>
+            <Button size="small" startIcon={<AddIcon />} onClick={() => setModalMacrosOpen(true)}>Gerenciar</Button>
+          </Box>
+          <List dense>
+            {respostasProntas.length === 0 && <Typography variant="caption" sx={{ p: 2, display: 'block', textAlign: 'center' }}>Nenhuma resposta cadastrada.</Typography>}
+            
+            {respostasProntas.map((macro) => (
+              <ListItem key={macro.id} button onClick={() => handleUsarMacro(macro.texto)}>
+                <ListItemText 
+                  primary={macro.titulo} 
+                  secondary={macro.texto.substring(0, 40) + '...'} 
+                  primaryTypographyProps={{ fontWeight: 'bold', fontSize: '0.875rem' }}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      </Popover>
+
+      {/* ✅ MODAL PARA CRIAR/GERENCIAR MACROS */}
+      <Dialog open={modalMacrosOpen} onClose={() => setModalMacrosOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Gerenciar Respostas Prontas</DialogTitle>
+        <DialogContent dividers>
+          <Box display="flex" gap={2} mb={3} alignItems="flex-start">
+            <TextField label="Título (Ex: Saudação)" size="small" value={novaMacro.titulo} onChange={(e) => setNovaMacro({...novaMacro, titulo: e.target.value})} />
+            <TextField label="Texto da Mensagem" size="small" fullWidth multiline maxRows={3} value={novaMacro.texto} onChange={(e) => setNovaMacro({...novaMacro, texto: e.target.value})} />
+            <Button variant="contained" onClick={handleCriarMacro}>Salvar</Button>
+          </Box>
+
+          <Divider sx={{ mb: 2 }}><Chip label="Cadastradas" size="small" /></Divider>
+
+          <List dense>
+            {respostasProntas.map((macro) => (
+              <ListItem key={macro.id} secondaryAction={
+                <IconButton edge="end" color="error" onClick={() => handleDeleteMacro(macro.id)}><DeleteIcon /></IconButton>
+              }>
+                <ListItemText primary={macro.titulo} secondary={macro.texto} />
+              </ListItem>
+            ))}
+          </List>
+        </DialogContent>
+        <DialogActions><Button onClick={() => setModalMacrosOpen(false)}>Fechar</Button></DialogActions>
       </Dialog>
 
       {/* ✅ MODAL "LINKTREE" */}

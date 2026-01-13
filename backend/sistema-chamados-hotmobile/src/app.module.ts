@@ -6,6 +6,7 @@ import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { AppController } from './app.controller';
+import { RespostasController } from './respostas/respostas.controller';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { AppController } from './app.controller';
 
     // eslint-disable-next-line prettier/prettier
     ChamadosModule, AuthModule, SupabaseModule],
-  controllers: [AppController],
+  controllers: [AppController, RespostasController],
   providers: [],
 })
 export class AppModule {}
