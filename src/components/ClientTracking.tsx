@@ -18,7 +18,7 @@ import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
 
 // ✅ 1. CONFIGURAÇÃO DA URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = 'https://form-chamados-hotmobile-production.up.railway.app';
 
 // --- TIPOS ---
 interface Anexo {
