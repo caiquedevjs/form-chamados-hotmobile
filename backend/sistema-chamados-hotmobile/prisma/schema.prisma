@@ -21,6 +21,12 @@ enum TipoAutor {
   CLIENTE
   SUPORTE
 }
+enum Prioridade {
+  BAIXA
+  MEDIA
+  ALTA
+  CRITICA
+}
 
 model Chamado {
   id          Int      @id @default(autoincrement())
@@ -30,6 +36,7 @@ model Chamado {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   status      StatusChamado @default(NOVO)
+  prioridade  Prioridade @default(BAIXA)
   responsavel    String?  // Nome de quem assumiu
   responsavelCor String?  // 👇 NOVA COLUNA (Para pintar a bolinha no card)
   mensagensNaoLidas Int @default(0)

@@ -84,6 +84,7 @@ export class ChamadosService {
         ...(dto.status && { status: dto.status }),
         ...(dto.responsavel && { responsavel: dto.responsavel }),
         ...(dto.responsavelCor && { responsavelCor: dto.responsavelCor }),
+        ...(dto.prioridade && { prioridade: dto.prioridade }),
       },
       include: { emails: true, telefones: true }
     });
@@ -103,6 +104,11 @@ export class ChamadosService {
 
     if (novoStatus) {
       this.gateway.emitirMudancaStatus(id, novoStatus);
+    }
+
+    if (dto.prioridade) {
+        // Você pode criar um evento novo ou usar o 'mudanca_status' enviando o objeto todo
+        this.gateway.server.emit('mudanca_status', chamadoAtualizado); 
     }
     return chamadoAtualizado;
   }

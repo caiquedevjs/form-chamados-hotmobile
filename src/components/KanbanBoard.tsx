@@ -5,11 +5,10 @@ import {
   TextField, InputAdornment, Dialog, DialogTitle, DialogContent, 
   DialogActions, Button, Grid, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar,
   Badge, FormControlLabel, Switch, Select, MenuItem, Checkbox, ListItemText as MuiListItemText,
-  InputLabel, FormControl, Stack, Popover, ListSubheader // 👈 Adicionado Popover e ListSubheader
+  InputLabel, FormControl, Stack, Popover, ListSubheader
 } from '@mui/material';
 import { ListAlt } from '@mui/icons-material';
 import LockIcon from '@mui/icons-material/Lock'; 
-// ✅ Ícones Novos para Macros
 import BoltIcon from '@mui/icons-material/Bolt';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -35,6 +34,8 @@ import {
   Public as PublicIcon,
   Logout as LogoutIcon
 } from '@mui/icons-material';
+import PriorityHighIcon from '@mui/icons-material/PriorityHigh';
+import LowPriorityIcon from '@mui/icons-material/LowPriority';
 import api from '../services/api';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom'; 
@@ -46,6 +47,14 @@ const COLUMNS = {
   NOVO: { id: 'NOVO', title: '🆕 Novos', bg: '#E3F2FD', border: '#2196F3' },
   EM_ATENDIMENTO: { id: 'EM_ATENDIMENTO', title: '🔥 Em Atendimento', bg: '#FFF3E0', border: '#FF9800' },
   FINALIZADO: { id: 'FINALIZADO', title: '✅ Finalizados', bg: '#E8F5E9', border: '#4CAF50' }
+};
+
+// ✅ CONFIGURAÇÃO DE SLA / PRIORIDADE
+const PRIORITY_CONFIG = {
+  BAIXA:   { label: 'Baixa',   color: '#4CAF50', icon: <LowPriorityIcon fontSize="small"/> }, // Verde
+  MEDIA:   { label: 'Média',   color: '#2196F3', icon: <LowPriorityIcon fontSize="small"/> }, // Azul
+  ALTA:    { label: 'Alta',    color: '#FF9800', icon: <PriorityHighIcon fontSize="small"/> }, // Laranja
+  CRITICA: { label: 'Crítica', color: '#F44336', icon: <PriorityHighIcon fontSize="small"/> }  // Vermelho
 };
 
 const FLOW_ORDER = ['NOVO', 'EM_ATENDIMENTO', 'FINALIZADO'];
@@ -89,10 +98,10 @@ export default function KanbanBoardView() {
   // Estado Nota Interna
   const [notaInterna, setNotaInterna] = useState(false);
 
-  // ⚡ ESTADOS DE RESPOSTAS PRONTAS (MACROS)
+  // Estados Macros
   const [respostasProntas, setRespostasProntas] = useState([]);
-  const [anchorElMacros, setAnchorElMacros] = useState(null); // Menu flutuante
-  const [modalMacrosOpen, setModalMacrosOpen] = useState(false); // Modal Gerenciar
+  const [anchorElMacros, setAnchorElMacros] = useState(null); 
+  const [modalMacrosOpen, setModalMacrosOpen] = useState(false); 
   const [novaMacro, setNovaMacro] = useState({ titulo: '', texto: '' });
 
   const fileInputRef = useRef(null); 
@@ -105,7 +114,7 @@ export default function KanbanBoardView() {
 
   useEffect(() => {
     carregarChamados();
-    carregarMacros(); // Carrega as macros ao iniciar
+    carregarMacros(); 
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission();
     }
@@ -126,7 +135,7 @@ export default function KanbanBoardView() {
       const { data } = await api.get(`${API_URL}/respostas-prontas`);
       setRespostasProntas(data);
     } catch (error) {
-      console.error("Erro ao carregar macros (verifique se criou a tabela no banco)");
+      console.error("Erro ao carregar macros");
     }
   };
 
@@ -153,10 +162,25 @@ export default function KanbanBoardView() {
   };
 
   const handleUsarMacro = (texto) => {
-    setNovoComentario(texto); // Preenche o input
-    setAnchorElMacros(null); // Fecha o menu
+    setNovoComentario(texto); 
+    setAnchorElMacros(null); 
   };
-  // ------------------------
+
+  // --- LÓGICA DE SLA / PRIORIDADE ---
+  const handleChangePriority = async (novaPrioridade) => {
+    try {
+        // Atualiza localmente
+        setChamadoSelecionado(prev => ({ ...prev, prioridade: novaPrioridade }));
+        setChamados(prev => prev.map(c => c.id === chamadoSelecionado.id ? { ...c, prioridade: novaPrioridade } : c));
+
+        await api.patch(`${API_URL}/chamados/${chamadoSelecionado.id}/status`, {
+            prioridade: novaPrioridade
+        });
+        toast.success(`Prioridade alterada para ${PRIORITY_CONFIG[novaPrioridade].label}`);
+    } catch (error) {
+        toast.error("Erro ao mudar prioridade");
+    }
+  };
 
   const onDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
@@ -368,9 +392,11 @@ export default function KanbanBoardView() {
     socket.on('mudanca_status', (data) => {
       setChamados((prev) => prev.map(chamado => {
         if (chamado.id === data.id) {
+          // Atualiza dados, incluindo prioridade se vier
           return { 
               ...chamado, 
-              status: data.status,
+              status: data.status || chamado.status,
+              prioridade: data.prioridade || chamado.prioridade, 
               responsavel: data.responsavel || chamado.responsavel,
               responsavelCor: data.responsavelCor || chamado.responsavelCor
           };
@@ -381,7 +407,8 @@ export default function KanbanBoardView() {
       if (chamadoSelecionado && chamadoSelecionado.id === data.id) {
          setChamadoSelecionado(prev => prev ? { 
              ...prev, 
-             status: data.status,
+             status: data.status || prev.status,
+             prioridade: data.prioridade || prev.prioridade,
              responsavel: data.responsavel || prev.responsavel,
              responsavelCor: data.responsavelCor || prev.responsavelCor
          } : null);
@@ -469,7 +496,11 @@ export default function KanbanBoardView() {
                     <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 1 }}>
                       {cardsDaColuna.map((item, index) => (
                         <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
-                          {(provided, snapshot) => (
+                          {(provided, snapshot) => {
+                            // ✅ Lógica de Cor da Borda baseada na Prioridade
+                            const prioridadeInfo = PRIORITY_CONFIG[item.prioridade || 'BAIXA'];
+                            
+                            return (
                             <Card
                               ref={provided.innerRef}
                               {...provided.draggableProps}
@@ -480,15 +511,22 @@ export default function KanbanBoardView() {
                                 boxShadow: snapshot.isDragging ? 6 : 1,
                                 transition: 'transform 0.2s',
                                 '&:hover': { boxShadow: 4, transform: 'translateY(-2px)' },
-                                position: 'relative' 
+                                position: 'relative',
+                                // 👇 BORDA LATERAL COLORIDA (SLA)
+                                borderLeft: `5px solid ${prioridadeInfo.color}` 
                               }}
                             >
                               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                                 <Box display="flex" justifyContent="space-between" mb={1}>
                                   <Typography variant="caption" color="text.secondary">#{item.id}</Typography>
 
+                                  {/* Badge para Críticos */}
+                                  {item.prioridade === 'CRITICA' && (
+                                      <Chip label="URGENTE" size="small" color="error" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 'bold' }} />
+                                  )}
+
                                   {item.responsavel && (
-                                    <Box display="flex" alignItems="center" gap={1} mt={1} sx={{ bgcolor: `${item.responsavelCor || '#1976d2'}15`, p: 0.5, borderRadius: 1 }}>
+                                    <Box display="flex" alignItems="center" gap={1} sx={{ bgcolor: `${item.responsavelCor || '#1976d2'}15`, p: 0.5, borderRadius: 1 }}>
                                       <Avatar sx={{ width: 20, height: 20, fontSize: 10, bgcolor: item.responsavelCor || '#1976d2', color: '#fff' }}>
                                         {item.responsavel.charAt(0).toUpperCase()}
                                       </Avatar>
@@ -511,7 +549,7 @@ export default function KanbanBoardView() {
                                 <Typography variant="body2" color="text.secondary" noWrap>{item.descricao}</Typography>
                               </CardContent>
                             </Card>
-                          )}
+                          )}}
                         </Draggable>
                       ))}
                       {provided.placeholder}
@@ -548,6 +586,8 @@ export default function KanbanBoardView() {
 
             <DialogContent dividers>
               <Grid container spacing={2} sx={{ height: '100%' }}>
+                
+                {/* COLUNA ESQUERDA: CHAT */}
                 <Grid item xs={12} md={8} display="flex" flexDirection="column">
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>Histórico do Chamado</Typography>
                   <Box sx={{ flexGrow: 1, bgcolor: '#f9f9f9', borderRadius: 2, p: 2, mb: 2, border: '1px solid #eee', maxHeight: '400px', overflowY: 'auto' }}>
@@ -685,11 +725,38 @@ export default function KanbanBoardView() {
                     </Box>
                   </Box>
                 </Grid>
+
+                {/* COLUNA DIREITA: INFO + SLA */}
                 <Grid item xs={12} md={4}>
-                    <Box mb={2}>
+                    <Box mb={3}>
                       <Typography variant="subtitle2" color="text.secondary">Empresa</Typography>
                       <Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gap={1}><BusinessIcon color="primary" fontSize="small"/> {chamadoSelecionado.nomeEmpresa}</Typography>
                     </Box>
+
+                    {/* ✅ SELETOR DE PRIORIDADE (SLA) */}
+                    <Box mb={3}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>Nível de Urgência (SLA)</Typography>
+                        <FormControl fullWidth size="small">
+                            <Select
+                                value={chamadoSelecionado.prioridade || 'BAIXA'}
+                                onChange={(e) => handleChangePriority(e.target.value)}
+                                sx={{ 
+                                    color: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color,
+                                    fontWeight: 'bold',
+                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color }
+                                }}
+                            >
+                                {Object.entries(PRIORITY_CONFIG).map(([key, config]) => (
+                                    <MenuItem key={key} value={key} sx={{ color: config.color, fontWeight: 'bold' }}>
+                                        <Box display="flex" alignItems="center" gap={1}>
+                                            {config.icon} {config.label}
+                                        </Box>
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Box>
+
                     {chamadoSelecionado.anexos?.length > 0 && (
                       <Box mb={2}>
                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>Anexos Iniciais</Typography>
