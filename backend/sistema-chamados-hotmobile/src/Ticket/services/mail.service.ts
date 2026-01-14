@@ -1,40 +1,53 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
+  private transporter: nodemailer.Transporter;
 
-  private apiUrl = 'https://api.hotmobile.com.br/Email/EnviarEmail';
-  private apiUser = 'caique.menezes@hotmobile.com.br'; 
-  private apiPass = 'OCai123@'; 
+  // Configurações do Gmail
+  private gmailUser = 'enviarelatorio@gmail.com'; // Seu Gmail ou Google Workspace
+  // 🚨 IMPORTANTE: Use uma "Senha de App" gerada no painel do Google, não sua senha de login.
+  private gmailPass = 'xrvxumksopgvbsvh'; 
   private remetenteNome = 'Suporte Hotmobile';
-  private remetenteEmail = 'caique.menezes@hotmobile.com.br';
 
-  constructor(private readonly httpService: HttpService) {}
-
-  // ... (Mantenha o método enviarAvisoInicioAtendimento existente) ...
-  async enviarAvisoInicioAtendimento(emailDestino: string, nomeEmpresa: string, linkAcompanhamento: string) {
-     // ... (seu código atual fica aqui) ...
-     const corpoHtml = `
-       <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
-         <h2 style="color: #1976d2;">Olá, ${nomeEmpresa}!</h2>
-         <p>Temos boas notícias. Um de nossos técnicos iniciou o atendimento.</p>
-         <div style="margin: 25px 0;">
-           <a href="${linkAcompanhamento}" style="background-color: #1976d2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-             Acompanhar Chamado
-           </a>
-         </div>
-         <p style="font-size: 12px; color: #666;">Link: ${linkAcompanhamento}</p>
-         <hr>
-         <p>Atenciosamente,<br><strong>Equipe Hotmobile</strong></p>
-       </div>
-     `;
-     return this.enviarEmailBase(emailDestino, '🚀 Seu chamado iniciou o atendimento!', corpoHtml);
+  constructor() {
+    // Configura o transporte SMTP do Gmail
+    this.transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false, // true para 465, false para outras portas
+      auth: {
+        user: this.gmailUser,
+        pass: this.gmailPass,
+      },
+      tls: {
+        rejectUnauthorized: false // Ajuda em alguns ambientes de desenvolvimento
+      }
+    });
   }
 
-  // ✅ NOVO MÉTODO GENÉRICO (Para Finalização e Chat)
+  // ... (Mantenha o método enviarAvisoInicioAtendimento existente - A lógica HTML não muda) ...
+  async enviarAvisoInicioAtendimento(emailDestino: string, nomeEmpresa: string, linkAcompanhamento: string) {
+      const corpoHtml = `
+        <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+          <h2 style="color: #1976d2;">Olá, ${nomeEmpresa}!</h2>
+          <p>Temos boas notícias. Um de nossos técnicos iniciou o atendimento.</p>
+          <div style="margin: 25px 0;">
+            <a href="${linkAcompanhamento}" style="background-color: #1976d2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              Acompanhar Chamado
+            </a>
+          </div>
+          <p style="font-size: 12px; color: #666;">Link: ${linkAcompanhamento}</p>
+          <hr>
+          <p>Atenciosamente,<br><strong>Equipe Hotmobile</strong></p>
+        </div>
+      `;
+      return this.enviarEmailBase(emailDestino, '🚀 Seu chamado iniciou o atendimento!', corpoHtml);
+  }
+
+  // ✅ NOVO MÉTODO GENÉRICO (Mantido igual)
   async enviarNotificacaoGenerica(emailDestino: string, assunto: string, mensagem: string, linkAcao?: string) {
     const corpoHtml = `
       <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
@@ -58,29 +71,21 @@ export class MailService {
     return this.enviarEmailBase(emailDestino, assunto, corpoHtml);
   }
 
-  // ✅ MÉTODO PRIVADO PARA EVITAR REPETIÇÃO DE CÓDIGO
+  // ✅ MÉTODO PRIVADO ATUALIZADO PARA NODEMAILER (SMTP)
   private async enviarEmailBase(emailDestino: string, assunto: string, html: string) {
-    const payload = {
-      html: html,
-      dataEnvio: new Date().toISOString(),
-      agendada: false,
-      quemMandaNome: this.remetenteNome,
-      quemMandaEmail: this.remetenteEmail,
-      assuntoEmail: assunto,
-      listEmails: [{ email: emailDestino }]
-    };
-
     try {
-      this.logger.debug(`📧 Enviando email para ${emailDestino}...`);
-      const response = await firstValueFrom(
-        this.httpService.post(this.apiUrl, payload, {
-          auth: { username: this.apiUser, password: this.apiPass },
-          headers: { 'Content-Type': 'application/json' },
-        })
-      );
-      this.logger.log(`✅ Email enviado! Status: ${response.status}`);
+      this.logger.debug(`📧 Enviando email (Gmail) para ${emailDestino}...`);
+      
+      const info = await this.transporter.sendMail({
+        from: `"${this.remetenteNome}" <${this.gmailUser}>`, // Ex: "Suporte Hotmobile" <email@gmail.com>
+        to: emailDestino,
+        subject: assunto,
+        html: html,
+      });
+
+      this.logger.log(`✅ Email enviado! ID: ${info.messageId}`);
     } catch (error) {
-      this.logger.error(`❌ Erro email: ${error.message}`, error.response?.data);
+      this.logger.error(`❌ Erro ao enviar email: ${error.message}`, error.stack);
     }
   }
 }
