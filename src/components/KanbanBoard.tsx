@@ -5,14 +5,15 @@ import {
   TextField, InputAdornment, Dialog, DialogTitle, DialogContent, 
   DialogActions, Button, Grid, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar,
   Badge, FormControlLabel, Switch, Select, MenuItem, Checkbox, ListItemText as MuiListItemText,
-  InputLabel, FormControl, Stack, Popover, ListSubheader, Autocomplete // 👈 Autocomplete adicionado
+  InputLabel, FormControl, Stack, Popover, ListSubheader, Autocomplete 
 } from '@mui/material';
 import { ListAlt } from '@mui/icons-material';
 import LockIcon from '@mui/icons-material/Lock'; 
 import BoltIcon from '@mui/icons-material/Bolt';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import LabelIcon from '@mui/icons-material/Label'; // 👈 Ícone de Tag
+import LabelIcon from '@mui/icons-material/Label'; 
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'; // 👈 Ícone de seleção de cor
 
 import { 
   AttachFile as AttachIcon,
@@ -58,6 +59,29 @@ const PRIORITY_CONFIG = {
   CRITICA: { label: 'Crítica', color: '#F44336', icon: <PriorityHighIcon fontSize="small"/> }  
 };
 
+// 🎨 PALETA DE CORES PARA TAGS
+const TAG_COLORS = [
+    '#F44336', // Vermelho
+    '#E91E63', // Rosa
+    '#9C27B0', // Roxo
+    '#673AB7', // Roxo Escuro
+    '#3F51B5', // Indigo
+    '#2196F3', // Azul
+    '#03A9F4', // Azul Claro
+    '#00BCD4', // Ciano
+    '#009688', // Verde Água
+    '#4CAF50', // Verde
+    '#8BC34A', // Verde Lima
+    '#CDDC39', // Lima
+    '#FFEB3B', // Amarelo
+    '#FFC107', // Ambar
+    '#FF9800', // Laranja
+    '#FF5722', // Laranja Escuro
+    '#795548', // Marrom
+    '#9E9E9E', // Cinza
+    '#607D8B'  // Cinza Azulado
+];
+
 const FLOW_ORDER = ['NOVO', 'EM_ATENDIMENTO', 'FINALIZADO'];
 
 const API_URL = 'https://form-chamados-hotmobile-production.up.railway.app';
@@ -92,7 +116,7 @@ export default function KanbanBoardView() {
   // --- ESTADOS DE UI ---
   const [modalLinksOpen, setModalLinksOpen] = useState(false);
   const [chamadoSelecionado, setChamadoSelecionado] = useState(null);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false); // 🗑️ Modal Delete
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false); 
 
   // --- CHAT E ARQUIVOS ---
   const [novoComentario, setNovoComentario] = useState('');
@@ -101,7 +125,7 @@ export default function KanbanBoardView() {
   const [notaInterna, setNotaInterna] = useState(false);
   const fileInputRef = useRef(null); 
 
-  // --- MACROS (RESPOSTAS PRONTAS) ---
+  // --- MACROS ---
   const [respostasProntas, setRespostasProntas] = useState([]);
   const [anchorElMacros, setAnchorElMacros] = useState(null); 
   const [modalMacrosOpen, setModalMacrosOpen] = useState(false); 
@@ -109,6 +133,9 @@ export default function KanbanBoardView() {
 
   // --- TAGS (ETIQUETAS) 🏷️ ---
   const [todasTags, setTodasTags] = useState([]);
+  // Estado para criar nova tag (Nome e Cor)
+  const [modalCriarTagOpen, setModalCriarTagOpen] = useState(false);
+  const [novaTagData, setNovaTagData] = useState({ nome: '', cor: TAG_COLORS[5] }); // Default Azul
 
   const handleLogout = () => {
     logout(); 
@@ -119,7 +146,7 @@ export default function KanbanBoardView() {
   useEffect(() => {
     carregarChamados();
     carregarMacros(); 
-    carregarTags(); // 🏷️
+    carregarTags(); 
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission();
     }
@@ -140,7 +167,7 @@ export default function KanbanBoardView() {
       const { data } = await api.get(`${API_URL}/chamados/tags/list`);
       setTodasTags(data);
     } catch (error) {
-      console.error("Erro ao carregar tags (verifique se backend foi atualizado)");
+      console.error("Erro ao carregar tags");
     }
   };
 
@@ -157,10 +184,17 @@ export default function KanbanBoardView() {
     }
   };
 
-  const handleCriarTagNoSelect = async (nome) => {
-    const corAleatoria = '#' + Math.floor(Math.random()*16777215).toString(16); // Gera cor Hex
+  // Abre o modal de criação quando usuário dá Enter
+  const handleInitiateCriarTag = (nome) => {
+      setNovaTagData({ nome, cor: TAG_COLORS[5] }); // Reseta cor para azul padrão
+      setModalCriarTagOpen(true);
+  };
+
+  // Salva a tag no banco após escolher a cor
+  const handleConfirmarCriacaoTag = async () => {
+    if (!novaTagData.nome) return;
     try {
-        const { data: novaTag } = await api.post(`${API_URL}/chamados/tags`, { nome, cor: corAleatoria });
+        const { data: novaTag } = await api.post(`${API_URL}/chamados/tags`, novaTagData);
         
         setTodasTags(prev => [...prev, novaTag]);
         
@@ -168,7 +202,8 @@ export default function KanbanBoardView() {
         const tagsAtuais = chamadoSelecionado.tags || [];
         handleSalvarTags([...tagsAtuais, novaTag]);
         
-        toast.success("Tag criada!");
+        toast.success("Tag criada com sucesso!");
+        setModalCriarTagOpen(false); // Fecha modal
     } catch (error) {
         toast.error("Erro ao criar tag.");
     }
@@ -423,7 +458,7 @@ export default function KanbanBoardView() {
               prioridade: data.prioridade || chamado.prioridade, 
               responsavel: data.responsavel || chamado.responsavel,
               responsavelCor: data.responsavelCor || chamado.responsavelCor,
-              tags: data.tags || chamado.tags // Atualiza tags se vier
+              tags: data.tags || chamado.tags 
           };
         }
         return chamado;
@@ -746,7 +781,7 @@ export default function KanbanBoardView() {
                         </FormControl>
                     </Box>
 
-                    {/* ✅ SELETOR DE TAGS (NOVO) */}
+                    {/* ✅ SELETOR DE TAGS COM MODAL DE COR */}
                     <Box mb={3}>
                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>Etiquetas (Tags)</Typography>
                         <Autocomplete
@@ -770,7 +805,7 @@ export default function KanbanBoardView() {
                                             const existe = todasTags.find(t => t.nome.toLowerCase() === valor.toLowerCase());
                                             if (!existe) {
                                                 e.preventDefault();
-                                                handleCriarTagNoSelect(valor);
+                                                handleInitiateCriarTag(valor); // 👈 Abre o Modal
                                             }
                                         }
                                     }}
@@ -819,6 +854,48 @@ export default function KanbanBoardView() {
             </DialogActions>
           </>
         )}
+      </Dialog>
+
+      {/* ✅ MODAL CRIAR TAG (ESCOLHER COR) */}
+      <Dialog open={modalCriarTagOpen} onClose={() => setModalCriarTagOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <LabelIcon color="primary" /> Nova Etiqueta
+        </DialogTitle>
+        <DialogContent dividers>
+            <Box mb={2}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>Nome da Etiqueta:</Typography>
+                <Chip label={novaTagData.nome} sx={{ bgcolor: novaTagData.cor, color: '#fff', fontWeight: 'bold', fontSize: '1rem', px: 1 }} />
+            </Box>
+            
+            <Typography variant="body2" color="text.secondary" gutterBottom>Escolha uma cor:</Typography>
+            <Box display="flex" gap={1} flexWrap="wrap" justifyContent="center">
+                {TAG_COLORS.map((cor) => (
+                    <Box
+                        key={cor}
+                        onClick={() => setNovaTagData(prev => ({ ...prev, cor }))}
+                        sx={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            bgcolor: cor,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: novaTagData.cor === cor ? '3px solid #333' : '2px solid transparent',
+                            transform: novaTagData.cor === cor ? 'scale(1.1)' : 'scale(1)',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        {novaTagData.cor === cor && <CheckCircleIcon sx={{ color: '#fff', fontSize: 20 }} />}
+                    </Box>
+                ))}
+            </Box>
+        </DialogContent>
+        <DialogActions>
+            <Button onClick={() => setModalCriarTagOpen(false)} color="inherit">Cancelar</Button>
+            <Button onClick={handleConfirmarCriacaoTag} variant="contained" color="primary">Criar Tag</Button>
+        </DialogActions>
       </Dialog>
 
       {/* ✅ MENU FLUTUANTE DE MACROS */}
