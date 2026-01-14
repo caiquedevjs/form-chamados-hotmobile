@@ -113,7 +113,7 @@ export class ChamadosService {
   async findAll() {
     return this.prisma.chamado.findMany({
       include: {
-        emails: true, telefones: true, anexos: true,
+        emails: true, telefones: true, anexos: true, tags: true,
         interacoes: { orderBy: { createdAt: 'asc' }, include: { anexos: true } }
       },
       orderBy: { createdAt: 'desc' },
@@ -188,7 +188,7 @@ export class ChamadosService {
     const chamado = await this.prisma.chamado.findUnique({
       where: { id },
       include: {
-        emails: true, telefones: true, anexos: true,
+        emails: true, telefones: true, anexos: true, tags: true,
         interacoes: { orderBy: { createdAt: 'asc' }, include: { anexos: true } },
       },
     });
@@ -277,5 +277,26 @@ export class ChamadosService {
       // 4. Finalmente, apaga o chamado
       this.prisma.chamado.delete({ where: { id } }),
     ]);
+  }
+
+  async getTags() {
+    return this.prisma.tag.findMany({ orderBy: { nome: 'asc' } });
+  }
+
+  async createTag(nome: string, cor: string) {
+    return this.prisma.tag.create({ data: { nome, cor } });
+  }
+
+  async updateChamadoTags(chamadoId: number, tagIds: number[]) {
+    // Primeiro desconecta todas, depois conecta as novas (substituição)
+    return this.prisma.chamado.update({
+      where: { id: chamadoId },
+      data: {
+        tags: {
+          set: tagIds.map(id => ({ id })) // O 'set' substitui a lista atual pela nova
+        }
+      },
+      include: { tags: true } // Retorna as tags atualizadas
+    });
   }
 }

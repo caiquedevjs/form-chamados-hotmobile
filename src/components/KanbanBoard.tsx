@@ -5,13 +5,14 @@ import {
   TextField, InputAdornment, Dialog, DialogTitle, DialogContent, 
   DialogActions, Button, Grid, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar,
   Badge, FormControlLabel, Switch, Select, MenuItem, Checkbox, ListItemText as MuiListItemText,
-  InputLabel, FormControl, Stack, Popover, ListSubheader
+  InputLabel, FormControl, Stack, Popover, ListSubheader, Autocomplete // 👈 Autocomplete adicionado
 } from '@mui/material';
 import { ListAlt } from '@mui/icons-material';
 import LockIcon from '@mui/icons-material/Lock'; 
 import BoltIcon from '@mui/icons-material/Bolt';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import LabelIcon from '@mui/icons-material/Label'; // 👈 Ícone de Tag
 
 import { 
   AttachFile as AttachIcon,
@@ -49,12 +50,12 @@ const COLUMNS = {
   FINALIZADO: { id: 'FINALIZADO', title: '✅ Finalizados', bg: '#E8F5E9', border: '#4CAF50' }
 };
 
-// ✅ CONFIGURAÇÃO DE SLA / PRIORIDADE
+// --- CONFIGURAÇÃO DE SLA / PRIORIDADE ---
 const PRIORITY_CONFIG = {
-  BAIXA:   { label: 'Baixa',   color: '#4CAF50', icon: <LowPriorityIcon fontSize="small"/> }, // Verde
-  MEDIA:   { label: 'Média',   color: '#2196F3', icon: <LowPriorityIcon fontSize="small"/> }, // Azul
-  ALTA:    { label: 'Alta',    color: '#FF9800', icon: <PriorityHighIcon fontSize="small"/> }, // Laranja
-  CRITICA: { label: 'Crítica', color: '#F44336', icon: <PriorityHighIcon fontSize="small"/> }  // Vermelho
+  BAIXA:   { label: 'Baixa',   color: '#4CAF50', icon: <LowPriorityIcon fontSize="small"/> }, 
+  MEDIA:   { label: 'Média',   color: '#2196F3', icon: <LowPriorityIcon fontSize="small"/> }, 
+  ALTA:    { label: 'Alta',    color: '#FF9800', icon: <PriorityHighIcon fontSize="small"/> }, 
+  CRITICA: { label: 'Crítica', color: '#F44336', icon: <PriorityHighIcon fontSize="small"/> }  
 };
 
 const FLOW_ORDER = ['NOVO', 'EM_ATENDIMENTO', 'FINALIZADO'];
@@ -87,27 +88,27 @@ export default function KanbanBoardView() {
   const [filtroDataFim, setFiltroDataFim] = useState('');
   const [apenasNaoLidos, setApenasNaoLidos] = useState(false);
   const [mostrarFiltros, setMostrarFiltros] = useState(false); 
+  
+  // --- ESTADOS DE UI ---
   const [modalLinksOpen, setModalLinksOpen] = useState(false);
   const [chamadoSelecionado, setChamadoSelecionado] = useState(null);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  
-  // Estado do Chat e Arquivos
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false); // 🗑️ Modal Delete
+
+  // --- CHAT E ARQUIVOS ---
   const [novoComentario, setNovoComentario] = useState('');
   const [enviandoComentario, setEnviandoComentario] = useState(false);
   const [files, setFiles] = useState([]); 
-  
-  // Estado Nota Interna
   const [notaInterna, setNotaInterna] = useState(false);
+  const fileInputRef = useRef(null); 
 
-
-
-  // Estados Macros
+  // --- MACROS (RESPOSTAS PRONTAS) ---
   const [respostasProntas, setRespostasProntas] = useState([]);
   const [anchorElMacros, setAnchorElMacros] = useState(null); 
   const [modalMacrosOpen, setModalMacrosOpen] = useState(false); 
   const [novaMacro, setNovaMacro] = useState({ titulo: '', texto: '' });
 
-  const fileInputRef = useRef(null); 
+  // --- TAGS (ETIQUETAS) 🏷️ ---
+  const [todasTags, setTodasTags] = useState([]);
 
   const handleLogout = () => {
     logout(); 
@@ -118,6 +119,7 @@ export default function KanbanBoardView() {
   useEffect(() => {
     carregarChamados();
     carregarMacros(); 
+    carregarTags(); // 🏷️
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission();
     }
@@ -132,32 +134,53 @@ export default function KanbanBoardView() {
     }
   };
 
-  const handleDeleteChamado = async () => {
-    if (!chamadoSelecionado) return;
-
+  // --- LÓGICA DE TAGS 🏷️ ---
+  const carregarTags = async () => {
     try {
-      await api.delete(`${API_URL}/chamados/${chamadoSelecionado.id}`);
-      
-      // Remove do estado local (Kanban) sem precisar recarregar tudo
-      setChamados((prev) => prev.filter(c => c.id !== chamadoSelecionado.id));
-      
-      toast.success('Chamado excluído com sucesso.');
-      setConfirmDeleteOpen(false); // Fecha confirmação
-      setChamadoSelecionado(null); // Fecha modal do chamado
+      const { data } = await api.get(`${API_URL}/chamados/tags/list`);
+      setTodasTags(data);
     } catch (error) {
-      console.error(error);
-      toast.error('Erro ao excluir chamado.');
+      console.error("Erro ao carregar tags (verifique se backend foi atualizado)");
     }
   };
+
+  const handleSalvarTags = async (novasTags) => {
+    // Atualização otimista
+    setChamadoSelecionado(prev => ({ ...prev, tags: novasTags }));
+    setChamados(prev => prev.map(c => c.id === chamadoSelecionado.id ? { ...c, tags: novasTags } : c));
+
+    const tagIds = novasTags.map(t => t.id);
+    try {
+        await api.patch(`${API_URL}/chamados/${chamadoSelecionado.id}/tags`, { tagIds });
+    } catch (error) {
+        toast.error("Erro ao salvar tags.");
+    }
+  };
+
+  const handleCriarTagNoSelect = async (nome) => {
+    const corAleatoria = '#' + Math.floor(Math.random()*16777215).toString(16); // Gera cor Hex
+    try {
+        const { data: novaTag } = await api.post(`${API_URL}/chamados/tags`, { nome, cor: corAleatoria });
+        
+        setTodasTags(prev => [...prev, novaTag]);
+        
+        // Já adiciona a tag criada ao chamado atual
+        const tagsAtuais = chamadoSelecionado.tags || [];
+        handleSalvarTags([...tagsAtuais, novaTag]);
+        
+        toast.success("Tag criada!");
+    } catch (error) {
+        toast.error("Erro ao criar tag.");
+    }
+  };
+  // --------------------------
 
   // --- LÓGICA DE MACROS ---
   const carregarMacros = async () => {
     try {
       const { data } = await api.get(`${API_URL}/respostas-prontas`);
       setRespostasProntas(data);
-    } catch (error) {
-      console.error("Erro ao carregar macros");
-    }
+    } catch (error) { console.error("Erro macros"); }
   };
 
   const handleCriarMacro = async () => {
@@ -167,9 +190,7 @@ export default function KanbanBoardView() {
       toast.success("Resposta salva!");
       setNovaMacro({ titulo: '', texto: '' });
       carregarMacros(); 
-    } catch (error) {
-      toast.error("Erro ao salvar macro.");
-    }
+    } catch (error) { toast.error("Erro ao salvar macro."); }
   };
 
   const handleDeleteMacro = async (id) => {
@@ -177,9 +198,7 @@ export default function KanbanBoardView() {
       await api.delete(`${API_URL}/respostas-prontas/${id}`);
       carregarMacros();
       toast.success("Resposta removida.");
-    } catch (error) {
-      toast.error("Erro ao excluir.");
-    }
+    } catch (error) { toast.error("Erro ao excluir."); }
   };
 
   const handleUsarMacro = (texto) => {
@@ -187,7 +206,7 @@ export default function KanbanBoardView() {
     setAnchorElMacros(null); 
   };
 
-  // --- LÓGICA DE SLA / PRIORIDADE ---
+  // --- SLA / PRIORIDADE ---
   const handleChangePriority = async (novaPrioridade) => {
     try {
         setChamadoSelecionado(prev => ({ ...prev, prioridade: novaPrioridade }));
@@ -197,11 +216,10 @@ export default function KanbanBoardView() {
             prioridade: novaPrioridade
         });
         toast.success(`Prioridade alterada para ${PRIORITY_CONFIG[novaPrioridade].label}`);
-    } catch (error) {
-        toast.error("Erro ao mudar prioridade");
-    }
+    } catch (error) { toast.error("Erro ao mudar prioridade"); }
   };
 
+  // --- DRAG AND DROP ---
   const onDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
     if (!destination) return;
@@ -220,7 +238,6 @@ export default function KanbanBoardView() {
     if (novoStatus === 'EM_ATENDIMENTO') {
         const nomeResponsavel = user?.nome || user?.name || user?.email;
         const corResponsavel = user?.cor || '#1976d2'; 
-
         if (nomeResponsavel) {
             dadosAtualizacao.responsavel = nomeResponsavel;
             dadosAtualizacao.responsavelCor = corResponsavel;
@@ -267,14 +284,26 @@ export default function KanbanBoardView() {
     }
   };
 
+  const handleDeleteChamado = async () => {
+    if (!chamadoSelecionado) return;
+    try {
+      await api.delete(`${API_URL}/chamados/${chamadoSelecionado.id}`);
+      setChamados((prev) => prev.filter(c => c.id !== chamadoSelecionado.id));
+      toast.success('Chamado excluído com sucesso.');
+      setConfirmDeleteOpen(false);
+      setChamadoSelecionado(null);
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao excluir chamado.');
+    }
+  };
+
   const handleAbrirChamado = async (item) => {
     setChamadoSelecionado(item);
     setChamados(prev => prev.map(c => c.id === item.id ? { ...c, mensagensNaoLidas: 0 } : c));
     try {
         await api.get(`${API_URL}/chamados/${item.id}`); 
-    } catch (error) { 
-        console.error("Erro ao marcar lido", error); 
-    }
+    } catch (error) { console.error("Erro ao marcar lido", error); }
   };
 
   const handleFileChange = (e) => {
@@ -290,37 +319,24 @@ export default function KanbanBoardView() {
 
   const handleAddInteracao = async () => {
     if (!chamadoSelecionado || (!novoComentario.trim() && files.length === 0)) return;
-    
     setEnviandoComentario(true);
     
     const formData = new FormData();
     formData.append('texto', novoComentario || 'Segue anexo.');
     formData.append('autor', 'SUPORTE');
-
-    if (notaInterna) {
-        formData.append('interno', 'true');
-    }
-    
-    files.forEach((file) => {
-      formData.append('files', file);
-    });
+    if (notaInterna) formData.append('interno', 'true');
+    files.forEach((file) => formData.append('files', file));
 
     try {
       await api.post(`${API_URL}/chamados/${chamadoSelecionado.id}/interacoes`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      
       setNovoComentario('');
       setFiles([]);
       setNotaInterna(false); 
       if (fileInputRef.current) fileInputRef.current.value = '';
-
       toast.success(notaInterna ? 'Nota interna adicionada!' : 'Mensagem enviada!');
-    } catch (error) {
-      toast.error('Erro ao enviar mensagem.');
-    } finally {
-      setEnviandoComentario(false);
-    }
+    } catch (error) { toast.error('Erro ao enviar mensagem.'); } finally { setEnviandoComentario(false); }
   };
 
   const chamadosFiltrados = chamados.filter((c) => {
@@ -341,13 +357,11 @@ export default function KanbanBoardView() {
         dataInicio.setHours(0,0,0,0);
         matchData = matchData && dataChamado >= dataInicio;
     }
-    
     if (filtroDataFim) {
         const dataFim = new Date(filtroDataFim);
         dataFim.setHours(23,59,59,999); 
         matchData = matchData && dataChamado <= dataFim;
     }
-
     return matchTexto && matchStatus && matchNaoLidos && matchData;
   });
 
@@ -366,27 +380,20 @@ export default function KanbanBoardView() {
     socket.on('nova_interacao', (data) => {
       if (data.autor === 'CLIENTE') {
         audio.play().catch(() => {});
-        toast.info(`💬 Nova resposta no chamado #${data.chamadoId}`, {
-          position: "top-right", theme: "colored"
-        });
+        toast.info(`💬 Nova resposta no chamado #${data.chamadoId}`, { position: "top-right", theme: "colored" });
       }
 
       setChamados((prevLista) => prevLista.map(c => {
         if (c.id === Number(data.chamadoId)) {
            const jaExiste = c.interacoes?.some(i => i.id === data.id);
            if (jaExiste) return c;
-
            let novasNaoLidas = c.mensagensNaoLidas;
            if (data.autor === 'CLIENTE') {
                if (!chamadoSelecionado || chamadoSelecionado.id !== Number(data.chamadoId)) {
                    novasNaoLidas = (c.mensagensNaoLidas || 0) + 1;
                }
            }
-           return { 
-               ...c, 
-               mensagensNaoLidas: novasNaoLidas, 
-               interacoes: [...(c.interacoes || []), data] 
-           };
+           return { ...c, mensagensNaoLidas: novasNaoLidas, interacoes: [...(c.interacoes || []), data] };
         }
         return c;
       }));
@@ -403,22 +410,20 @@ export default function KanbanBoardView() {
 
     socket.on('novo_chamado', (novoChamado) => {
       audio.play().catch(() => {});
-      toast.info(`🆕 Novo chamado de ${novoChamado.nomeEmpresa}!`, {
-        position: "top-center", theme: "colored"
-      });
+      toast.info(`🆕 Novo chamado de ${novoChamado.nomeEmpresa}!`, { position: "top-center", theme: "colored" });
       setChamados((prev) => [novoChamado, ...prev]);
     });
 
     socket.on('mudanca_status', (data) => {
       setChamados((prev) => prev.map(chamado => {
         if (chamado.id === data.id) {
-          // Atualiza dados, incluindo prioridade se vier
           return { 
               ...chamado, 
               status: data.status || chamado.status,
               prioridade: data.prioridade || chamado.prioridade, 
               responsavel: data.responsavel || chamado.responsavel,
-              responsavelCor: data.responsavelCor || chamado.responsavelCor
+              responsavelCor: data.responsavelCor || chamado.responsavelCor,
+              tags: data.tags || chamado.tags // Atualiza tags se vier
           };
         }
         return chamado;
@@ -430,14 +435,13 @@ export default function KanbanBoardView() {
              status: data.status || prev.status,
              prioridade: data.prioridade || prev.prioridade,
              responsavel: data.responsavel || prev.responsavel,
-             responsavelCor: data.responsavelCor || prev.responsavelCor
+             responsavelCor: data.responsavelCor || prev.responsavelCor,
+             tags: data.tags || prev.tags
          } : null);
       }
     });
 
-    return () => {
-      socket.disconnect();
-    };
+    return () => { socket.disconnect(); };
   }, [chamadoSelecionado]);
 
   return (
@@ -517,7 +521,6 @@ export default function KanbanBoardView() {
                       {cardsDaColuna.map((item, index) => (
                         <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
                           {(provided, snapshot) => {
-                            // ✅ Cor da Borda (SLA)
                             const prioridadeInfo = PRIORITY_CONFIG[item.prioridade || 'BAIXA'];
                             
                             return (
@@ -532,16 +535,14 @@ export default function KanbanBoardView() {
                                 transition: 'transform 0.2s',
                                 '&:hover': { boxShadow: 4, transform: 'translateY(-2px)' },
                                 position: 'relative',
-                                // 👇 BORDA LATERAL COLORIDA (SLA)
                                 borderLeft: `5px solid ${prioridadeInfo.color}` 
                               }}
                             >
                               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                                {/* --- CABEÇALHO LIMPO (Sem o Chip Urgente aqui) --- */}
+                                {/* --- CABEÇALHO --- */}
                                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                                   <Typography variant="caption" color="text.secondary">#{item.id}</Typography>
 
-                                  {/* USUÁRIO */}
                                   {item.responsavel && (
                                     <Box display="flex" alignItems="center" gap={1} sx={{ bgcolor: `${item.responsavelCor || '#1976d2'}15`, p: 0.5, borderRadius: 1, maxWidth: '140px' }}>
                                       <Avatar sx={{ width: 20, height: 20, fontSize: 10, bgcolor: item.responsavelCor || '#1976d2', color: '#fff' }}>
@@ -553,7 +554,6 @@ export default function KanbanBoardView() {
                                     </Box>
                                   )}
                                   
-                                  {/* CONTADOR MSG */}
                                   {item.mensagensNaoLidas > 0 && (
                                     <Box sx={{ position: 'absolute', top: -8, right: -8, width: 24, height: 24, borderRadius: '50%', backgroundColor: '#2e7d32', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: 2, zIndex: 10 }}>
                                       {item.mensagensNaoLidas}
@@ -563,27 +563,34 @@ export default function KanbanBoardView() {
                                   <Typography variant="caption" color="text.secondary">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</Typography>
                                 </Box>
 
-                                {/* --- TÍTULO --- */}
+                                {/* --- TÍTULO E ETIQUETAS --- */}
                                 <Typography variant="subtitle1" fontWeight="bold" gutterBottom>{item.nomeEmpresa}</Typography>
                                 
-                                {/* --- NOVA LINHA DE ETIQUETAS (Serviço + Prioridade) --- */}
                                 <Box display="flex" gap={1} mb={1} flexWrap="wrap">
                                     <Chip label={item.servico} size="small" sx={{ bgcolor: column.bg, color: '#444', fontWeight: 'bold', fontSize: '0.75rem' }} />
                                     
-                                    {/* 👇 O CHIP URGENTE FICA AQUI AGORA */}
                                     {item.prioridade === 'CRITICA' && (
+                                        <Chip label="URGENTE" size="small" sx={{ bgcolor: '#ffebee', color: '#d32f2f', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid #ffcdd2' }} />
+                                    )}
+                                </Box>
+
+                                {/* ✅ TAGS NO CARD */}
+                                <Box display="flex" gap={0.5} mb={1} flexWrap="wrap">
+                                    {item.tags?.map(tag => (
                                         <Chip 
-                                            label="URGENTE" 
+                                            key={tag.id} 
+                                            label={tag.nome} 
                                             size="small" 
                                             sx={{ 
-                                                bgcolor: '#ffebee', 
-                                                color: '#d32f2f', 
-                                                fontWeight: 'bold', 
-                                                fontSize: '0.75rem',
-                                                border: '1px solid #ffcdd2'
+                                                height: 20, 
+                                                fontSize: '0.65rem', 
+                                                bgcolor: tag.cor + '20', // Transparência
+                                                color: tag.cor,
+                                                fontWeight: 'bold',
+                                                border: `1px solid ${tag.cor}`
                                             }} 
                                         />
-                                    )}
+                                    ))}
                                 </Box>
 
                                 <Typography variant="body2" color="text.secondary" noWrap>{item.descricao}</Typography>
@@ -602,8 +609,6 @@ export default function KanbanBoardView() {
         </Box>
       </DragDropContext>
 
-      {/* ... MODAL DETALHES, MACROS, LINKTREE (MANTIDOS IGUAIS) ... */}
-      
       {/* --- MODAL DETALHES --- */}
       <Dialog 
         open={Boolean(chamadoSelecionado)} 
@@ -634,7 +639,6 @@ export default function KanbanBoardView() {
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>Histórico do Chamado</Typography>
                   <Box sx={{ flexGrow: 1, bgcolor: '#f9f9f9', borderRadius: 2, p: 2, mb: 2, border: '1px solid #eee', maxHeight: '400px', overflowY: 'auto' }}>
                     
-                    {/* Descrição Inicial */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mb: 2 }}>
                         <Box display="flex" alignItems="center" gap={1} mb={0.5}>
                           <Avatar sx={{ width: 24, height: 24, bgcolor: '#9e9e9e' }}><PersonIcon fontSize="small" /></Avatar>
@@ -646,7 +650,6 @@ export default function KanbanBoardView() {
                         </Paper>
                     </Box>
 
-                    {/* Loop de Mensagens */}
                     {chamadoSelecionado.interacoes?.map((interacao, idx) => {
                       const isSuporte = interacao.autor === 'SUPORTE';
                       const isInterno = interacao.interno; 
@@ -682,17 +685,7 @@ export default function KanbanBoardView() {
                               {interacao.anexos && interacao.anexos.length > 0 && (
                                 <Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">
                                   {interacao.anexos.map(anexo => (
-                                    <Chip
-                                      key={anexo.id}
-                                      icon={<AttachIcon />}
-                                      label={anexo.nomeOriginal.length > 20 ? anexo.nomeOriginal.substring(0, 17) + '...' : anexo.nomeOriginal}
-                                      component="a"
-                                      href={anexo.caminho && anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`}
-                                      target="_blank"
-                                      clickable
-                                      size="small"
-                                      sx={{ m: 0.5, bgcolor: 'rgba(0,0,0,0.05)' }}
-                                    />
+                                    <Chip key={anexo.id} icon={<AttachIcon />} label={anexo.nomeOriginal.length > 20 ? anexo.nomeOriginal.substring(0, 17) + '...' : anexo.nomeOriginal} component="a" href={anexo.caminho && anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`} target="_blank" clickable size="small" sx={{ m: 0.5, bgcolor: 'rgba(0,0,0,0.05)' }} />
                                   ))}
                                 </Box>
                               )}
@@ -705,24 +698,7 @@ export default function KanbanBoardView() {
                   {/* ÁREA DE RESPOSTA */}
                   <Box>
                     <Box display="flex" justifyContent="flex-end" mb={1}>
-                        <FormControlLabel 
-                            control={
-                                <Switch 
-                                    checked={notaInterna} 
-                                    onChange={(e) => setNotaInterna(e.target.checked)} 
-                                    color="warning" 
-                                    size="small"
-                                />
-                            } 
-                            label={
-                                <Box display="flex" alignItems="center" gap={0.5}>
-                                    {notaInterna && <LockIcon fontSize="small" color="warning" />}
-                                    <Typography variant="caption" sx={{ color: notaInterna ? '#ed6c02' : 'gray', fontWeight: 'bold' }}>
-                                        Nota Interna (Privado)
-                                    </Typography>
-                                </Box>
-                            } 
-                        />
+                        <FormControlLabel control={<Switch checked={notaInterna} onChange={(e) => setNotaInterna(e.target.checked)} color="warning" size="small" />} label={<Box display="flex" alignItems="center" gap={0.5}>{notaInterna && <LockIcon fontSize="small" color="warning" />}<Typography variant="caption" sx={{ color: notaInterna ? '#ed6c02' : 'gray', fontWeight: 'bold' }}>Nota Interna (Privado)</Typography></Box>} />
                     </Box>
 
                     {files.length > 0 && (
@@ -736,79 +712,84 @@ export default function KanbanBoardView() {
                       <input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
                       <IconButton onClick={() => fileInputRef.current?.click()} sx={{ border: '1px solid #ccc', borderRadius: 1 }}><AttachIcon /></IconButton>
                       
-                      {/* ⚡ BOTÃO DE MACROS */}
-                      <IconButton 
-                        onClick={(e) => setAnchorElMacros(e.currentTarget)} 
-                        sx={{ border: '1px solid #ff9800', color: '#ff9800', borderRadius: 1 }}
-                        title="Respostas Prontas"
-                      >
-                        <BoltIcon />
-                      </IconButton>
+                      <IconButton onClick={(e) => setAnchorElMacros(e.currentTarget)} sx={{ border: '1px solid #ff9800', color: '#ff9800', borderRadius: 1 }} title="Respostas Prontas"><BoltIcon /></IconButton>
 
-                      <TextField 
-                        fullWidth 
-                        size="small" 
-                        placeholder={notaInterna ? "Escreva uma nota interna..." : "Responder ao cliente..."}
-                        value={novoComentario} 
-                        onChange={(e) => setNovoComentario(e.target.value)} 
-                        multiline 
-                        maxRows={3} 
-                        sx={{ bgcolor: notaInterna ? '#FFF3E0' : 'white' }} 
-                      />
+                      <TextField fullWidth size="small" placeholder={notaInterna ? "Escreva uma nota interna..." : "Responder ao cliente..."} value={novoComentario} onChange={(e) => setNovoComentario(e.target.value)} multiline maxRows={3} sx={{ bgcolor: notaInterna ? '#FFF3E0' : 'white' }} />
                       
-                      <Button 
-                        variant="contained" 
-                        onClick={handleAddInteracao} 
-                        disabled={enviandoComentario || (!novoComentario.trim() && files.length === 0)}
-                        color={notaInterna ? "warning" : "primary"}
-                      >
-                        <SendIcon />
-                      </Button>
+                      <Button variant="contained" onClick={handleAddInteracao} disabled={enviandoComentario || (!novoComentario.trim() && files.length === 0)} color={notaInterna ? "warning" : "primary"}><SendIcon /></Button>
                     </Box>
                   </Box>
                 </Grid>
 
-                {/* COLUNA DIREITA: INFO + SLA */}
+                {/* COLUNA DIREITA: INFO + SLA + TAGS */}
                 <Grid item xs={12} md={4}>
                     <Box mb={3}>
                       <Typography variant="subtitle2" color="text.secondary">Empresa</Typography>
                       <Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gap={1}><BusinessIcon color="primary" fontSize="small"/> {chamadoSelecionado.nomeEmpresa}</Typography>
                     </Box>
 
-                    {/* ✅ SELETOR DE PRIORIDADE (SLA) */}
+                    {/* SELETOR DE PRIORIDADE (SLA) */}
                     <Box mb={3}>
                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>Nível de Urgência (SLA)</Typography>
                         <FormControl fullWidth size="small">
                             <Select
                                 value={chamadoSelecionado.prioridade || 'BAIXA'}
                                 onChange={(e) => handleChangePriority(e.target.value)}
-                                sx={{ 
-                                    color: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color,
-                                    fontWeight: 'bold',
-                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color }
-                                }}
+                                sx={{ color: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color, fontWeight: 'bold', '& .MuiOutlinedInput-notchedOutline': { borderColor: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color } }}
                             >
                                 {Object.entries(PRIORITY_CONFIG).map(([key, config]) => (
                                     <MenuItem key={key} value={key} sx={{ color: config.color, fontWeight: 'bold' }}>
-                                        <Box display="flex" alignItems="center" gap={1}>
-                                            {config.icon} {config.label}
-                                        </Box>
+                                        <Box display="flex" alignItems="center" gap={1}>{config.icon} {config.label}</Box>
                                     </MenuItem>
                                 ))}
                             </Select>
                         </FormControl>
                     </Box>
 
-                    {chamadoSelecionado.anexos?.length > 0 && (
-                      <Box mb={2}>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>Anexos Iniciais</Typography>
-                        <Box display="flex" gap={1} flexWrap="wrap">
-                          {chamadoSelecionado.anexos?.map((anexo, idx) => (
-                             <Chip key={idx} icon={<AttachIcon />} label={anexo.nomeOriginal.substring(0,12)+'...'} clickable component="a" href={anexo.caminho && anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`} target="_blank" rel="noopener noreferrer" variant="outlined" color="primary" size="small" />
-                          ))}
-                        </Box>
-                      </Box>
-                    )}
+                    {/* ✅ SELETOR DE TAGS (NOVO) */}
+                    <Box mb={3}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>Etiquetas (Tags)</Typography>
+                        <Autocomplete
+                            multiple
+                            options={todasTags}
+                            getOptionLabel={(option) => option.nome}
+                            value={chamadoSelecionado.tags || []}
+                            onChange={(event, newValue) => {
+                                handleSalvarTags(newValue);
+                            }}
+                            renderInput={(params) => (
+                                <TextField 
+                                    {...params} 
+                                    variant="outlined" 
+                                    size="small" 
+                                    placeholder="Adicionar tags..."
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && e.target.value) {
+                                            const valor = e.target.value;
+                                            // Previne envio se não existir
+                                            const existe = todasTags.find(t => t.nome.toLowerCase() === valor.toLowerCase());
+                                            if (!existe) {
+                                                e.preventDefault();
+                                                handleCriarTagNoSelect(valor);
+                                            }
+                                        }
+                                    }}
+                                />
+                            )}
+                            renderTags={(value, getTagProps) =>
+                                value.map((option, index) => (
+                                    <Chip 
+                                        label={option.nome} 
+                                        size="small" 
+                                        {...getTagProps({ index })} 
+                                        sx={{ bgcolor: option.cor, color: '#fff', fontWeight: 'bold' }}
+                                    />
+                                ))
+                            }
+                            noOptionsText="Digite e dê Enter para criar..."
+                        />
+                    </Box>
+
                     <Divider sx={{ my: 2 }} />
                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>Contatos</Typography>
                     <List dense disablePadding>
@@ -825,19 +806,11 @@ export default function KanbanBoardView() {
                 </Grid>
               </Grid>
             </DialogContent>
-           <DialogActions sx={{ p: 2, justifyContent: 'space-between', bgcolor: '#f5f5f5' }}>
-               
-               {/* 🗑️ BOTÃO DE EXCLUIR (Canto Esquerdo) */}
-               <Button 
-                 variant="text" 
-                 color="error" 
-                 startIcon={<DeleteIcon />}
-                 onClick={() => setConfirmDeleteOpen(true)}
-               >
-                 Excluir
-               </Button>
+            
+            {/* ACTIONS */}
+            <DialogActions sx={{ p: 2, justifyContent: 'space-between', bgcolor: '#f5f5f5' }}>
+               <Button variant="text" color="error" startIcon={<DeleteIcon />} onClick={() => setConfirmDeleteOpen(true)}>Excluir</Button>
 
-               {/* BOTÃO DE MOVER (Canto Direito - Lógica antiga mantida) */}
                {chamadoSelecionado.status !== 'FINALIZADO' && (
                 <Button variant="contained" color="secondary" endIcon={<ArrowForwardIcon />} onClick={handleNextStep}>
                   Mover para {COLUMNS[FLOW_ORDER[FLOW_ORDER.indexOf(chamadoSelecionado.status) + 1] as keyof typeof COLUMNS]?.title}
@@ -848,7 +821,7 @@ export default function KanbanBoardView() {
         )}
       </Dialog>
 
-      {/* ✅ MENU FLUTUANTE DE RESPOSTAS RÁPIDAS (MACROS) */}
+      {/* ✅ MENU FLUTUANTE DE MACROS */}
       <Popover
         open={Boolean(anchorElMacros)}
         anchorEl={anchorElMacros}
@@ -863,37 +836,28 @@ export default function KanbanBoardView() {
           </Box>
           <List dense>
             {respostasProntas.length === 0 && <Typography variant="caption" sx={{ p: 2, display: 'block', textAlign: 'center' }}>Nenhuma resposta cadastrada.</Typography>}
-            
             {respostasProntas.map((macro) => (
               <ListItem key={macro.id} button onClick={() => handleUsarMacro(macro.texto)}>
-                <ListItemText 
-                  primary={macro.titulo} 
-                  secondary={macro.texto.substring(0, 40) + '...'} 
-                  primaryTypographyProps={{ fontWeight: 'bold', fontSize: '0.875rem' }}
-                />
+                <ListItemText primary={macro.titulo} secondary={macro.texto.substring(0, 40) + '...'} primaryTypographyProps={{ fontWeight: 'bold', fontSize: '0.875rem' }} />
               </ListItem>
             ))}
           </List>
         </Box>
       </Popover>
 
-      {/* ✅ MODAL PARA CRIAR/GERENCIAR MACROS */}
+      {/* ✅ MODAL GERENCIAR MACROS */}
       <Dialog open={modalMacrosOpen} onClose={() => setModalMacrosOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Gerenciar Respostas Prontas</DialogTitle>
         <DialogContent dividers>
           <Box display="flex" gap={2} mb={3} alignItems="flex-start">
-            <TextField label="Título (Ex: Saudação)" size="small" value={novaMacro.titulo} onChange={(e) => setNovaMacro({...novaMacro, titulo: e.target.value})} />
-            <TextField label="Texto da Mensagem" size="small" fullWidth multiline maxRows={3} value={novaMacro.texto} onChange={(e) => setNovaMacro({...novaMacro, texto: e.target.value})} />
+            <TextField label="Título" size="small" value={novaMacro.titulo} onChange={(e) => setNovaMacro({...novaMacro, titulo: e.target.value})} />
+            <TextField label="Texto" size="small" fullWidth multiline maxRows={3} value={novaMacro.texto} onChange={(e) => setNovaMacro({...novaMacro, texto: e.target.value})} />
             <Button variant="contained" onClick={handleCriarMacro}>Salvar</Button>
           </Box>
-
           <Divider sx={{ mb: 2 }}><Chip label="Cadastradas" size="small" /></Divider>
-
           <List dense>
             {respostasProntas.map((macro) => (
-              <ListItem key={macro.id} secondaryAction={
-                <IconButton edge="end" color="error" onClick={() => handleDeleteMacro(macro.id)}><DeleteIcon /></IconButton>
-              }>
+              <ListItem key={macro.id} secondaryAction={<IconButton edge="end" color="error" onClick={() => handleDeleteMacro(macro.id)}><DeleteIcon /></IconButton>}>
                 <ListItemText primary={macro.titulo} secondary={macro.texto} />
               </ListItem>
             ))}
@@ -902,76 +866,26 @@ export default function KanbanBoardView() {
         <DialogActions><Button onClick={() => setModalMacrosOpen(false)}>Fechar</Button></DialogActions>
       </Dialog>
 
-      {/* ✅ MODAL "LINKTREE" */}
-      <Dialog 
-        open={modalLinksOpen} 
-        onClose={() => setModalLinksOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', pb: 1 }}>
-          Links & Ferramentas
-        </DialogTitle>
+      {/* ✅ MODAL LINKTREE */}
+      <Dialog open={modalLinksOpen} onClose={() => setModalLinksOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', pb: 1 }}>Links & Ferramentas</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" align="center" gutterBottom mb={3}>
-            Acesso rápido às ferramentas do suporte.
-          </Typography>
-          
           <Stack spacing={2}>
             {SUPORTE_LINKS.map((link, idx) => (
-              <Button
-                key={idx}
-                variant="outlined"
-                component="a"
-                href={link.url}
-                target="_blank"
-                startIcon={link.icon}
-                sx={{ 
-                  justifyContent: 'flex-start', 
-                  py: 1.5, 
-                  px: 3, 
-                  color: link.color, 
-                  borderColor: link.color,
-                  '&:hover': {
-                    backgroundColor: `${link.color}10`, // 10% de opacidade
-                    borderColor: link.color
-                  }
-                }}
-              >
-                {link.title}
-              </Button>
+              <Button key={idx} variant="outlined" component="a" href={link.url} target="_blank" startIcon={link.icon} sx={{ justifyContent: 'flex-start', py: 1.5, px: 3, color: link.color, borderColor: link.color, '&:hover': { backgroundColor: `${link.color}10`, borderColor: link.color } }}>{link.title}</Button>
             ))}
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
-          <Button onClick={() => setModalLinksOpen(false)} color="inherit">
-            Fechar
-          </Button>
-        </DialogActions>
+        <DialogActions sx={{ justifyContent: 'center', pb: 2 }}><Button onClick={() => setModalLinksOpen(false)} color="inherit">Fechar</Button></DialogActions>
       </Dialog>
 
-
-      {/* 🚨 MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
-      <Dialog
-        open={confirmDeleteOpen}
-        onClose={() => setConfirmDeleteOpen(false)}
-      >
-        <DialogTitle sx={{ color: '#d32f2f', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <DeleteIcon /> Excluir Chamado?
-        </DialogTitle>
-        <DialogContent>
-          <Typography>
-            Tem certeza que deseja excluir o chamado <strong>#{chamadoSelecionado?.id}</strong>?
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Essa ação apagará todo o histórico de conversas e anexos permanentemente.
-          </Typography>
-        </DialogContent>
+      {/* ✅ MODAL CONFIRMAR EXCLUSÃO */}
+      <Dialog open={confirmDeleteOpen} onClose={() => setConfirmDeleteOpen(false)}>
+        <DialogTitle sx={{ color: '#d32f2f', display: 'flex', alignItems: 'center', gap: 1 }}><DeleteIcon /> Excluir Chamado?</DialogTitle>
+        <DialogContent><Typography>Tem certeza que deseja excluir o chamado <strong>#{chamadoSelecionado?.id}</strong>?</Typography></DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmDeleteOpen(false)} color="inherit">Cancelar</Button>
-          <Button onClick={handleDeleteChamado} variant="contained" color="error">
-            Sim, Excluir
-          </Button>
+          <Button onClick={handleDeleteChamado} variant="contained" color="error">Sim, Excluir</Button>
         </DialogActions>
       </Dialog>
 

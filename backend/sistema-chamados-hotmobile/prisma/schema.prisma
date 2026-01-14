@@ -28,6 +28,17 @@ enum Prioridade {
   CRITICA
 }
 
+model Tag {
+  id    Int    @id @default(autoincrement())
+  nome  String @unique // Ex: "Financeiro"
+  cor   String @default("#2196F3") // Ex: "#FF0000"
+  
+  chamados Chamado[] // Relação implícita do Prisma
+
+  @@map("tags")
+}
+
+
 model Chamado {
   id          Int      @id @default(autoincrement())
   nomeEmpresa String
@@ -36,6 +47,7 @@ model Chamado {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   status      StatusChamado @default(NOVO)
+  tags        Tag[]
   prioridade  Prioridade @default(BAIXA)
   responsavel    String?  // Nome de quem assumiu
   responsavelCor String?  // 👇 NOVA COLUNA (Para pintar a bolinha no card)
@@ -89,11 +101,8 @@ model Anexo {
   mimetype     String
   tamanho      Int
   createdAt    DateTime @default(now())
-
   chamadoId    Int
   chamado      Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
-
-  // 👇 ADICIONE ISTO: Opcional, pois anexos da abertura do chamado não têm interação
   interacaoId  Int?     
   interacao    Interacao? @relation(fields: [interacaoId], references: [id]) 
 
@@ -121,3 +130,5 @@ model RespostaPronta {
 
   @@map("respostas_prontas")
 }
+
+

@@ -73,4 +73,26 @@ export class ChamadosController {
   async remove(@Param('id', ParseIntPipe) id: number) {
     return this.chamadosService.remove(id);
   }
+
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('tags/list') // Rota para listar todas as tags disponíveis
+  async listarTags() {
+    return this.chamadosService.getTags();
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('tags') // Rota para criar nova tag
+  async criarTag(@Body() body: { nome: string, cor: string }) {
+    return this.chamadosService.createTag(body.nome, body.cor);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':id/tags') // Rota para atualizar tags do chamado
+  async atualizarTags(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { tagIds: number[] }
+  ) {
+    return this.chamadosService.updateChamadoTags(id, body.tagIds);
+  }
 }
