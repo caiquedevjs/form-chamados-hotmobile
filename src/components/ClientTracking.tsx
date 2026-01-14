@@ -13,7 +13,7 @@ import {
   SupportAgent as SupportAgentIcon,
   AttachFile as AttachIcon,
   ArrowBack as ArrowBackIcon,
-  WarningAmberRounded as WarningIcon // 👈 Ícone de Alerta
+  WarningAmberRounded as WarningIcon
 } from '@mui/icons-material';
 import api from '../services/api';
 import { toast } from 'react-toastify';
@@ -62,7 +62,6 @@ export default function ClientTracking() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-  // 🚨 Estado para o Modal de Arquivo Inválido
   const [openWarning, setOpenWarning] = useState(false);
 
   useEffect(() => {
@@ -130,7 +129,6 @@ export default function ClientTracking() {
     }
   };
 
-  // ✅ VALIDAÇÃO DE ARQUIVOS
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
@@ -145,14 +143,13 @@ export default function ClientTracking() {
       const validFiles = selectedFiles.filter(file => allowedTypes.includes(file.type));
 
       if (validFiles.length < selectedFiles.length) {
-        setOpenWarning(true); // Abre o modal se tiver arquivo inválido
+        setOpenWarning(true);
       }
 
       if (validFiles.length > 0) {
         setFiles((prev) => [...prev, ...validFiles]);
       }
       
-      // Limpa o input para permitir selecionar o mesmo arquivo novamente se quiser
       e.target.value = '';
     }
   };
@@ -198,12 +195,14 @@ export default function ClientTracking() {
 
   return (
     <Box sx={{ 
-      height: '100dvh', 
+      height: '100vh', 
       display: 'flex', 
       flexDirection: 'column',
       bgcolor: '#f5f5f5', 
       overflow: 'hidden', 
-      marginTop: { xs: 0, md: 0 } // Removi o marginTop 20 fixo pois pode quebrar no mobile
+      // ✅ CORREÇÃO AQUI: Adiciona espaço no topo para a Logo não ser coberta
+      pt: { xs: 9, md: 12 }, // Padding Top: ~72px no mobile, ~96px no desktop
+      boxSizing: 'border-box'
     }}>
       
       {/* APP BAR FIXO */}
@@ -328,7 +327,6 @@ export default function ClientTracking() {
               )}
 
               <Box display="flex" gap={1} alignItems="flex-end">
-                {/* ✅ INPUT COM ACCEPT */}
                 <input 
                   type="file" 
                   multiple 
@@ -379,11 +377,8 @@ export default function ClientTracking() {
         </Paper>
       </Container>
 
-      {/* ✅ MODAL DE AVISO ARQUIVO INVÁLIDO */}
-      <Dialog
-        open={openWarning}
-        onClose={() => setOpenWarning(false)}
-      >
+      {/* MODAL AVISO */}
+      <Dialog open={openWarning} onClose={() => setOpenWarning(false)}>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#ed6c02' }}>
           <WarningIcon /> Tipo de Arquivo Inválido
         </DialogTitle>
@@ -395,9 +390,7 @@ export default function ClientTracking() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenWarning(false)} variant="contained" color="primary">
-            Entendi
-          </Button>
+          <Button onClick={() => setOpenWarning(false)} variant="contained" color="primary">Entendi</Button>
         </DialogActions>
       </Dialog>
 
