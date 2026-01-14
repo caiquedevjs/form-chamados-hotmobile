@@ -89,6 +89,7 @@ export default function KanbanBoardView() {
   const [mostrarFiltros, setMostrarFiltros] = useState(false); 
   const [modalLinksOpen, setModalLinksOpen] = useState(false);
   const [chamadoSelecionado, setChamadoSelecionado] = useState(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   
   // Estado do Chat e Arquivos
   const [novoComentario, setNovoComentario] = useState('');
@@ -97,6 +98,8 @@ export default function KanbanBoardView() {
   
   // Estado Nota Interna
   const [notaInterna, setNotaInterna] = useState(false);
+
+
 
   // Estados Macros
   const [respostasProntas, setRespostasProntas] = useState([]);
@@ -126,6 +129,24 @@ export default function KanbanBoardView() {
       setChamados(response.data);
     } catch (error) {
       toast.error('Erro ao carregar chamados.');
+    }
+  };
+
+  const handleDeleteChamado = async () => {
+    if (!chamadoSelecionado) return;
+
+    try {
+      await api.delete(`${API_URL}/chamados/${chamadoSelecionado.id}`);
+      
+      // Remove do estado local (Kanban) sem precisar recarregar tudo
+      setChamados((prev) => prev.filter(c => c.id !== chamadoSelecionado.id));
+      
+      toast.success('Chamado excluído com sucesso.');
+      setConfirmDeleteOpen(false); // Fecha confirmação
+      setChamadoSelecionado(null); // Fecha modal do chamado
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao excluir chamado.');
     }
   };
 
@@ -804,8 +825,19 @@ export default function KanbanBoardView() {
                 </Grid>
               </Grid>
             </DialogContent>
-            <DialogActions sx={{ p: 2, justifyContent: 'space-between', bgcolor: '#f5f5f5' }}>
-               <Box /> 
+           <DialogActions sx={{ p: 2, justifyContent: 'space-between', bgcolor: '#f5f5f5' }}>
+               
+               {/* 🗑️ BOTÃO DE EXCLUIR (Canto Esquerdo) */}
+               <Button 
+                 variant="text" 
+                 color="error" 
+                 startIcon={<DeleteIcon />}
+                 onClick={() => setConfirmDeleteOpen(true)}
+               >
+                 Excluir
+               </Button>
+
+               {/* BOTÃO DE MOVER (Canto Direito - Lógica antiga mantida) */}
                {chamadoSelecionado.status !== 'FINALIZADO' && (
                 <Button variant="contained" color="secondary" endIcon={<ArrowForwardIcon />} onClick={handleNextStep}>
                   Mover para {COLUMNS[FLOW_ORDER[FLOW_ORDER.indexOf(chamadoSelecionado.status) + 1] as keyof typeof COLUMNS]?.title}

@@ -1,5 +1,5 @@
 import {
-  Controller, Post, Get, Body, Query, UploadedFiles, UseInterceptors,
+  Controller, Post, Get, Delete, Body, Query, UploadedFiles, UseInterceptors,
   UsePipes, ValidationPipe, UseGuards, Patch, Param, ParseIntPipe,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -66,5 +66,11 @@ export class ChamadosController {
   @Get('dashboard/metrics')
   async getMetrics(@Query('start') start?: string, @Query('end') end?: string) {
     return this.chamadosService.getDashboardMetrics(start, end);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Delete(':id')
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    return this.chamadosService.remove(id);
   }
 }

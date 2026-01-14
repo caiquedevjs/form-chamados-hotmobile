@@ -260,4 +260,22 @@ export class ChamadosService {
       }
     };
   }
+
+  async remove(id: number) {
+    // Apaga tudo em ordem para não dar erro de chave estrangeira
+    return this.prisma.$transaction([
+      // 1. Apaga anexos soltos (se houver lógica específica)
+      this.prisma.anexo.deleteMany({ where: { chamadoId: id } }),
+      
+      // 2. Apaga interações (mensagens)
+      this.prisma.interacao.deleteMany({ where: { chamadoId: id } }),
+      
+      // 3. Apaga telefones e emails vinculados
+      this.prisma.telefone.deleteMany({ where: { chamadoId: id } }),
+      this.prisma.email.deleteMany({ where: { chamadoId: id } }),
+
+      // 4. Finalmente, apaga o chamado
+      this.prisma.chamado.delete({ where: { id } }),
+    ]);
+  }
 }
