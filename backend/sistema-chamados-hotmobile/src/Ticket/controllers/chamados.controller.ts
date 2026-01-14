@@ -95,4 +95,10 @@ export class ChamadosController {
   ) {
     return this.chamadosService.updateChamadoTags(id, body.tagIds);
   }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Delete('tags/:id')
+  async deletarTag(@Param('id', ParseIntPipe) id: number) {
+    return this.chamadosService.deleteTag(id);
+  }
 }

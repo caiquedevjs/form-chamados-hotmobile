@@ -299,4 +299,9 @@ export class ChamadosService {
       include: { tags: true } // Retorna as tags atualizadas
     });
   }
+
+  async deleteTag(id: number) {
+    // O Prisma remove automaticamente a relação com os chamados (Implicit Many-to-Many)
+    return this.prisma.tag.delete({ where: { id } });
+  }
 }
