@@ -506,7 +506,7 @@ export default function KanbanBoardView() {
 
     socket.on('novo_chamado', (novoChamado) => {
       audio.play().catch(() => {});
-      toast.info(`🆕 Novo chamado de ${novoChamado.nomeEmpresa}!`, { position: "top-center", theme: "colored" });
+      toast.info(` Novo chamado de ${novoChamado.nomeEmpresa}!`, { position: "top-center", theme: "colored" });
       setChamados((prev) => [novoChamado, ...prev]);
     });
 
@@ -580,7 +580,38 @@ export default function KanbanBoardView() {
               <Droppable key={columnId} droppableId={columnId}>
                 {(provided, snapshot) => (
                   <Paper ref={provided.innerRef} {...provided.droppableProps} elevation={0} sx={{ width: 350, minWidth: 350, backgroundColor: snapshot.isDraggingOver ? '#e0e0e0' : '#ebecf0', p: 2, borderRadius: 3, display: 'flex', flexDirection: 'column', maxHeight: '100%' }}>
-                    <Box sx={{ mb: 2, pb: 1, borderBottom: `3px solid ${column.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><Typography variant="h6" sx={{ fontWeight: 'bold', color: '#555' }}>{column.title}</Typography><Chip label={cardsDaColuna.length} size="small" /></Box>
+                <Box 
+                sx={{ 
+                  mb: 2, 
+                  pb: 1, 
+                  borderBottom: `3px solid ${column.border}`, 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center' 
+                }}
+              >
+                {/* Box para agrupar Ícone + Título */}
+                <Box display="flex" alignItems="center" gap={1.5}>
+                  {/* O Ícone renderizado com a cor específica */}
+                  <Box sx={{ color: column.iconColor, display: 'flex' }}>
+                    {column.icon}
+                  </Box>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#444' }}>
+                    {column.title}
+                  </Typography>
+                </Box>
+
+                {/* Contador */}
+                <Chip 
+                  label={cardsDaColuna.length} 
+                  size="small" 
+                  sx={{ 
+                    fontWeight: 'bold', 
+                    bgcolor: 'rgba(0,0,0,0.08)', 
+                    color: '#666' 
+                  }} 
+                />
+              </Box>
                     <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 1 }}>
                       {cardsDaColuna.map((item, index) => (
                         <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
