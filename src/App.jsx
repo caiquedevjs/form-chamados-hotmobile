@@ -1,6 +1,6 @@
 // src/App.jsx
 import React from 'react';
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'; // 👈 Importe o Outlet
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext'
 import ThemeProviderContext from './contexts/ThemeProviderContext';
 import MultilineTextFields from './components/form.component';
@@ -13,12 +13,11 @@ import PrivateRoute from './components/PrivateRoute';
 import ClientTracking from './components/ClientTracking'; 
 import RegisterForm from './components/RegisterForm'; 
 
-// ✅ 1. Criamos um componente de Layout para o Admin
-// Ele envolve as rotas filhas com o ThemeProvider
+// Componente de Layout para o Admin
 const AdminLayout = () => {
   return (
     <ThemeProviderContext>
-      <Outlet /> {/* O Outlet renderiza a rota filha (Kanban ou Dashboard) */}
+      <Outlet />
     </ThemeProviderContext>
   );
 };
@@ -32,10 +31,14 @@ export default function App() {
           width: '100vw',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center',
+          justifyContent: 'flex-start', // Mudei para flex-start para não centralizar verticalmente se tiver scroll
           alignItems: 'center',
           position: 'relative',
-          overflow: 'hidden', // Mudei para hidden para evitar scroll duplo com o Kanban
+          
+          // ✅ CORREÇÃO AQUI: Mudei de 'hidden' para 'auto'
+          // 'auto' só mostra a barra de rolagem se o conteúdo for maior que a tela
+          overflow: 'auto', 
+          
           backgroundColor: 'inherit',
         }}
       >
@@ -55,18 +58,18 @@ export default function App() {
               
               <Route 
                 path="/acompanhamento/:id" 
-                element={<div style={{ width: '100%', height: '100%' }}><ClientTracking /></div>} 
+                element={<div style={{ width: '100%', minHeight: '100%' }}><ClientTracking /></div>} 
               />
 
               {/* --- ROTAS PRIVADAS (COM TEMA DARK) --- */}
-              {/* ✅ 2. Usamos o AdminLayout para envolver as rotas protegidas */}
               <Route element={<AdminLayout />}>
                   
                   <Route 
                     path="/admin" 
                     element={
                       <PrivateRoute>
-                        <div style={{ width: '100%' }}><KanbanBoardView /></div>
+                        {/* height: 'auto' permite que o Kanban cresça se precisar */}
+                        <div style={{ width: '100%', height: 'auto' }}><KanbanBoardView /></div>
                       </PrivateRoute>
                     } 
                   />
