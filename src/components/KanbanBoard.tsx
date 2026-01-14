@@ -17,6 +17,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SettingsIcon from '@mui/icons-material/Settings'; 
 import EditIcon from '@mui/icons-material/Edit'; 
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import { useTheme } from '@mui/material/styles';
 
 import { 
   AttachFile as AttachIcon,
@@ -115,6 +116,9 @@ const SUPORTE_LINKS = [
 ];
 
 export default function KanbanBoardView() {
+
+  const theme = useTheme(); // 👈 Pegue o tema
+  const isDark = theme.palette.mode === 'dark';
   const navigate = useNavigate(); 
   const [chamados, setChamados] = useState([]);
   const { logout, user } = useAuth();
@@ -545,7 +549,9 @@ export default function KanbanBoardView() {
   }, [chamadoSelecionado]);
 
   return (
-    <Box sx={{ p: 3, height: '90vh', backgroundColor: '#F4F5F7', display: 'flex', flexDirection: 'column', marginTop: 5}}>
+
+  
+    <Box sx={{ p: 3, height: '90vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', marginTop: 5}}>
       
       {/* CABEÇALHO */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -663,7 +669,7 @@ export default function KanbanBoardView() {
       <Dialog open={Boolean(chamadoSelecionado)} onClose={() => setChamadoSelecionado(null)} maxWidth="md" fullWidth>
         {chamadoSelecionado && (
           <>
-            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f5f5f5' }}><Box display="flex" alignItems="center" gap={2}><Typography variant="h6">Chamado #{chamadoSelecionado.id}</Typography><Chip label={COLUMNS[chamadoSelecionado.status]?.title || chamadoSelecionado.status} sx={{ bgcolor: COLUMNS[chamadoSelecionado.status]?.bg || '#eee' }} /></Box><IconButton onClick={() => setChamadoSelecionado(null)}><CloseIcon /></IconButton></DialogTitle>
+            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider'}}><Box display="flex" alignItems="center" gap={2}><Typography variant="h6">Chamado #{chamadoSelecionado.id}</Typography><Chip label={COLUMNS[chamadoSelecionado.status]?.title || chamadoSelecionado.status} sx={{ bgcolor: COLUMNS[chamadoSelecionado.status]?.bg || '#eee' }} /></Box><IconButton onClick={() => setChamadoSelecionado(null)}><CloseIcon /></IconButton></DialogTitle>
             <DialogContent dividers>
               <Grid container spacing={2} sx={{ height: '100%' }}>
                 <Grid item xs={12} md={8} display="flex" flexDirection="column">
@@ -692,7 +698,7 @@ export default function KanbanBoardView() {
                 </Grid>
               </Grid>
             </DialogContent>
-            <DialogActions sx={{ p: 2, justifyContent: 'space-between', bgcolor: '#f5f5f5' }}><Button variant="text" color="error" startIcon={<DeleteIcon />} onClick={() => setConfirmDeleteOpen(true)}>Excluir</Button>{chamadoSelecionado.status !== 'FINALIZADO' && (<Button variant="contained" color="secondary" endIcon={<ArrowForwardIcon />} onClick={handleNextStep}>Mover para {COLUMNS[FLOW_ORDER[FLOW_ORDER.indexOf(chamadoSelecionado.status) + 1] as keyof typeof COLUMNS]?.title}</Button>)}</DialogActions>
+            <DialogActions sx={{ p: 2, justifyContent: 'space-between', bgcolor: 'background.paper', borderTop: 1, borderColor: 'divider' }}><Button variant="text" color="error" startIcon={<DeleteIcon />} onClick={() => setConfirmDeleteOpen(true)}>Excluir</Button>{chamadoSelecionado.status !== 'FINALIZADO' && (<Button variant="contained" color="secondary" endIcon={<ArrowForwardIcon />} onClick={handleNextStep}>Mover para {COLUMNS[FLOW_ORDER[FLOW_ORDER.indexOf(chamadoSelecionado.status) + 1] as keyof typeof COLUMNS]?.title}</Button>)}</DialogActions>
           </>
         )}
       </Dialog>
