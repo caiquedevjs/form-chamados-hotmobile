@@ -669,7 +669,15 @@ export default function KanbanBoardView() {
       <Dialog open={Boolean(chamadoSelecionado)} onClose={() => setChamadoSelecionado(null)} maxWidth="md" fullWidth>
         {chamadoSelecionado && (
           <>
-            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider'}}><Box display="flex" alignItems="center" gap={2}><Typography variant="h6">Chamado #{chamadoSelecionado.id}</Typography><Chip label={COLUMNS[chamadoSelecionado.status]?.title || chamadoSelecionado.status} sx={{ bgcolor: COLUMNS[chamadoSelecionado.status]?.bg || '#eee' }} /></Box><IconButton onClick={() => setChamadoSelecionado(null)}><CloseIcon /></IconButton></DialogTitle>
+            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider'}}><Box display="flex" alignItems="center" gap={2}><Typography variant="h6">Chamado #{chamadoSelecionado.id}</Typography><Chip 
+  label={COLUMNS[chamadoSelecionado.status]?.title || chamadoSelecionado.status} 
+  sx={{ 
+    bgcolor: COLUMNS[chamadoSelecionado.status]?.bg || '#eee',
+    // 👇 FORÇA A COR DO TEXTO PARA ESCURO (Preto/Cinza) PARA DAR LEITURA NO FUNDO CLARO
+    color: '#1d1d1d', 
+    fontWeight: 'bold'
+  }}
+/></Box><IconButton onClick={() => setChamadoSelecionado(null)}><CloseIcon /></IconButton></DialogTitle>
             <DialogContent dividers>
               <Grid container spacing={2} sx={{ height: '100%' }}>
                 <Grid item xs={12} md={8} display="flex" flexDirection="column">
