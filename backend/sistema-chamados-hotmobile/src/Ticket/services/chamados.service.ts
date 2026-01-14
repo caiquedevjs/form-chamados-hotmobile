@@ -214,53 +214,128 @@ export class ChamadosService {
     return chamado;
   }
 
- async getDashboardMetrics(startStr?: string, endStr?: string) {
+async getDashboardMetrics(startStr?: string, endStr?: string) {
+    // 1. Definição do Intervalo
     const endDate = endStr ? endOfDay(parseISO(endStr)) : endOfDay(new Date());
     const startDate = startStr ? startOfDay(parseISO(startStr)) : startOfDay(new Date(new Date().setDate(new Date().getDate() - 7)));
 
-    // 1. Totais Gerais
-    const totalGeral = await this.prisma.chamado.count({ 
-        where: { createdAt: { gte: startDate, lte: endDate } } 
-    });
-    
-    const totalFinalizados = await this.prisma.chamado.count({ 
-        where: { status: 'FINALIZADO', createdAt: { gte: startDate, lte: endDate } } 
+    // 2. BUSCA ÚNICA (Traz tudo o que precisamos de uma vez)
+    const chamados = await this.prisma.chamado.findMany({
+      where: { 
+        createdAt: { gte: startDate, lte: endDate } 
+      },
+      select: {
+        id: true,
+        status: true,
+        prioridade: true,
+        responsavel: true,
+        createdAt: true,
+        updatedAt: true,
+        tags: { 
+            select: { nome: true } // Traz apenas o nome da tag
+        }
+      },
+      orderBy: { createdAt: 'asc' }
     });
 
-    // 2. Agrupamento por Status (Gráfico de Pizza)
-    const porStatus = await this.prisma.chamado.groupBy({ 
-        by: ['status'], 
-        where: { createdAt: { gte: startDate, lte: endDate } }, 
-        _count: { status: true }, 
-    });
+    // --- PROCESSAMENTO EM MEMÓRIA (Muito mais rápido que múltiplas queries) ---
 
-    // 3. Dados para Timeline (Gráfico de Linha)
-    const chamadosNoPeriodo = await this.prisma.chamado.findMany({ 
-        where: { createdAt: { gte: startDate, lte: endDate } }, 
-        select: { createdAt: true }, 
+    // A. Totais Básicos
+    const totalGeral = chamados.length;
+    const totalFinalizados = chamados.filter(c => c.status === 'FINALIZADO').length;
+    const totalPendentes = totalGeral - totalFinalizados;
+
+    // B. Cálculo de SLA
+    // Regra Exemplo: Violação se Prioridade for ALTA/CRITICA e demorou > 24h
+    let slaViolado = 0;
+    chamados.forEach(c => {
+        const dataFim = c.status === 'FINALIZADO' ? new Date(c.updatedAt) : new Date();
+        const horasDecorridas = differenceInHours(dataFim, new Date(c.createdAt));
+
+        // Regra de Negócio (Ajuste conforme sua necessidade)
+        const ehUrgente = ['ALTA', 'CRITICA'].includes(c.prioridade || '');
+        if (ehUrgente && horasDecorridas > 24) {
+            slaViolado++;
+        }
     });
     
+    // Evita divisão por zero
+    const percentualSlaOk = totalGeral > 0 
+        ? ((totalGeral - slaViolado) / totalGeral * 100).toFixed(0) 
+        : 100;
+
+    // C. Dados para Gráfico de Pizza (Status)
+    const statusMap: Record<string, number> = {};
+    chamados.forEach(c => {
+        const status = c.status || 'OUTROS';
+        statusMap[status] = (statusMap[status] || 0) + 1;
+    });
+    const statusData = Object.entries(statusMap).map(([name, value]) => ({ name, value }));
+
+    // D. Dados para Gráfico de Rosca (SLA)
+    const slaData = [
+        { name: 'No Prazo', value: totalGeral - slaViolado },
+        { name: 'Atrasado', value: slaViolado }
+    ];
+
+    // E. Timeline (Volume Diário)
+    // Reutilizando sua lógica de eachDayOfInterval para garantir que dias vazios apareçam
     const diasDoIntervalo = eachDayOfInterval({ start: startDate, end: endDate });
-    
-    const graficoTimeline = diasDoIntervalo.map((dia) => {
-      const diaFormatadoISO = format(dia, 'yyyy-MM-dd');
-      const diaFormatadoExibicao = format(dia, 'dd/MM');
-      const quantidade = chamadosNoPeriodo.filter(c => format(c.createdAt, 'yyyy-MM-dd') === diaFormatadoISO).length;
-      return { name: diaFormatadoExibicao, chamados: quantidade };
+    const timelineData = diasDoIntervalo.map((dia) => {
+        const diaFormatado = format(dia, 'yyyy-MM-dd');
+        const diaExibicao = format(dia, 'dd/MM'); // Ex: 12/05
+        
+        // Filtra na lista que já está na memória (rápido)
+        const qtd = chamados.filter(c => format(new Date(c.createdAt), 'yyyy-MM-dd') === diaFormatado).length;
+        
+        return { name: diaExibicao, chamados: qtd };
     });
 
-    // 4. Retorno Estruturado (O que o Frontend espera)
+    // F. Top Tags (Assuntos)
+    const tagCounts: Record<string, number> = {};
+    chamados.forEach(c => {
+        c.tags.forEach(tag => {
+            tagCounts[tag.nome] = (tagCounts[tag.nome] || 0) + 1;
+        });
+    });
+    // Ordena decrescente e pega Top 5
+    const tagsData = Object.entries(tagCounts)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
+
+    // G. Performance da Equipe
+    const teamStats: Record<string, { name: string, resolvidos: number, pendentes: number }> = {};
+    chamados.forEach(c => {
+        const resp = c.responsavel || 'Não Atribuído';
+        if (!teamStats[resp]) teamStats[resp] = { name: resp, resolvidos: 0, pendentes: 0 };
+
+        if (c.status === 'FINALIZADO') {
+            teamStats[resp].resolvidos++;
+        } else {
+            teamStats[resp].pendentes++;
+        }
+    });
+    // Transforma objeto em array e ordena por maior número de resolvidos
+    const teamData = Object.values(teamStats).sort((a, b) => b.resolvidos - a.resolvidos);
+
+
+    // 4. Retorno Final (Compatível com o Frontend Novo)
     return {
-      statusData: porStatus.map(s => ({ name: s.status, value: s._count.status })),
-      timelineData: graficoTimeline,
       kpis: { 
           total: totalGeral, 
           finalizados: totalFinalizados, 
-          pendentes: totalGeral - totalFinalizados 
-      }
+          pendentes: totalPendentes,
+          slaViolado,         // Novo
+          percentualSlaOk     // Novo
+      },
+      statusData,
+      timelineData,
+      slaData,    // Novo
+      tagsData,   // Novo
+      teamData    // Novo
     };
   }
-
   async remove(id: number) {
     // Apaga tudo em ordem para não dar erro de chave estrangeira
     return this.prisma.$transaction([
