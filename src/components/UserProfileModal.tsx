@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Button, Box, Typography, Avatar, IconButton,
-  InputAdornment, Divider, Grid
+  InputAdornment, Divider, Grid,
+  Chip
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -41,7 +42,7 @@ export default function UserProfileModal({ open, onClose }) {
   useEffect(() => {
     if (user && open) {
       setFormData({
-        nome: user.nome || user.name || '',
+        nome: user.nome || '',
         email: user.email || '',
         cor: user.cor || '#1976d2',
         password: '',
@@ -54,7 +55,7 @@ export default function UserProfileModal({ open, onClose }) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSave = async () => {
+ const handleSave = async () => {
     // Validações básicas
     if (!formData.nome || !formData.email) {
       return toast.warning("Nome e E-mail são obrigatórios.");
@@ -65,21 +66,23 @@ export default function UserProfileModal({ open, onClose }) {
     }
 
     try {
-      // Monta objeto para envio (remove senha se estiver vazia)
-      const payload = {
+      // ✅ CORREÇÃO AQUI: Adicionei ': any' para permitir adicionar a senha depois
+      const payload: any = {
         nome: formData.nome,
         email: formData.email,
         cor: formData.cor
       };
 
+      // Agora o TypeScript permite isso porque payload é 'any'
       if (formData.password) {
         payload.password = formData.password;
       }
 
-      const { data: userAtualizado } = await api.patch('/users/me', payload);
+      // Envia para o backend (rota correta do AuthController)
+      const { data: userAtualizado } = await api.patch('/auth/me', payload);
 
-      // Atualiza o contexto global (para mudar o avatar no topo na hora)
-      setUser(prev => ({ ...prev, ...userAtualizado }));
+      // Atualiza o contexto global
+      setUser((prev: any) => ({ ...prev, ...userAtualizado }));
       
       toast.success("Perfil atualizado com sucesso!");
       onClose();
