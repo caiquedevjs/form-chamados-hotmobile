@@ -38,6 +38,9 @@ import {
   Public as PublicIcon,
   Logout as LogoutIcon
 } from '@mui/icons-material';
+import InboxIcon from '@mui/icons-material/Inbox';       // Para "Novos"
+import LoopIcon from '@mui/icons-material/Loop';         // Para "Em Atendimento"
+import TaskAltIcon from '@mui/icons-material/TaskAlt';   // Para "Finalizados"
 import PriorityHighIcon from '@mui/icons-material/PriorityHigh';
 import LowPriorityIcon from '@mui/icons-material/LowPriority';
 import api from '../services/api';
@@ -48,9 +51,30 @@ import { useAuth } from '../contexts/AuthContext';
 
 // --- CONFIGURAÇÃO DAS COLUNAS ---
 const COLUMNS = {
-  NOVO: { id: 'NOVO', title: '🆕 Novos', bg: '#E3F2FD', border: '#2196F3' },
-  EM_ATENDIMENTO: { id: 'EM_ATENDIMENTO', title: '🔥 Em Atendimento', bg: '#FFF3E0', border: '#FF9800' },
-  FINALIZADO: { id: 'FINALIZADO', title: '✅ Finalizados', bg: '#E8F5E9', border: '#4CAF50' }
+  NOVO: { 
+    id: 'NOVO', 
+    title: 'Novos', 
+    icon: <InboxIcon />, 
+    bg: '#E3F2FD', 
+    border: '#2196F3',
+    iconColor: '#1976d2' // Azul mais forte para o ícone
+  },
+  EM_ATENDIMENTO: { 
+    id: 'EM_ATENDIMENTO', 
+    title: 'Em Atendimento', 
+    icon: <LoopIcon />, 
+    bg: '#FFF3E0', 
+    border: '#FF9800',
+    iconColor: '#f57c00' // Laranja mais forte
+  },
+  FINALIZADO: { 
+    id: 'FINALIZADO', 
+    title: 'Finalizados', 
+    icon: <TaskAltIcon />, 
+    bg: '#E8F5E9', 
+    border: '#4CAF50',
+    iconColor: '#2e7d32' // Verde mais forte
+  }
 };
 
 // --- CONFIGURAÇÃO DE SLA / PRIORIDADE ---
