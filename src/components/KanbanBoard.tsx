@@ -542,7 +542,7 @@ export default function KanbanBoardView() {
                 </Grid>
                 {/* Checkbox e Limpar */}
                 <Grid item xs={6} md={1.5} display="flex" alignItems="center" justifyContent="space-between">
-                    <FormControlLabel control={<Switch checked={apenasNaoLidos} onChange={(e) => setApenasNaoLidos(e.target.checked)} color="success" />} label={<Typography variant="caption" fontWeight="bold">Ñ Lidos</Typography>} />
+                    <FormControlLabel control={<Switch checked={apenasNaoLidos} onChange={(e) => setApenasNaoLidos(e.target.checked)} color="success" />} label={<Typography variant="caption" fontWeight="bold">Não lidos</Typography>} />
                     <IconButton onClick={limparFiltros} title="Limpar Filtros" size="small"><ClearIcon /></IconButton>
                 </Grid>
             </Grid>
