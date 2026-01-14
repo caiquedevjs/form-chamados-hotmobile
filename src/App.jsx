@@ -19,7 +19,7 @@ import RegisterForm from './components/RegisterForm'; // <--- AQUI
 
 export default function App() {
   return (
-    <ThemeProviderContext>
+    
       <AuthProvider>
       <div
         style={{
@@ -76,6 +76,7 @@ export default function App() {
                   {/* --- ROTAS PRIVADAS (ADMIN) --- */}
                   
                   {/* Kanban */}
+                  <ThemeProviderContext>
                   <Route 
                     path="/admin" 
                     element={
@@ -94,11 +95,12 @@ export default function App() {
                       </PrivateRoute>
                     } 
                   />
+                  </ThemeProviderContext>
                 </Routes>
         </BrowserRouter>
         
       </div>
       </AuthProvider>
-    </ThemeProviderContext>
+   
   );
 }
