@@ -52,4 +52,33 @@ export class AuthService {
       },
     });
   }
+
+ 
+  async updateProfile(userId: number, data: { nome?: string; email?: string; senha?: string; cor?: string }) {
+    const dadosParaAtualizar: any = {};
+
+    // Só atualiza os campos que foram enviados
+    if (data.nome) dadosParaAtualizar.nome = data.nome;
+    if (data.email) dadosParaAtualizar.email = data.email;
+    if (data.cor) dadosParaAtualizar.cor = data.cor;
+
+    // Se enviou senha nova, criptografa antes de salvar
+    if (data.senha && data.senha.trim() !== '') {
+      dadosParaAtualizar.senha = await bcrypt.hash(data.senha, 10);
+    }
+
+    // Atualiza no banco
+    const userAtualizado = await this.prisma.usuario.update({
+      where: { id: userId },
+      data: dadosParaAtualizar,
+    });
+
+    // Retorna os dados limpos (sem a senha hash) para o frontend atualizar o contexto
+    return {
+      id: userAtualizado.id,
+      nome: userAtualizado.nome,
+      email: userAtualizado.email,
+      cor: userAtualizado.cor
+    };
+  }
 }

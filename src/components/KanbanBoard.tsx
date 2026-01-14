@@ -15,7 +15,8 @@ import AddIcon from '@mui/icons-material/Add';
 import LabelIcon from '@mui/icons-material/Label'; 
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SettingsIcon from '@mui/icons-material/Settings'; 
-import EditIcon from '@mui/icons-material/Edit'; // 👈 Ícone de Edição
+import EditIcon from '@mui/icons-material/Edit'; 
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
 import { 
   AttachFile as AttachIcon,
@@ -48,6 +49,7 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom'; 
 import { io } from 'socket.io-client';
 import { useAuth } from '../contexts/AuthContext';
+import UserProfileModal from './UserProfileModal';
 
 // --- CONFIGURAÇÃO DAS COLUNAS ---
 const COLUMNS = {
@@ -125,6 +127,7 @@ export default function KanbanBoardView() {
   const [filtroResponsavel, setFiltroResponsavel] = useState([]);
   const [filtroTags, setFiltroTags] = useState([]);
   const [mostrarFiltros, setMostrarFiltros] = useState(false); 
+  const [modalPerfilOpen, setModalPerfilOpen] = useState(false);
   
   // --- ESTADOS DE UI ---
   const [modalLinksOpen, setModalLinksOpen] = useState(false);
@@ -553,6 +556,15 @@ export default function KanbanBoardView() {
           <Button variant="outlined" color="primary" startIcon={<LinkIcon />} onClick={() => setModalLinksOpen(true)}>Links Úteis</Button>
           <Button variant={mostrarFiltros ? "contained" : "outlined"} onClick={() => setMostrarFiltros(!mostrarFiltros)} startIcon={<FilterListIcon />}>Filtros</Button>
           <Button variant="contained" color="secondary" startIcon={<BarChartIcon />} onClick={() => navigate('/dashboard')}>Relatórios</Button>
+          {/* Botão Perfil */}
+          <Button 
+              variant="outlined" 
+              color="primary" 
+              startIcon={<AccountCircleIcon />} 
+              onClick={() => setModalPerfilOpen(true)}
+          >
+              Minha Conta
+          </Button>
           <Button variant="outlined" color="error" startIcon={<LogoutIcon />} onClick={handleLogout} sx={{ fontWeight: 'bold' }}>Sair</Button>
         </Box>
       </Box>
@@ -723,6 +735,13 @@ export default function KanbanBoardView() {
       <Dialog open={modalMacrosOpen} onClose={() => setModalMacrosOpen(false)} maxWidth="sm" fullWidth><DialogTitle>Gerenciar Respostas</DialogTitle><DialogContent dividers><Box display="flex" gap={2} mb={3} alignItems="flex-start"><TextField label="Título" size="small" value={novaMacro.titulo} onChange={(e) => setNovaMacro({...novaMacro, titulo: e.target.value})} /><TextField label="Texto" size="small" fullWidth multiline maxRows={3} value={novaMacro.texto} onChange={(e) => setNovaMacro({...novaMacro, texto: e.target.value})} /><Button variant="contained" onClick={handleCriarMacro}>Salvar</Button></Box><List dense>{respostasProntas.map((macro) => (<ListItem key={macro.id} secondaryAction={<IconButton edge="end" color="error" onClick={() => handleDeleteMacro(macro.id)}><DeleteIcon /></IconButton>}><ListItemText primary={macro.titulo} secondary={macro.texto} /></ListItem>))}</List></DialogContent><DialogActions><Button onClick={() => setModalMacrosOpen(false)}>Fechar</Button></DialogActions></Dialog>
       <Dialog open={modalLinksOpen} onClose={() => setModalLinksOpen(false)} maxWidth="xs" fullWidth><DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', pb: 1 }}>Links & Ferramentas</DialogTitle><DialogContent><Stack spacing={2}>{SUPORTE_LINKS.map((link, idx) => (<Button key={idx} variant="outlined" component="a" href={link.url} target="_blank" startIcon={link.icon} sx={{ justifyContent: 'flex-start', py: 1.5, px: 3, color: link.color, borderColor: link.color, '&:hover': { backgroundColor: `${link.color}10`, borderColor: link.color } }}>{link.title}</Button>))}</Stack></DialogContent><DialogActions sx={{ justifyContent: 'center', pb: 2 }}><Button onClick={() => setModalLinksOpen(false)} color="inherit">Fechar</Button></DialogActions></Dialog>
       <Dialog open={confirmDeleteOpen} onClose={() => setConfirmDeleteOpen(false)}><DialogTitle sx={{ color: '#d32f2f', display: 'flex', alignItems: 'center', gap: 1 }}><DeleteIcon /> Excluir Chamado?</DialogTitle><DialogContent><Typography>Tem certeza que deseja excluir o chamado <strong>#{chamadoSelecionado?.id}</strong>?</Typography></DialogContent><DialogActions><Button onClick={() => setConfirmDeleteOpen(false)} color="inherit">Cancelar</Button><Button onClick={handleDeleteChamado} variant="contained" color="error">Sim, Excluir</Button></DialogActions></Dialog>
+
+
+     {/* ✅ MODAL DE PERFIL */}
+      <UserProfileModal 
+          open={modalPerfilOpen} 
+          onClose={() => setModalPerfilOpen(false)} 
+      />           
 
     </Box>
   );
