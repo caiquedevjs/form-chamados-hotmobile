@@ -1,73 +1,92 @@
-// ThemeProviderContext.jsx
-import React, { createContext, useMemo, useState, useContext } from 'react';
+import React, { createContext, useMemo, useState, useContext, useEffect } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
-const ColorModeContext = createContext();
+const ColorModeContext = createContext({ toggleColorMode: () => {} });
 
 export function useColorMode() {
   return useContext(ColorModeContext);
 }
 
 export default function ThemeProviderContext({ children }) {
-  const [mode, setMode] = useState('light');
+  // 1. Detecta preferência do sistema
+  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
+  
+  // 2. Estado inicial com persistência (localStorage)
+  const [mode, setMode] = useState(() => {
+    const savedMode = localStorage.getItem('themeMode');
+    return savedMode ? savedMode : (prefersDarkMode ? 'dark' : 'light');
+  });
 
+  // 3. Função de toggle que salva no localStorage
   const colorMode = useMemo(
     () => ({
       toggleColorMode: () => {
-        setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+        setMode((prevMode) => {
+          const newMode = prevMode === 'light' ? 'dark' : 'light';
+          localStorage.setItem('themeMode', newMode);
+          return newMode;
+        });
       },
     }),
     []
   );
 
+  // 4. Definição do Tema
   const theme = useMemo(() => {
     const isDark = mode === 'dark';
 
     return createTheme({
       palette: {
         mode,
+        primary: {
+          // Ajuste fino: Azul mais vibrante no dark para contraste
+          main: isDark ? '#90caf9' : '#1976d2',
+        },
         background: {
-          default: isDark ? '#121212' : '#f5f5f5',
-          paper: isDark ? '#1e1e1e' : '#ffffff',
+          // Dark Mode Profissional (estilo GitHub/VSCode)
+          default: isDark ? '#0F1214' : '#F4F6F8', 
+          paper: isDark ? '#1A1D1F' : '#ffffff',
         },
         text: {
-          primary: isDark ? '#b0b0b0' : '#000000',
+          // Padrão Material Design para legibilidade
+          primary: isDark ? 'rgba(255, 255, 255, 0.95)' : 'rgba(0, 0, 0, 0.87)',
+          secondary: isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
         },
+        divider: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)',
       },
       typography: {
-        fontFamily: 'Roboto, Arial, sans-serif',
+        fontFamily: "'Inter', 'Roboto', 'Arial', sans-serif", // Sugestão: Inter é muito moderna
       },
       components: {
-        MuiInputLabel: {
+        // Transição suave global
+        MuiCssBaseline: {
           styleOverrides: {
-            root: {
-              color: isDark ? '#b0b0b0' : undefined,
+            body: {
+              transition: 'background-color 0.3s ease, color 0.3s ease',
             },
           },
         },
+        // Estilização automática de Cards e Papers
+        MuiPaper: {
+          styleOverrides: {
+            root: {
+              transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
+              backgroundImage: 'none', // Remove overlay padrão do MUI no dark mode para ter controle total da cor
+            },
+          },
+        },
+        // Inputs mais bonitos no Dark Mode
         MuiOutlinedInput: {
           styleOverrides: {
+            root: {
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: isDark ? '#90caf9' : '#1976d2',
+              },
+            },
             notchedOutline: {
-              borderColor: isDark ? '#555' : undefined,
-            },
-            input: {
-              color: isDark ? '#b0b0b0' : undefined,
-            },
-          },
-        },
-        MuiButton: {
-          styleOverrides: {
-            root: {
-              color: isDark ? '#b0b0b0' : undefined,
-              borderColor: isDark ? '#777' : undefined,
-            },
-          },
-        },
-        MuiSvgIcon: {
-          styleOverrides: {
-            root: {
-              color: isDark ? '#b0b0b0' : undefined,
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.23)' : 'rgba(0, 0, 0, 0.23)',
             },
           },
         },

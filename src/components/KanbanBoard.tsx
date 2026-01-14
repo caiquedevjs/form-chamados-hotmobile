@@ -50,6 +50,7 @@ import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { useAuth } from '../contexts/AuthContext';
 import UserProfileModal from './UserProfileModal';
+import ToggleThemeButton from '../components/ToggleThemeButton';
 
 // --- CONFIGURAÇÃO DAS COLUNAS ---
 const COLUMNS = {
@@ -566,6 +567,7 @@ export default function KanbanBoardView() {
               Minha Conta
           </Button>
           <Button variant="outlined" color="error" startIcon={<LogoutIcon />} onClick={handleLogout} sx={{ fontWeight: 'bold' }}>Sair</Button>
+          <ToggleThemeButton />
         </Box>
       </Box>
 
