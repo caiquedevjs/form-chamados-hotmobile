@@ -1,25 +1,30 @@
 // src/App.jsx
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'; // 👈 Importe o Outlet
 import { AuthProvider } from './contexts/AuthContext'
 import ThemeProviderContext from './contexts/ThemeProviderContext';
-import ToggleThemeButton from './components/ToggleThemeButton';
 import MultilineTextFields from './components/form.component';
 import NotificationProvider from './components/NotificationProvider';
 import LogoHeader from './components/LogoHeader';
-import Footer from './components/Footer';
 import KanbanBoardView from './components/KanbanBoard';
 import DashboardView from './components/DashboardView';
 import LoginView from './components/LoginView'; 
 import PrivateRoute from './components/PrivateRoute'; 
 import ClientTracking from './components/ClientTracking'; 
+import RegisterForm from './components/RegisterForm'; 
 
-// 👇 1. IMPORT NOVO (Certifique-se que o arquivo está na pasta components)
-import RegisterForm from './components/RegisterForm'; // <--- AQUI
+// ✅ 1. Criamos um componente de Layout para o Admin
+// Ele envolve as rotas filhas com o ThemeProvider
+const AdminLayout = () => {
+  return (
+    <ThemeProviderContext>
+      <Outlet /> {/* O Outlet renderiza a rota filha (Kanban ou Dashboard) */}
+    </ThemeProviderContext>
+  );
+};
 
 export default function App() {
   return (
-    
       <AuthProvider>
       <div
         style={{
@@ -30,9 +35,8 @@ export default function App() {
           justifyContent: 'center',
           alignItems: 'center',
           position: 'relative',
-          overflow: 'scroll', 
+          overflow: 'hidden', // Mudei para hidden para evitar scroll duplo com o Kanban
           backgroundColor: 'inherit',
-          
         }}
       >
         <NotificationProvider />
@@ -40,43 +44,24 @@ export default function App() {
         {/* 🔺 Logo fixada no topo esquerdo */}
         <LogoHeader />
 
-        {/* 🔘 Botão modo escuro no topo direito */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            zIndex: 999,
-          }}
-        >
-          {/* <ToggleThemeButton /> Se quiser ativar o botão */}
-        </div>
-
         {/* Roteamento */}
         <BrowserRouter>
-          
           <Routes>
-                  {/* --- ROTAS PÚBLICAS --- */}
-                  
-                  {/* Formulário Inicial (Abertura de Chamado) */}
-                  <Route path="/" element={<MultilineTextFields />} />
-                  
-                  {/* Login */}
-                  <Route path="/login" element={<LoginView />} />
+              {/* --- ROTAS PÚBLICAS (Sem Tema Dark) --- */}
+              
+              <Route path="/" element={<MultilineTextFields />} />
+              <Route path="/login" element={<LoginView />} />
+              <Route path="/register" element={<RegisterForm />} /> 
+              
+              <Route 
+                path="/acompanhamento/:id" 
+                element={<div style={{ width: '100%', height: '100%' }}><ClientTracking /></div>} 
+              />
 
-                  {/* 👇 2. NOVA ROTA DE CADASTRO */}
-                  <Route path="/register" element={<RegisterForm />} /> 
+              {/* --- ROTAS PRIVADAS (COM TEMA DARK) --- */}
+              {/* ✅ 2. Usamos o AdminLayout para envolver as rotas protegidas */}
+              <Route element={<AdminLayout />}>
                   
-                  {/* Acompanhamento (Cliente) */}
-                  <Route 
-                    path="/acompanhamento/:id" 
-                    element={<div style={{ width: '100%' }}><ClientTracking /></div>} 
-                  />
-
-                  {/* --- ROTAS PRIVADAS (ADMIN) --- */}
-                  
-                  {/* Kanban */}
-                  <ThemeProviderContext>
                   <Route 
                     path="/admin" 
                     element={
@@ -86,7 +71,6 @@ export default function App() {
                     } 
                   />
                   
-                  {/* Dashboard */}
                   <Route 
                     path="/dashboard" 
                     element={
@@ -95,12 +79,12 @@ export default function App() {
                       </PrivateRoute>
                     } 
                   />
-                  </ThemeProviderContext>
-                </Routes>
+
+              </Route>
+          </Routes>
         </BrowserRouter>
         
       </div>
       </AuthProvider>
-   
   );
 }
