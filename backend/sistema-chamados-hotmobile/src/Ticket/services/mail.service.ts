@@ -1,37 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private transporter: nodemailer.Transporter;
+  
+  // 👇 COLOCAR SUA API KEY AQUI (Idealmente use process.env.RESEND_API_KEY)
+  private resend = new Resend('re_haBMqw7k_P3FqaY2Z4vj7rMLrgGWXn6m2'); 
 
-  // Configurações do Gmail
-  private gmailUser = 'enviarelatorio@gmail.com'; // Seu Gmail ou Google Workspace
-  // 🚨 IMPORTANTE: Use uma "Senha de App" gerada no painel do Google, não sua senha de login.
-  private gmailPass = 'xrvxumksopgvbsvh'; 
-  private remetenteNome = 'Suporte Hotmobile';
+  constructor() {}
 
-  constructor() {
-    // Configura o transporte SMTP do Gmail
-    this.transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: false, // true para 465, false para outras portas
-      auth: {
-        user: this.gmailUser,
-        pass: this.gmailPass,
-      },
-      tls: {
-        rejectUnauthorized: false // Ajuda em alguns ambientes de desenvolvimento
-      },
-      connectionTimeout: 10000, 
-      greetingTimeout: 10000,
-      socketTimeout: 10000
-    });
-  }
+  // --- MÉTODOS PÚBLICOS (Mantidos iguais para não quebrar o resto do app) ---
 
-  // ... (Mantenha o método enviarAvisoInicioAtendimento existente - A lógica HTML não muda) ...
   async enviarAvisoInicioAtendimento(emailDestino: string, nomeEmpresa: string, linkAcompanhamento: string) {
       const corpoHtml = `
         <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
@@ -50,7 +30,6 @@ export class MailService {
       return this.enviarEmailBase(emailDestino, '🚀 Seu chamado iniciou o atendimento!', corpoHtml);
   }
 
-  // ✅ NOVO MÉTODO GENÉRICO (Mantido igual)
   async enviarNotificacaoGenerica(emailDestino: string, assunto: string, mensagem: string, linkAcao?: string) {
     const corpoHtml = `
       <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
@@ -74,21 +53,30 @@ export class MailService {
     return this.enviarEmailBase(emailDestino, assunto, corpoHtml);
   }
 
-  // ✅ MÉTODO PRIVADO ATUALIZADO PARA NODEMAILER (SMTP)
+  // --- MÉTODO DE ENVIO VIA API HTTP (RESEND) ---
   private async enviarEmailBase(emailDestino: string, assunto: string, html: string) {
     try {
-      this.logger.debug(`📧 Enviando email (Gmail) para ${emailDestino}...`);
+      this.logger.debug(`📧 Enviando email via Resend para ${emailDestino}...`);
       
-      const info = await this.transporter.sendMail({
-        from: `"${this.remetenteNome}" <${this.gmailUser}>`, // Ex: "Suporte Hotmobile" <email@gmail.com>
-        to: emailDestino,
+      const data = await this.resend.emails.send({
+        // 🚨 MODO GRATUITO: Você OBRIGATORIAMENTE tem que usar este email como remetente
+        // Depois de configurar o domínio 'hotmobile.com.br' no painel do Resend, você poderá mudar.
+        from: 'Suporte Hotmobile <onboarding@resend.dev>', 
+        
+        // No modo gratuito, você só pode enviar para o email que cadastrou a conta (caique...)
+        to: [emailDestino], 
         subject: assunto,
         html: html,
       });
 
-      this.logger.log(`✅ Email enviado! ID: ${info.messageId}`);
+      if (data.error) {
+          this.logger.error(`❌ Resend recusou: ${data.error.message}`);
+          return;
+      }
+
+      this.logger.log(`✅ Email enviado com sucesso! ID: ${data.data?.id}`);
     } catch (error) {
-      this.logger.error(`❌ Erro ao enviar email: ${error.message}`, error.stack);
+      this.logger.error(`❌ Erro crítico no envio: ${error.message}`);
     }
   }
 }
