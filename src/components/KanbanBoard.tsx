@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import React, { useState, useEffect, useRef } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { 
   Box, Typography, Paper, Card, CardContent, Chip, IconButton,
   TextField, InputAdornment, Dialog, DialogTitle, DialogContent, 
   DialogActions, Button, Grid, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar,
-  Badge, FormControlLabel, Switch, Select, MenuItem, Checkbox, ListItemText as MuiListItemText,
-  InputLabel, FormControl, Stack, Popover, ListSubheader, Autocomplete 
+  FormControlLabel, Switch, Select, MenuItem, Checkbox, ListItemText as MuiListItemText,
+  InputLabel, FormControl, Stack, Popover, Autocomplete 
 } from '@mui/material';
 import { ListAlt } from '@mui/icons-material';
 import LockIcon from '@mui/icons-material/Lock'; 
@@ -13,7 +13,7 @@ import BoltIcon from '@mui/icons-material/Bolt';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import LabelIcon from '@mui/icons-material/Label'; 
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'; // 👈 Ícone de seleção de cor
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 import { 
   AttachFile as AttachIcon,
@@ -30,7 +30,7 @@ import {
   FilterList as FilterListIcon,
   Clear as ClearIcon,
   Link as LinkIcon,
-  MenuBook as BookIcon,
+  Book as BookIcon,
   Dns as DnsIcon,
   Help as HelpIcon,
   Public as PublicIcon,
@@ -61,25 +61,10 @@ const PRIORITY_CONFIG = {
 
 // 🎨 PALETA DE CORES PARA TAGS
 const TAG_COLORS = [
-    '#F44336', // Vermelho
-    '#E91E63', // Rosa
-    '#9C27B0', // Roxo
-    '#673AB7', // Roxo Escuro
-    '#3F51B5', // Indigo
-    '#2196F3', // Azul
-    '#03A9F4', // Azul Claro
-    '#00BCD4', // Ciano
-    '#009688', // Verde Água
-    '#4CAF50', // Verde
-    '#8BC34A', // Verde Lima
-    '#CDDC39', // Lima
-    '#FFEB3B', // Amarelo
-    '#FFC107', // Ambar
-    '#FF9800', // Laranja
-    '#FF5722', // Laranja Escuro
-    '#795548', // Marrom
-    '#9E9E9E', // Cinza
-    '#607D8B'  // Cinza Azulado
+    '#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5',
+    '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#4CAF50',
+    '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800',
+    '#FF5722', '#795548', '#9E9E9E', '#607D8B'
 ];
 
 const FLOW_ORDER = ['NOVO', 'EM_ATENDIMENTO', 'FINALIZADO'];
@@ -111,6 +96,11 @@ export default function KanbanBoardView() {
   const [filtroDataInicio, setFiltroDataInicio] = useState('');
   const [filtroDataFim, setFiltroDataFim] = useState('');
   const [apenasNaoLidos, setApenasNaoLidos] = useState(false);
+  
+  // 🔍 NOVOS FILTROS
+  const [filtroResponsavel, setFiltroResponsavel] = useState([]);
+  const [filtroTags, setFiltroTags] = useState([]);
+
   const [mostrarFiltros, setMostrarFiltros] = useState(false); 
   
   // --- ESTADOS DE UI ---
@@ -131,11 +121,10 @@ export default function KanbanBoardView() {
   const [modalMacrosOpen, setModalMacrosOpen] = useState(false); 
   const [novaMacro, setNovaMacro] = useState({ titulo: '', texto: '' });
 
-  // --- TAGS (ETIQUETAS) 🏷️ ---
+  // --- TAGS (ETIQUETAS) ---
   const [todasTags, setTodasTags] = useState([]);
-  // Estado para criar nova tag (Nome e Cor)
   const [modalCriarTagOpen, setModalCriarTagOpen] = useState(false);
-  const [novaTagData, setNovaTagData] = useState({ nome: '', cor: TAG_COLORS[5] }); // Default Azul
+  const [novaTagData, setNovaTagData] = useState({ nome: '', cor: TAG_COLORS[5] });
 
   const handleLogout = () => {
     logout(); 
@@ -161,7 +150,7 @@ export default function KanbanBoardView() {
     }
   };
 
-  // --- LÓGICA DE TAGS 🏷️ ---
+  // --- LÓGICA DE TAGS ---
   const carregarTags = async () => {
     try {
       const { data } = await api.get(`${API_URL}/chamados/tags/list`);
@@ -172,7 +161,6 @@ export default function KanbanBoardView() {
   };
 
   const handleSalvarTags = async (novasTags) => {
-    // Atualização otimista
     setChamadoSelecionado(prev => ({ ...prev, tags: novasTags }));
     setChamados(prev => prev.map(c => c.id === chamadoSelecionado.id ? { ...c, tags: novasTags } : c));
 
@@ -184,33 +172,26 @@ export default function KanbanBoardView() {
     }
   };
 
-  // Abre o modal de criação quando usuário dá Enter
   const handleInitiateCriarTag = (nome) => {
-      setNovaTagData({ nome, cor: TAG_COLORS[5] }); // Reseta cor para azul padrão
+      setNovaTagData({ nome, cor: TAG_COLORS[5] }); 
       setModalCriarTagOpen(true);
   };
 
-  // Salva a tag no banco após escolher a cor
   const handleConfirmarCriacaoTag = async () => {
     if (!novaTagData.nome) return;
     try {
         const { data: novaTag } = await api.post(`${API_URL}/chamados/tags`, novaTagData);
-        
         setTodasTags(prev => [...prev, novaTag]);
-        
-        // Já adiciona a tag criada ao chamado atual
         const tagsAtuais = chamadoSelecionado.tags || [];
         handleSalvarTags([...tagsAtuais, novaTag]);
-        
         toast.success("Tag criada com sucesso!");
-        setModalCriarTagOpen(false); // Fecha modal
+        setModalCriarTagOpen(false); 
     } catch (error) {
         toast.error("Erro ao criar tag.");
     }
   };
-  // --------------------------
 
-  // --- LÓGICA DE MACROS ---
+  // --- MACROS ---
   const carregarMacros = async () => {
     try {
       const { data } = await api.get(`${API_URL}/respostas-prontas`);
@@ -241,7 +222,7 @@ export default function KanbanBoardView() {
     setAnchorElMacros(null); 
   };
 
-  // --- SLA / PRIORIDADE ---
+  // --- SLA / STATUS ---
   const handleChangePriority = async (novaPrioridade) => {
     try {
         setChamadoSelecionado(prev => ({ ...prev, prioridade: novaPrioridade }));
@@ -254,15 +235,12 @@ export default function KanbanBoardView() {
     } catch (error) { toast.error("Erro ao mudar prioridade"); }
   };
 
-  // --- DRAG AND DROP ---
   const onDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
-
     const novoStatus = destination.droppableId;
     const chamadoId = parseInt(draggableId);
-    
     atualizarStatus(chamadoId, novoStatus);
   };
 
@@ -374,6 +352,10 @@ export default function KanbanBoardView() {
     } catch (error) { toast.error('Erro ao enviar mensagem.'); } finally { setEnviandoComentario(false); }
   };
 
+  // 🔎 EXTRAÇÃO DE RESPONSÁVEIS ÚNICOS PARA O FILTRO
+  const responsaveisUnicos = [...new Set(chamados.map(c => c.responsavel).filter(Boolean))];
+
+  // 🔎 FILTRAGEM AVANÇADA
   const chamadosFiltrados = chamados.filter((c) => {
     const termo = busca.toLowerCase();
     const matchTexto = 
@@ -384,6 +366,13 @@ export default function KanbanBoardView() {
 
     const matchStatus = filtroStatus.includes(c.status);
     const matchNaoLidos = apenasNaoLidos ? c.mensagensNaoLidas > 0 : true;
+
+    // Lógica do Filtro de Responsável
+    const matchResponsavel = filtroResponsavel.length === 0 || filtroResponsavel.includes(c.responsavel);
+
+    // Lógica do Filtro de Tags (Mostra se tiver PELO MENOS UMA das tags selecionadas)
+    const matchTags = filtroTags.length === 0 || (c.tags && c.tags.some(tag => filtroTags.includes(tag.nome)));
+
     let matchData = true;
     const dataChamado = new Date(c.createdAt);
     
@@ -397,12 +386,15 @@ export default function KanbanBoardView() {
         dataFim.setHours(23,59,59,999); 
         matchData = matchData && dataChamado <= dataFim;
     }
-    return matchTexto && matchStatus && matchNaoLidos && matchData;
+
+    return matchTexto && matchStatus && matchNaoLidos && matchResponsavel && matchTags && matchData;
   });
 
   const limparFiltros = () => {
       setBusca('');
       setFiltroStatus(Object.keys(COLUMNS));
+      setFiltroResponsavel([]);
+      setFiltroTags([]);
       setFiltroDataInicio('');
       setFiltroDataFim('');
       setApenasNaoLidos(false);
@@ -500,10 +492,13 @@ export default function KanbanBoardView() {
       {mostrarFiltros && (
         <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }}>
             <Grid container spacing={2} alignItems="center">
+                {/* Busca Texto */}
                 <Grid item xs={12} md={3}>
                     <TextField fullWidth variant="outlined" placeholder="Buscar..." size="small" value={busca} onChange={(e) => setBusca(e.target.value)} InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>) }} />
                 </Grid>
-                <Grid item xs={12} md={3}>
+                
+                {/* Filtro Status */}
+                <Grid item xs={12} md={2}>
                     <FormControl size="small" fullWidth>
                         <InputLabel>Status</InputLabel>
                         <Select multiple value={filtroStatus} label="Status" onChange={(e) => { const value = e.target.value; setFiltroStatus(typeof value === 'string' ? value.split(',') : value); }} renderValue={(selected) => selected.map(val => COLUMNS[val].title.split(' ')[1]).join(', ')}>
@@ -513,14 +508,41 @@ export default function KanbanBoardView() {
                         </Select>
                     </FormControl>
                 </Grid>
-                <Grid item xs={6} md={2}>
+
+                {/* ✅ Filtro Responsável */}
+                <Grid item xs={12} md={2}>
+                    <FormControl size="small" fullWidth>
+                        <InputLabel>Responsável</InputLabel>
+                        <Select multiple value={filtroResponsavel} label="Responsável" onChange={(e) => { const value = e.target.value; setFiltroResponsavel(typeof value === 'string' ? value.split(',') : value); }} renderValue={(selected) => selected.join(', ')}>
+                            {responsaveisUnicos.map((resp) => (
+                                <MenuItem key={resp} value={resp}><Checkbox checked={filtroResponsavel.indexOf(resp) > -1} /><MuiListItemText primary={resp} /></MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Grid>
+
+                {/* ✅ Filtro Tags */}
+                <Grid item xs={12} md={2}>
+                     <FormControl size="small" fullWidth>
+                        <InputLabel>Tags</InputLabel>
+                        <Select multiple value={filtroTags} label="Tags" onChange={(e) => { const value = e.target.value; setFiltroTags(typeof value === 'string' ? value.split(',') : value); }} renderValue={(selected) => selected.join(', ')}>
+                            {todasTags.map((tag) => (
+                                <MenuItem key={tag.id} value={tag.nome}>
+                                  <Checkbox checked={filtroTags.indexOf(tag.nome) > -1} />
+                                  <Chip label={tag.nome} size="small" sx={{ bgcolor: tag.cor, color: '#fff', height: 20, fontSize: '0.65rem' }} />
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Grid>
+
+                {/* Datas */}
+                <Grid item xs={6} md={1.5}>
                     <TextField fullWidth label="De" type="date" size="small" InputLabelProps={{ shrink: true }} value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} />
                 </Grid>
-                <Grid item xs={6} md={2}>
-                    <TextField fullWidth label="Até" type="date" size="small" InputLabelProps={{ shrink: true }} value={filtroDataFim} onChange={(e) => setFiltroDataFim(e.target.value)} />
-                </Grid>
-                <Grid item xs={12} md={2} display="flex" alignItems="center" justifyContent="space-between">
-                    <FormControlLabel control={<Switch checked={apenasNaoLidos} onChange={(e) => setApenasNaoLidos(e.target.checked)} color="success" />} label={<Typography variant="caption" fontWeight="bold">Não Lidos</Typography>} />
+                {/* Checkbox e Limpar */}
+                <Grid item xs={6} md={1.5} display="flex" alignItems="center" justifyContent="space-between">
+                    <FormControlLabel control={<Switch checked={apenasNaoLidos} onChange={(e) => setApenasNaoLidos(e.target.checked)} color="success" />} label={<Typography variant="caption" fontWeight="bold">Ñ Lidos</Typography>} />
                     <IconButton onClick={limparFiltros} title="Limpar Filtros" size="small"><ClearIcon /></IconButton>
                 </Grid>
             </Grid>
@@ -588,12 +610,6 @@ export default function KanbanBoardView() {
                                       </Typography>
                                     </Box>
                                   )}
-                                  
-                                  {item.mensagensNaoLidas > 0 && (
-                                    <Box sx={{ position: 'absolute', top: -8, right: -8, width: 24, height: 24, borderRadius: '50%', backgroundColor: '#2e7d32', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: 2, zIndex: 10 }}>
-                                      {item.mensagensNaoLidas}
-                                    </Box>
-                                  )}
 
                                   <Typography variant="caption" color="text.secondary">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</Typography>
                                 </Box>
@@ -609,7 +625,7 @@ export default function KanbanBoardView() {
                                     )}
                                 </Box>
 
-                                {/* ✅ TAGS NO CARD */}
+                                {/* TAGS NO CARD */}
                                 <Box display="flex" gap={0.5} mb={1} flexWrap="wrap">
                                     {item.tags?.map(tag => (
                                         <Chip 
@@ -619,7 +635,7 @@ export default function KanbanBoardView() {
                                             sx={{ 
                                                 height: 20, 
                                                 fontSize: '0.65rem', 
-                                                bgcolor: tag.cor + '20', // Transparência
+                                                bgcolor: tag.cor + '20', 
                                                 color: tag.cor,
                                                 fontWeight: 'bold',
                                                 border: `1px solid ${tag.cor}`
@@ -629,6 +645,14 @@ export default function KanbanBoardView() {
                                 </Box>
 
                                 <Typography variant="body2" color="text.secondary" noWrap>{item.descricao}</Typography>
+                                
+                                {/* ✅ CONTADOR DE MSG NÃO LIDAS (POSIÇÃO CORRIGIDA) */}
+                                {item.mensagensNaoLidas > 0 && (
+                                    <Box sx={{ position: 'absolute', bottom: 12, right: 12, width: 24, height: 24, borderRadius: '50%', backgroundColor: '#2e7d32', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: 2, zIndex: 10 }}>
+                                      {item.mensagensNaoLidas}
+                                    </Box>
+                                )}
+
                               </CardContent>
                             </Card>
                           )}}
@@ -644,6 +668,8 @@ export default function KanbanBoardView() {
         </Box>
       </DragDropContext>
 
+      {/* ... (O RESTO DO CÓDIGO PERMANECE IGUAL: MODAL DETALHES, MACROS, TAGS, LINKTREE) ... */}
+      
       {/* --- MODAL DETALHES --- */}
       <Dialog 
         open={Boolean(chamadoSelecionado)} 
@@ -781,7 +807,7 @@ export default function KanbanBoardView() {
                         </FormControl>
                     </Box>
 
-                    {/* ✅ SELETOR DE TAGS COM MODAL DE COR */}
+                    {/* SELETOR DE TAGS COM MODAL DE COR */}
                     <Box mb={3}>
                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>Etiquetas (Tags)</Typography>
                         <Autocomplete
