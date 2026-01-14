@@ -669,15 +669,8 @@ export default function KanbanBoardView() {
       <Dialog open={Boolean(chamadoSelecionado)} onClose={() => setChamadoSelecionado(null)} maxWidth="md" fullWidth>
         {chamadoSelecionado && (
           <>
-            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider'}}><Box display="flex" alignItems="center" gap={2}><Typography variant="h6">Chamado #{chamadoSelecionado.id}</Typography><Chip 
-  label={COLUMNS[chamadoSelecionado.status]?.title || chamadoSelecionado.status} 
-  sx={{ 
-    bgcolor: COLUMNS[chamadoSelecionado.status]?.bg || '#eee',
-    // 👇 FORÇA A COR DO TEXTO PARA ESCURO (Preto/Cinza) PARA DAR LEITURA NO FUNDO CLARO
-    color: '#1d1d1d', 
-    fontWeight: 'bold'
-  }}
-/></Box><IconButton onClick={() => setChamadoSelecionado(null)}><CloseIcon /></IconButton></DialogTitle>
+            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider'}}><Box display="flex" alignItems="center" gap={2}><Typography variant="h6">Chamado #{chamadoSelecionado.id}</Typography><Chip label={COLUMNS[chamadoSelecionado.status]?.title || chamadoSelecionado.status} sx={{ bgcolor: COLUMNS[chamadoSelecionado.status]?.bg || '#eee', color: '#1d1d1d', 
+    fontWeight: 'bold' }} /></Box><IconButton onClick={() => setChamadoSelecionado(null)}><CloseIcon /></IconButton></DialogTitle>
             <DialogContent dividers>
               <Grid container spacing={2} sx={{ height: '100%' }}>
                 <Grid item xs={12} md={8} display="flex" flexDirection="column">
@@ -713,10 +706,31 @@ export default function KanbanBoardView() {
                   <Box>
                     <Box display="flex" justifyContent="flex-end" mb={1}><FormControlLabel control={<Switch checked={notaInterna} onChange={(e) => setNotaInterna(e.target.checked)} color="warning" size="small" />} label={<Box display="flex" alignItems="center" gap={0.5}>{notaInterna && <LockIcon fontSize="small" color="warning" />}<Typography variant="caption" sx={{ color: notaInterna ? '#ed6c02' : 'gray', fontWeight: 'bold' }}>Nota Interna (Privado)</Typography></Box>} /></Box>
                     {files.length > 0 && (<Box mb={1} display="flex" gap={1} flexWrap="wrap">{files.map((file, i) => (<Chip key={i} label={file.name} onDelete={() => removeFile(i)} size="small" icon={<AttachIcon />} />))}</Box>)}
-                    <Box display="flex" gap={1} alignItems="flex-end"><input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} /><IconButton onClick={() => fileInputRef.current?.click()} sx={{ border: '1px solid #ccc', borderRadius: 1 }}><AttachIcon /></IconButton><IconButton onClick={(e) => setAnchorElMacros(e.currentTarget)} sx={{ border: '1px solid #ff9800', color: '#ff9800', borderRadius: 1 }} title="Respostas Prontas"><BoltIcon /></IconButton><TextField fullWidth size="small" placeholder={notaInterna ? "Escreva uma nota interna..." : "Responder ao cliente..."} value={novoComentario} onChange={(e) => setNovoComentario(e.target.value)} multiline maxRows={3} sx={{ bgcolor: notaInterna ? '#FFF3E0' : 'white' }} /><Button variant="contained" onClick={handleAddInteracao} disabled={enviandoComentario || (!novoComentario.trim() && files.length === 0)} color={notaInterna ? "warning" : "primary"}><SendIcon /></Button></Box>
+                    <Box display="flex" gap={1} alignItems="flex-end"><input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} /><IconButton onClick={() => fileInputRef.current?.click()} sx={{ border: '1px solid #ccc', borderRadius: 1 }}><AttachIcon /></IconButton><IconButton onClick={(e) => setAnchorElMacros(e.currentTarget)} sx={{ border: '1px solid #ff9800', color: '#ff9800', borderRadius: 1 }} title="Respostas Prontas"><BoltIcon /></IconButton><SendIcon /></Button></Box>
                   </Box>
                 </Grid>
-                <Grid item xs={12} md={4}>
+                <Grid item xs={12} md={4}><TextField 
+  fullWidth 
+  size="small" 
+  placeholder={notaInterna ? "Escreva uma nota interna..." : "Responder ao cliente..."} 
+  value={novoComentario} 
+  onChange={(e) => setNovoComentario(e.target.value)} 
+  multiline 
+  maxRows={3} 
+  sx={{ 
+    // 👇 CORREÇÃO:
+    // Se for Nota Interna: Laranja claro (Light) ou Laranja escuro transparente (Dark)
+    // Se for Normal: background.paper (Branco no Light / Cinza no Dark)
+    bgcolor: notaInterna 
+      ? (isDark ? 'rgba(237, 108, 2, 0.15)' : '#FFF3E0') 
+      : 'background.paper',
+      
+    // Ajuste sutil na cor do texto placeholder se necessário, mas o padrão costuma funcionar
+    '& .MuiInputBase-root': {
+        color: 'text.primary' // Garante que o texto digitado respeite o tema
+    }
+  }} 
+/>
                     <Box mb={3}><Typography variant="subtitle2" color="text.secondary">Empresa</Typography><Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gap={1}><BusinessIcon color="primary" fontSize="small"/> {chamadoSelecionado.nomeEmpresa}</Typography></Box>
                     <Box mb={3}><Typography variant="subtitle2" color="text.secondary" gutterBottom>Nível de Urgência (SLA)</Typography><FormControl fullWidth size="small"><Select value={chamadoSelecionado.prioridade || 'BAIXA'} onChange={(e) => handleChangePriority(e.target.value)} sx={{ color: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color, fontWeight: 'bold', '& .MuiOutlinedInput-notchedOutline': { borderColor: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color } }}>{Object.entries(PRIORITY_CONFIG).map(([key, config]) => (<MenuItem key={key} value={key} sx={{ color: config.color, fontWeight: 'bold' }}><Box display="flex" alignItems="center" gap={1}>{config.icon} {config.label}</Box></MenuItem>))}</Select></FormControl></Box>
                     <Box mb={3}><Box display="flex" justifyContent="space-between" alignItems="center"><Typography variant="subtitle2" color="text.secondary" gutterBottom>Etiquetas (Tags)</Typography><IconButton size="small" onClick={() => setModalGerenciarTagsOpen(true)} title="Gerenciar Etiquetas"><SettingsIcon fontSize="small" /></IconButton></Box><Autocomplete multiple options={todasTags} getOptionLabel={(option) => option.nome} value={chamadoSelecionado.tags || []} onChange={(event, newValue) => { handleSalvarTags(newValue); }} renderInput={(params) => (<TextField {...params} variant="outlined" size="small" placeholder="Adicionar tags..." onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value) { const valor = e.target.value; const existe = todasTags.find(t => t.nome.toLowerCase() === valor.toLowerCase()); if (!existe) { e.preventDefault(); handleInitiateCriarTag(valor); } } }} />)} renderTags={(value, getTagProps) => value.map((option, index) => (<Chip label={option.nome} size="small" {...getTagProps({ index })} sx={{ bgcolor: option.cor, color: '#fff', fontWeight: 'bold' }} />))} noOptionsText="Digite e dê Enter para criar..." /></Box>
