@@ -24,7 +24,7 @@ export class MailService {
       },
       tls: {
         rejectUnauthorized: false // Ajuda em alguns ambientes de desenvolvimento
-      }
+      },
       connectionTimeout: 10000, 
       greetingTimeout: 10000,
       socketTimeout: 10000
