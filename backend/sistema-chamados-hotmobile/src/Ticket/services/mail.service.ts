@@ -16,7 +16,7 @@ export class MailService {
     // Configura o transporte SMTP do Gmail
     this.transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
-      port: 587,
+      port: 465,
       secure: false, // true para 465, false para outras portas
       auth: {
         user: this.gmailUser,
@@ -25,6 +25,9 @@ export class MailService {
       tls: {
         rejectUnauthorized: false // Ajuda em alguns ambientes de desenvolvimento
       }
+      connectionTimeout: 10000, 
+      greetingTimeout: 10000,
+      socketTimeout: 10000
     });
   }
 
