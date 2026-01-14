@@ -7,7 +7,14 @@ import { ChamadosGateway } from './chamados.gateway';
 import { MailService } from './mail.service';
 import { WhatsappService } from './whatsapp.service';
 import * as storageInterface from './storage.interface'; 
-import { startOfDay, endOfDay, parseISO, eachDayOfInterval, format } from 'date-fns';
+import { 
+  startOfDay, 
+  endOfDay, 
+  parseISO, 
+  format, 
+  differenceInHours, // 👈 Adicione este aqui
+  eachDayOfInterval 
+} from 'date-fns';
 
 @Injectable()
 export class ChamadosService {
