@@ -40,9 +40,9 @@ import {
   Public as PublicIcon,
   Logout as LogoutIcon
 } from '@mui/icons-material';
-import InboxIcon from '@mui/icons-material/Inbox';       // Para "Novos"
-import LoopIcon from '@mui/icons-material/Loop';         // Para "Em Atendimento"
-import TaskAltIcon from '@mui/icons-material/TaskAlt';   // Para "Finalizados"
+import InboxIcon from '@mui/icons-material/Inbox';       
+import LoopIcon from '@mui/icons-material/Loop';         
+import TaskAltIcon from '@mui/icons-material/TaskAlt';   
 import PriorityHighIcon from '@mui/icons-material/PriorityHigh';
 import LowPriorityIcon from '@mui/icons-material/LowPriority';
 import api from '../services/api';
@@ -61,7 +61,7 @@ const COLUMNS = {
     icon: <InboxIcon />, 
     bg: '#E3F2FD', 
     border: '#2196F3',
-    iconColor: '#1976d2' // Azul mais forte para o ícone
+    iconColor: '#1976d2' 
   },
   EM_ATENDIMENTO: { 
     id: 'EM_ATENDIMENTO', 
@@ -69,7 +69,7 @@ const COLUMNS = {
     icon: <LoopIcon />, 
     bg: '#FFF3E0', 
     border: '#FF9800',
-    iconColor: '#f57c00' // Laranja mais forte
+    iconColor: '#f57c00' 
   },
   FINALIZADO: { 
     id: 'FINALIZADO', 
@@ -77,7 +77,7 @@ const COLUMNS = {
     icon: <TaskAltIcon />, 
     bg: '#E8F5E9', 
     border: '#4CAF50',
-    iconColor: '#2e7d32' // Verde mais forte
+    iconColor: '#2e7d32' 
   }
 };
 
@@ -117,7 +117,7 @@ const SUPORTE_LINKS = [
 
 export default function KanbanBoardView() {
 
-  const theme = useTheme(); // 👈 Pegue o tema
+  const theme = useTheme(); 
   const isDark = theme.palette.mode === 'dark';
   const navigate = useNavigate(); 
   const [chamados, setChamados] = useState([]);
@@ -158,7 +158,7 @@ export default function KanbanBoardView() {
   const [modalGerenciarTagsOpen, setModalGerenciarTagsOpen] = useState(false); 
   const [novaTagData, setNovaTagData] = useState({ nome: '', cor: TAG_COLORS[5] });
   
-  // ✅ NOVO ESTADO: Qual tag está sendo editada no modal de gerenciamento
+  // ESTADO: Qual tag está sendo editada
   const [editandoTagId, setEditandoTagId] = useState(null);
 
   const handleLogout = () => {
@@ -226,15 +226,12 @@ export default function KanbanBoardView() {
     }
   };
 
-  // ✅ ATUALIZAR COR DA TAG
   const handleUpdateCorTag = async (id, novaCor) => {
       try {
           await api.patch(`${API_URL}/chamados/tags/${id}`, { cor: novaCor });
           
-          // 1. Atualiza lista de tags
           setTodasTags(prev => prev.map(t => t.id === id ? { ...t, cor: novaCor } : t));
           
-          // 2. Atualiza todos os chamados no Kanban que possuem essa tag (Visual Real-time)
           setChamados(prev => prev.map(c => {
               if (c.tags && c.tags.some(t => t.id === id)) {
                   return {
@@ -245,7 +242,6 @@ export default function KanbanBoardView() {
               return c;
           }));
 
-          // 3. Atualiza chamado selecionado se aberto
           if (chamadoSelecionado && chamadoSelecionado.tags) {
               setChamadoSelecionado(prev => ({
                   ...prev,
@@ -253,14 +249,13 @@ export default function KanbanBoardView() {
               }));
           }
 
-          setEditandoTagId(null); // Fecha modo edição
+          setEditandoTagId(null); 
           toast.success("Cor atualizada!");
       } catch (error) {
           toast.error("Erro ao atualizar cor.");
       }
   };
 
-  // 🗑️ EXCLUIR TAG
   const handleDeleteTag = async (id) => {
       try {
           await api.delete(`${API_URL}/chamados/tags/${id}`);
@@ -514,7 +509,7 @@ export default function KanbanBoardView() {
 
     socket.on('novo_chamado', (novoChamado) => {
       audio.play().catch(() => {});
-      toast.info(` Novo chamado de ${novoChamado.nomeEmpresa}!`, { position: "top-center", theme: "colored" });
+      toast.info(`🆕 Novo chamado de ${novoChamado.nomeEmpresa}!`, { position: "top-center", theme: "colored" });
       setChamados((prev) => [novoChamado, ...prev]);
     });
 
@@ -549,13 +544,11 @@ export default function KanbanBoardView() {
   }, [chamadoSelecionado]);
 
   return (
-
-  
     <Box sx={{ p: 3, height: '90vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', marginTop: 5}}>
       
       {/* CABEÇALHO */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#444' }}>
+        <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
           Fila de Chamados
         </Typography>
 
@@ -563,15 +556,7 @@ export default function KanbanBoardView() {
           <Button variant="outlined" color="primary" startIcon={<LinkIcon />} onClick={() => setModalLinksOpen(true)}>Links Úteis</Button>
           <Button variant={mostrarFiltros ? "contained" : "outlined"} onClick={() => setMostrarFiltros(!mostrarFiltros)} startIcon={<FilterListIcon />}>Filtros</Button>
           <Button variant="contained" color="secondary" startIcon={<BarChartIcon />} onClick={() => navigate('/dashboard')}>Relatórios</Button>
-          {/* Botão Perfil */}
-          <Button 
-              variant="outlined" 
-              color="primary" 
-              startIcon={<AccountCircleIcon />} 
-              onClick={() => setModalPerfilOpen(true)}
-          >
-              Minha Conta
-          </Button>
+          <Button variant="outlined" color="primary" startIcon={<AccountCircleIcon />} onClick={() => setModalPerfilOpen(true)}>Minha Conta</Button>
           <Button variant="outlined" color="error" startIcon={<LogoutIcon />} onClick={handleLogout} sx={{ fontWeight: 'bold' }}>Sair</Button>
           <ToggleThemeButton />
         </Box>
@@ -599,39 +584,11 @@ export default function KanbanBoardView() {
             return (
               <Droppable key={columnId} droppableId={columnId}>
                 {(provided, snapshot) => (
-                  <Paper ref={provided.innerRef} {...provided.droppableProps} elevation={0} sx={{ width: 350, minWidth: 350, backgroundColor: snapshot.isDraggingOver ? '#e0e0e0' : '#ebecf0', p: 2, borderRadius: 3, display: 'flex', flexDirection: 'column', maxHeight: '100%' }}>
-                <Box 
-                sx={{ 
-                  mb: 2, 
-                  pb: 1, 
-                  borderBottom: `3px solid ${column.border}`, 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center' 
-                }}
-              >
-                {/* Box para agrupar Ícone + Título */}
-                <Box display="flex" alignItems="center" gap={1.5}>
-                  {/* O Ícone renderizado com a cor específica */}
-                  <Box sx={{ color: column.iconColor, display: 'flex' }}>
-                    {column.icon}
-                  </Box>
-                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#444' }}>
-                    {column.title}
-                  </Typography>
-                </Box>
-
-                {/* Contador */}
-                <Chip 
-                  label={cardsDaColuna.length} 
-                  size="small" 
-                  sx={{ 
-                    fontWeight: 'bold', 
-                    bgcolor: 'rgba(0,0,0,0.08)', 
-                    color: '#666' 
-                  }} 
-                />
-              </Box>
+                  <Paper ref={provided.innerRef} {...provided.droppableProps} elevation={0} sx={{ width: 350, minWidth: 350, backgroundColor: snapshot.isDraggingOver ? '#e0e0e0' : (isDark ? '#2e2e2e' : '#ebecf0'), p: 2, borderRadius: 3, display: 'flex', flexDirection: 'column', maxHeight: '100%' }}>
+                    <Box sx={{ mb: 2, pb: 1, borderBottom: `3px solid ${column.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                         <Box display="flex" alignItems="center" gap={1.5}><Box sx={{ color: column.iconColor, display: 'flex' }}>{column.icon}</Box><Typography variant="h6" sx={{ fontWeight: 'bold', color: 'text.primary' }}>{column.title}</Typography></Box>
+                         <Chip label={cardsDaColuna.length} size="small" sx={{ fontWeight: 'bold', bgcolor: 'rgba(0,0,0,0.08)', color: 'text.secondary' }} />
+                    </Box>
                     <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 1 }}>
                       {cardsDaColuna.map((item, index) => (
                         <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
@@ -646,7 +603,7 @@ export default function KanbanBoardView() {
                                   <Typography variant="caption" color="text.secondary">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</Typography>
                                 </Box>
                                 <Typography variant="subtitle1" fontWeight="bold" gutterBottom>{item.nomeEmpresa}</Typography>
-                                <Box display="flex" gap={1} mb={1} flexWrap="wrap"><Chip label={item.servico} size="small" sx={{ bgcolor: column.bg, color: '#444', fontWeight: 'bold', fontSize: '0.75rem' }} />{item.prioridade === 'CRITICA' && (<Chip label="URGENTE" size="small" sx={{ bgcolor: '#ffebee', color: '#d32f2f', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid #ffcdd2' }} />)}</Box>
+                                <Box display="flex" gap={1} mb={1} flexWrap="wrap"><Chip label={item.servico} size="small" sx={{ bgcolor: column.bg, color: '#1d1d1d', fontWeight: 'bold', fontSize: '0.75rem' }} />{item.prioridade === 'CRITICA' && (<Chip label="URGENTE" size="small" sx={{ bgcolor: '#ffebee', color: '#d32f2f', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid #ffcdd2' }} />)}</Box>
                                 <Box display="flex" gap={0.5} mb={1} flexWrap="wrap">{item.tags?.map(tag => (<Chip key={tag.id} label={tag.nome} size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: tag.cor + '20', color: tag.cor, fontWeight: 'bold', border: `1px solid ${tag.cor}` }} />))}</Box>
                                 <Typography variant="body2" color="text.secondary" noWrap>{item.descricao}</Typography>
                                 {item.mensagensNaoLidas > 0 && (<Box sx={{ position: 'absolute', bottom: 12, right: 12, width: 24, height: 24, borderRadius: '50%', backgroundColor: '#2e7d32', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: 2, zIndex: 10 }}>{item.mensagensNaoLidas}</Box>)}
@@ -669,68 +626,67 @@ export default function KanbanBoardView() {
       <Dialog open={Boolean(chamadoSelecionado)} onClose={() => setChamadoSelecionado(null)} maxWidth="md" fullWidth>
         {chamadoSelecionado && (
           <>
-            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider'}}><Box display="flex" alignItems="center" gap={2}><Typography variant="h6">Chamado #{chamadoSelecionado.id}</Typography><Chip label={COLUMNS[chamadoSelecionado.status]?.title || chamadoSelecionado.status} sx={{ bgcolor: COLUMNS[chamadoSelecionado.status]?.bg || '#eee', color: '#1d1d1d', 
-    fontWeight: 'bold' }} /></Box><IconButton onClick={() => setChamadoSelecionado(null)}><CloseIcon /></IconButton></DialogTitle>
+            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+              <Box display="flex" alignItems="center" gap={2}>
+                <Typography variant="h6">Chamado #{chamadoSelecionado.id}</Typography>
+                {/* ✅ CORREÇÃO 1: Chip com !important para ficar preto no Dark Mode */}
+                <Chip 
+                  label={COLUMNS[chamadoSelecionado.status]?.title || chamadoSelecionado.status} 
+                  sx={{ 
+                      bgcolor: COLUMNS[chamadoSelecionado.status]?.bg || '#eee', 
+                      color: '#000000 !important', 
+                      fontWeight: 'bold',
+                      '& .MuiChip-label': { color: '#000000 !important' }
+                  }} 
+                />
+              </Box>
+              <IconButton onClick={() => setChamadoSelecionado(null)}>
+                <CloseIcon />
+              </IconButton>
+            </DialogTitle>
             <DialogContent dividers>
               <Grid container spacing={2} sx={{ height: '100%' }}>
                 <Grid item xs={12} md={8} display="flex" flexDirection="column">
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>Histórico do Chamado</Typography>
                   <Box sx={{ flexGrow: 1, bgcolor: isDark ? 'rgba(0,0,0,0.2)' : '#f9f9f9', borderRadius: 2, p: 2, mb: 2, border: '1px solid', borderColor: 'divider', maxHeight: '400px', overflowY: 'auto'}}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mb: 2 }}><Box display="flex" alignItems="center" gap={1} mb={0.5}><Avatar sx={{ width: 24, height: 24, bgcolor: '#9e9e9e' }}><PersonIcon fontSize="small" /></Avatar><Typography variant="caption" fontWeight="bold">Cliente (Abertura)</Typography><Typography variant="caption" color="text.secondary">{new Date(chamadoSelecionado.createdAt).toLocaleString()}</Typography></Box><Paper elevation={0} sx={{ p: 2, bgcolor: '#ffffff', border: '1px solid #ddd', borderRadius: '0 12px 12px 12px', maxWidth: '90%' }}><Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{chamadoSelecionado.descricao}</Typography></Paper></Box>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mb: 2 }}><Box display="flex" alignItems="center" gap={1} mb={0.5}><Avatar sx={{ width: 24, height: 24, bgcolor: '#9e9e9e' }}><PersonIcon fontSize="small" /></Avatar><Typography variant="caption" fontWeight="bold">Cliente (Abertura)</Typography><Typography variant="caption" color="text.secondary">{new Date(chamadoSelecionado.createdAt).toLocaleString()}</Typography></Box><Paper elevation={0} sx={{ p: 2, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: '0 12px 12px 12px', maxWidth: '90%' }}><Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{chamadoSelecionado.descricao}</Typography></Paper></Box>
                     {chamadoSelecionado.interacoes?.map((interacao, idx) => {
                       const isSuporte = interacao.autor === 'SUPORTE';
                       const isInterno = interacao.interno; 
-                      return (<Box key={idx} sx={{ display: 'flex', flexDirection: 'column', alignItems: isSuporte ? 'flex-end' : 'flex-start', mb: 2 }}><Box display="flex" alignItems="center" gap={1} mb={0.5} flexDirection={isSuporte ? 'row-reverse' : 'row'}> <Avatar sx={{ width: 24, height: 24, bgcolor: isSuporte ? '#1976d2' : '#9e9e9e' }}>{isSuporte ? <SupportAgentIcon fontSize="small" /> : <PersonIcon fontSize="small" />}</Avatar><Typography variant="caption" fontWeight="bold">{isSuporte ? 'Suporte' : 'Cliente'}</Typography><Typography variant="caption" color="text.secondary">{new Date(interacao.createdAt).toLocaleString()}</Typography></Box><Paper elevation={0} sx={{ p: 2, 
-        // Lógica de Cor:
-        // Se for NOTA INTERNA: Laranja claro (Light) ou Laranja escuro transparente (Dark)
-        // Se for SUPORTE: Azul claro (Light) ou Azul escuro (Dark)
-        // Se for CLIENTE: Branco (Light) ou Cinza Escuro (Dark)
-        bgcolor: isInterno 
-            ? (isDark ? 'rgba(237, 108, 2, 0.15)' : '#FFF3E0') 
-            : (isSuporte 
-                ? (isDark ? 'rgba(25, 118, 210, 0.15)' : '#E3F2FD') 
-                : 'background.paper'), // Cliente usa a cor do papel padrão
-        
-        border: isInterno 
-            ? '1px dashed #FF9800' 
-            : (isSuporte ? 'none' : '1px solid'),
-        borderColor: 'divider',
-        
-        borderRadius: isSuporte ? '12px 0 12px 12px' : '0 12px 12px 12px', 
-        maxWidth: '90%', 
-        
-        // Cor do texto
-        color: 'text.primary'}}>{isInterno && (<Box display="flex" alignItems="center" gap={0.5} mb={0.5} color="warning.main"><LockIcon style={{ fontSize: 14 }} /><Typography variant="caption" fontWeight="bold">NOTA INTERNA (Cliente não vê)</Typography></Box>)}<Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{interacao.texto}</Typography>{interacao.anexos && interacao.anexos.length > 0 && (<Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">{interacao.anexos.map(anexo => (<Chip key={anexo.id} icon={<AttachIcon />} label={anexo.nomeOriginal.length > 20 ? anexo.nomeOriginal.substring(0, 17) + '...' : anexo.nomeOriginal} component="a" href={anexo.caminho && anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`} target="_blank" clickable size="small" sx={{ m: 0.5, bgcolor: 'rgba(0,0,0,0.05)' }} />))}</Box>)}</Paper></Box>)
+                      return (<Box key={idx} sx={{ display: 'flex', flexDirection: 'column', alignItems: isSuporte ? 'flex-end' : 'flex-start', mb: 2 }}><Box display="flex" alignItems="center" gap={1} mb={0.5} flexDirection={isSuporte ? 'row-reverse' : 'row'}> <Avatar sx={{ width: 24, height: 24, bgcolor: isSuporte ? '#1976d2' : '#9e9e9e' }}>{isSuporte ? <SupportAgentIcon fontSize="small" /> : <PersonIcon fontSize="small" />}</Avatar><Typography variant="caption" fontWeight="bold">{isSuporte ? 'Suporte' : 'Cliente'}</Typography><Typography variant="caption" color="text.secondary">{new Date(interacao.createdAt).toLocaleString()}</Typography></Box><Paper elevation={0} sx={{ p: 2, bgcolor: isInterno ? (isDark ? 'rgba(237, 108, 2, 0.15)' : '#FFF3E0') : (isSuporte ? (isDark ? 'rgba(25, 118, 210, 0.15)' : '#E3F2FD') : 'background.paper'), border: isInterno ? '1px dashed #FF9800' : (isSuporte ? 'none' : '1px solid'), borderColor: 'divider', borderRadius: isSuporte ? '12px 0 12px 12px' : '0 12px 12px 12px', maxWidth: '90%', color: 'text.primary'}}>{isInterno && (<Box display="flex" alignItems="center" gap={0.5} mb={0.5} color="warning.main"><LockIcon style={{ fontSize: 14 }} /><Typography variant="caption" fontWeight="bold">NOTA INTERNA (Cliente não vê)</Typography></Box>)}<Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{interacao.texto}</Typography>{interacao.anexos && interacao.anexos.length > 0 && (<Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">{interacao.anexos.map(anexo => (<Chip key={anexo.id} icon={<AttachIcon />} label={anexo.nomeOriginal.length > 20 ? anexo.nomeOriginal.substring(0, 17) + '...' : anexo.nomeOriginal} component="a" href={anexo.caminho && anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`} target="_blank" clickable size="small" sx={{ m: 0.5, bgcolor: 'rgba(0,0,0,0.05)' }} />))}</Box>)}</Paper></Box>)
                     })}
                   </Box>
                   <Box>
                     <Box display="flex" justifyContent="flex-end" mb={1}><FormControlLabel control={<Switch checked={notaInterna} onChange={(e) => setNotaInterna(e.target.checked)} color="warning" size="small" />} label={<Box display="flex" alignItems="center" gap={0.5}>{notaInterna && <LockIcon fontSize="small" color="warning" />}<Typography variant="caption" sx={{ color: notaInterna ? '#ed6c02' : 'gray', fontWeight: 'bold' }}>Nota Interna (Privado)</Typography></Box>} /></Box>
                     {files.length > 0 && (<Box mb={1} display="flex" gap={1} flexWrap="wrap">{files.map((file, i) => (<Chip key={i} label={file.name} onDelete={() => removeFile(i)} size="small" icon={<AttachIcon />} />))}</Box>)}
-                    <Box display="flex" gap={1} alignItems="flex-end"><input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} /><IconButton onClick={() => fileInputRef.current?.click()} sx={{ border: '1px solid #ccc', borderRadius: 1 }}><AttachIcon /></IconButton><IconButton onClick={(e) => setAnchorElMacros(e.currentTarget)} sx={{ border: '1px solid #ff9800', color: '#ff9800', borderRadius: 1 }} title="Respostas Prontas"><BoltIcon /></IconButton><SendIcon /></Button></Box>
+                    <Box display="flex" gap={1} alignItems="flex-end"><input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} /><IconButton onClick={() => fileInputRef.current?.click()} sx={{ border: '1px solid #ccc', borderRadius: 1 }}><AttachIcon /></IconButton><IconButton onClick={(e) => setAnchorElMacros(e.currentTarget)} sx={{ border: '1px solid #ff9800', color: '#ff9800', borderRadius: 1 }} title="Respostas Prontas"><BoltIcon /></IconButton>
+                    
+                    {/* ✅ CORREÇÃO 2: TextField com background.paper para ficar escuro no Dark Mode */}
+                    <TextField 
+                        fullWidth 
+                        size="small" 
+                        placeholder={notaInterna ? "Escreva uma nota interna..." : "Responder ao cliente..."} 
+                        value={novoComentario} 
+                        onChange={(e) => setNovoComentario(e.target.value)} 
+                        multiline 
+                        maxRows={3} 
+                        sx={{ 
+                            '& .MuiOutlinedInput-root': {
+                                backgroundColor: notaInterna 
+                                    ? (isDark ? 'rgba(237, 108, 2, 0.15)' : '#FFF3E0') 
+                                    : 'background.paper',
+                                color: 'text.primary',
+                            },
+                            '& .MuiInputBase-input': {
+                                color: 'text.primary',
+                            }
+                        }} 
+                    />
+                    
+                    <Button variant="contained" onClick={handleAddInteracao} disabled={enviandoComentario || (!novoComentario.trim() && files.length === 0)} color={notaInterna ? "warning" : "primary"}><SendIcon /></Button></Box>
                   </Box>
                 </Grid>
-                <Grid item xs={12} md={4}><TextField 
-  fullWidth 
-  size="small" 
-  placeholder={notaInterna ? "Escreva uma nota interna..." : "Responder ao cliente..."} 
-  value={novoComentario} 
-  onChange={(e) => setNovoComentario(e.target.value)} 
-  multiline 
-  maxRows={3} 
-  sx={{ 
-    // 👇 CORREÇÃO:
-    // Se for Nota Interna: Laranja claro (Light) ou Laranja escuro transparente (Dark)
-    // Se for Normal: background.paper (Branco no Light / Cinza no Dark)
-    bgcolor: notaInterna 
-      ? (isDark ? 'rgba(237, 108, 2, 0.15)' : '#FFF3E0') 
-      : 'background.paper',
-      
-    // Ajuste sutil na cor do texto placeholder se necessário, mas o padrão costuma funcionar
-    '& .MuiInputBase-root': {
-        color: 'text.primary' // Garante que o texto digitado respeite o tema
-    }
-  }} 
-/>
+                <Grid item xs={12} md={4}>
                     <Box mb={3}><Typography variant="subtitle2" color="text.secondary">Empresa</Typography><Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gap={1}><BusinessIcon color="primary" fontSize="small"/> {chamadoSelecionado.nomeEmpresa}</Typography></Box>
                     <Box mb={3}><Typography variant="subtitle2" color="text.secondary" gutterBottom>Nível de Urgência (SLA)</Typography><FormControl fullWidth size="small"><Select value={chamadoSelecionado.prioridade || 'BAIXA'} onChange={(e) => handleChangePriority(e.target.value)} sx={{ color: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color, fontWeight: 'bold', '& .MuiOutlinedInput-notchedOutline': { borderColor: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color } }}>{Object.entries(PRIORITY_CONFIG).map(([key, config]) => (<MenuItem key={key} value={key} sx={{ color: config.color, fontWeight: 'bold' }}><Box display="flex" alignItems="center" gap={1}>{config.icon} {config.label}</Box></MenuItem>))}</Select></FormControl></Box>
                     <Box mb={3}><Box display="flex" justifyContent="space-between" alignItems="center"><Typography variant="subtitle2" color="text.secondary" gutterBottom>Etiquetas (Tags)</Typography><IconButton size="small" onClick={() => setModalGerenciarTagsOpen(true)} title="Gerenciar Etiquetas"><SettingsIcon fontSize="small" /></IconButton></Box><Autocomplete multiple options={todasTags} getOptionLabel={(option) => option.nome} value={chamadoSelecionado.tags || []} onChange={(event, newValue) => { handleSalvarTags(newValue); }} renderInput={(params) => (<TextField {...params} variant="outlined" size="small" placeholder="Adicionar tags..." onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value) { const valor = e.target.value; const existe = todasTags.find(t => t.nome.toLowerCase() === valor.toLowerCase()); if (!existe) { e.preventDefault(); handleInitiateCriarTag(valor); } } }} />)} renderTags={(value, getTagProps) => value.map((option, index) => (<Chip label={option.nome} size="small" {...getTagProps({ index })} sx={{ bgcolor: option.cor, color: '#fff', fontWeight: 'bold' }} />))} noOptionsText="Digite e dê Enter para criar..." /></Box>
@@ -791,7 +747,7 @@ export default function KanbanBoardView() {
       <UserProfileModal 
           open={modalPerfilOpen} 
           onClose={() => setModalPerfilOpen(false)} 
-      />           
+      />          
 
     </Box>
   );
