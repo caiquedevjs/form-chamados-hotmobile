@@ -950,6 +950,31 @@ export default function KanbanBoardView() {
         </DialogActions>
       </Dialog>
 
+
+      {/* 🚨 MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
+      <Dialog
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+      >
+        <DialogTitle sx={{ color: '#d32f2f', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <DeleteIcon /> Excluir Chamado?
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Tem certeza que deseja excluir o chamado <strong>#{chamadoSelecionado?.id}</strong>?
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Essa ação apagará todo o histórico de conversas e anexos permanentemente.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDeleteOpen(false)} color="inherit">Cancelar</Button>
+          <Button onClick={handleDeleteChamado} variant="contained" color="error">
+            Sim, Excluir
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Box>
   );
 }
