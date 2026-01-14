@@ -101,4 +101,13 @@ export class ChamadosController {
   async deletarTag(@Param('id', ParseIntPipe) id: number) {
     return this.chamadosService.deleteTag(id);
   }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('tags/:id')
+  async atualizarTag(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { cor: string }
+  ) {
+    return this.chamadosService.updateTag(id, body);
+  }
 }

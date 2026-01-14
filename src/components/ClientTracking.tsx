@@ -2,22 +2,23 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { 
   Box, Typography, Paper, Chip, TextField, Button, 
-  Container, Grid, Avatar, Divider, AppBar, Toolbar, IconButton, CircularProgress, useTheme, useMediaQuery
+  Container, Avatar, AppBar, Toolbar, IconButton, CircularProgress, 
+  useTheme, useMediaQuery, Dialog, DialogTitle, DialogContent, 
+  DialogContentText, DialogActions, 
+  Divider
 } from '@mui/material';
 import { 
   Send as SendIcon, 
   Person as PersonIcon, 
   SupportAgent as SupportAgentIcon,
-  Business as BusinessIcon,
   AttachFile as AttachIcon,
   ArrowBack as ArrowBackIcon,
-  Close as CloseIcon
+  WarningAmberRounded as WarningIcon // 👈 Ícone de Alerta
 } from '@mui/icons-material';
 import api from '../services/api';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
 
-// ✅ 1. CONFIGURAÇÃO DA URL
 const API_URL = 'https://form-chamados-hotmobile-production.up.railway.app';
 
 // --- TIPOS ---
@@ -48,19 +49,9 @@ const STATUS_COLORS = {
   FINALIZADO: { bg: '#E8F5E9', color: '#2E7D32', label: 'Concluído' },
 };
 
-const dispararNotificacaoNativa = (titulo: string, corpo: string) => {
-  if (!("Notification" in window)) return;
-  if (Notification.permission === "granted") {
-    new Notification(titulo, { body: corpo, icon: '/vite.svg' });
-  } else if (Notification.permission !== "denied") {
-    Notification.requestPermission();
-  }
-};
-
 export default function ClientTracking() {
   const { id } = useParams();
   const theme = useTheme();
-  // Hook para saber se é celular (tela pequena)
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [chamado, setChamado] = useState<Chamado | null>(null);
@@ -71,6 +62,9 @@ export default function ClientTracking() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
+  // 🚨 Estado para o Modal de Arquivo Inválido
+  const [openWarning, setOpenWarning] = useState(false);
+
   useEffect(() => {
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission();
@@ -78,7 +72,6 @@ export default function ClientTracking() {
     if (id) fetchChamado();
   }, [id]);
 
-  // Scroll automático para o fim do chat
   useEffect(() => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -86,27 +79,13 @@ export default function ClientTracking() {
   }, [chamado?.interacoes, loading]);
 
   useEffect(() => {
-    // ✅ 2. SOCKET E ÁUDIO
     const socket = io(API_URL);
-    
-    // Instancia o áudio
     const audio = new Audio('/notification.mp3'); 
     
-    // Função auxiliar segura para tocar som
-    const playNotificationSound = () => {
-      audio.play().catch((err) => {
-        console.warn("Autoplay bloqueado pelo navegador até interação do usuário:", err);
-      });
-    };
-
-   socket.on('nova_interacao', (data) => {
-      // 🚨 BLINDAGEM DE SEGURANÇA 🚨
-      // Se a mensagem for interna, O CLIENTE IGNORA TOTALMENTE.
+    socket.on('nova_interacao', (data) => {
       if (data.interno === true) return; 
 
-      // Verifica se é deste chamado
       if (Number(data.chamadoId) === Number(id)) {
-        
         setChamado((prev) => {
           if (!prev) return null;
           const jaExiste = prev.interacoes.some(i => i.id === data.id);
@@ -151,10 +130,30 @@ export default function ClientTracking() {
     }
   };
 
+  // ✅ VALIDAÇÃO DE ARQUIVOS
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      setFiles((prev) => [...prev, ...newFiles]);
+      const selectedFiles = Array.from(e.target.files);
+      
+      const allowedTypes = [
+        'image/jpeg', 
+        'image/png', 
+        'image/jpg', 
+        'application/pdf'
+      ];
+
+      const validFiles = selectedFiles.filter(file => allowedTypes.includes(file.type));
+
+      if (validFiles.length < selectedFiles.length) {
+        setOpenWarning(true); // Abre o modal se tiver arquivo inválido
+      }
+
+      if (validFiles.length > 0) {
+        setFiles((prev) => [...prev, ...validFiles]);
+      }
+      
+      // Limpa o input para permitir selecionar o mesmo arquivo novamente se quiser
+      e.target.value = '';
     }
   };
 
@@ -182,7 +181,6 @@ export default function ClientTracking() {
       setFiles([]); 
       if (fileInputRef.current) fileInputRef.current.value = ''; 
 
-      // Scroll para baixo após enviar
       setTimeout(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
@@ -199,15 +197,13 @@ export default function ClientTracking() {
   const statusInfo = STATUS_COLORS[chamado.status as keyof typeof STATUS_COLORS] || STATUS_COLORS.NOVO;
 
   return (
-    // ✅ 3. LAYOUT RESPONSIVO (100dvh para mobile)
     <Box sx={{ 
-      height: '100dvh', // Ocupa a altura real da tela (bom para mobile)
+      height: '100dvh', 
       display: 'flex', 
       flexDirection: 'column',
       bgcolor: '#f5f5f5', 
-      overflow: 'hidden', // Evita scroll na página inteira, só no chat
-      marginTop: 20
-
+      overflow: 'hidden', 
+      marginTop: { xs: 0, md: 0 } // Removi o marginTop 20 fixo pois pode quebrar no mobile
     }}>
       
       {/* APP BAR FIXO */}
@@ -230,14 +226,14 @@ export default function ClientTracking() {
         </Toolbar>
       </AppBar>
 
-      {/* ÁREA DE CONTEÚDO (Preenche o resto da tela) */}
+      {/* ÁREA DE CONTEÚDO */}
       <Container 
         maxWidth="md" 
         sx={{ 
           flexGrow: 1, 
           display: 'flex', 
           flexDirection: 'column', 
-          p: { xs: 1, md: 3 }, // Padding menor no mobile
+          p: { xs: 1, md: 3 }, 
           overflow: 'hidden'
         }}
       >
@@ -248,12 +244,12 @@ export default function ClientTracking() {
             flexDirection: 'column',
             borderRadius: { xs: 2, md: 3 }, 
             bgcolor: '#fff',
-            overflow: 'hidden', // Importante para o scroll interno funcionar
+            overflow: 'hidden', 
             boxShadow: 3
           }}
         >
           
-          {/* ÁREA DE MENSAGENS (Scrollável) */}
+          {/* ÁREA DE MENSAGENS */}
           <Box sx={{ 
             flexGrow: 1, 
             overflowY: 'auto', 
@@ -313,11 +309,10 @@ export default function ClientTracking() {
 
           <Divider />
 
-          {/* --- ÁREA DE RESPOSTA (Fixa no fundo do Paper) --- */}
+          {/* --- ÁREA DE RESPOSTA --- */}
           {chamado.status !== 'FINALIZADO' ? (
             <Box sx={{ p: { xs: 1.5, md: 2 }, bgcolor: '#fafafa' }}>
               
-              {/* Preview dos arquivos */}
               {files.length > 0 && (
                 <Box mb={1} display="flex" gap={1} flexWrap="wrap">
                   {files.map((file, i) => (
@@ -333,7 +328,15 @@ export default function ClientTracking() {
               )}
 
               <Box display="flex" gap={1} alignItems="flex-end">
-                <input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
+                {/* ✅ INPUT COM ACCEPT */}
+                <input 
+                  type="file" 
+                  multiple 
+                  ref={fileInputRef} 
+                  style={{ display: 'none' }} 
+                  onChange={handleFileChange} 
+                  accept=".jpg,.jpeg,.png,.pdf"
+                />
                 
                 <IconButton 
                   color="primary" 
@@ -375,6 +378,29 @@ export default function ClientTracking() {
           
         </Paper>
       </Container>
+
+      {/* ✅ MODAL DE AVISO ARQUIVO INVÁLIDO */}
+      <Dialog
+        open={openWarning}
+        onClose={() => setOpenWarning(false)}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#ed6c02' }}>
+          <WarningIcon /> Tipo de Arquivo Inválido
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Apenas arquivos nos formatos <strong>JPG, JPEG, PNG e PDF</strong> são permitidos.
+            <br /><br />
+            Os arquivos inválidos foram removidos automaticamente da sua seleção.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenWarning(false)} variant="contained" color="primary">
+            Entendi
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Box>
   );
 }

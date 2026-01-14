@@ -14,7 +14,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import LabelIcon from '@mui/icons-material/Label'; 
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import SettingsIcon from '@mui/icons-material/Settings'; // 👈 Ícone para gerenciar tags
+import SettingsIcon from '@mui/icons-material/Settings'; 
+import EditIcon from '@mui/icons-material/Edit'; // 👈 Ícone de Edição
 
 import { 
   AttachFile as AttachIcon,
@@ -60,7 +61,7 @@ const PRIORITY_CONFIG = {
   CRITICA: { label: 'Crítica', color: '#F44336', icon: <PriorityHighIcon fontSize="small"/> }  
 };
 
-// 🎨 PALETA DE CORES PARA TAGS
+// 🎨 PALETA DE CORES
 const TAG_COLORS = [
     '#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5',
     '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#4CAF50',
@@ -122,8 +123,11 @@ export default function KanbanBoardView() {
   // --- TAGS (ETIQUETAS) ---
   const [todasTags, setTodasTags] = useState([]);
   const [modalCriarTagOpen, setModalCriarTagOpen] = useState(false);
-  const [modalGerenciarTagsOpen, setModalGerenciarTagsOpen] = useState(false); // 👈 Novo estado
+  const [modalGerenciarTagsOpen, setModalGerenciarTagsOpen] = useState(false); 
   const [novaTagData, setNovaTagData] = useState({ nome: '', cor: TAG_COLORS[5] });
+  
+  // ✅ NOVO ESTADO: Qual tag está sendo editada no modal de gerenciamento
+  const [editandoTagId, setEditandoTagId] = useState(null);
 
   const handleLogout = () => {
     logout(); 
@@ -190,27 +194,55 @@ export default function KanbanBoardView() {
     }
   };
 
-  // 🗑️ LÓGICA DE EXCLUIR TAG
+  // ✅ ATUALIZAR COR DA TAG
+  const handleUpdateCorTag = async (id, novaCor) => {
+      try {
+          await api.patch(`${API_URL}/chamados/tags/${id}`, { cor: novaCor });
+          
+          // 1. Atualiza lista de tags
+          setTodasTags(prev => prev.map(t => t.id === id ? { ...t, cor: novaCor } : t));
+          
+          // 2. Atualiza todos os chamados no Kanban que possuem essa tag (Visual Real-time)
+          setChamados(prev => prev.map(c => {
+              if (c.tags && c.tags.some(t => t.id === id)) {
+                  return {
+                      ...c,
+                      tags: c.tags.map(t => t.id === id ? { ...t, cor: novaCor } : t)
+                  };
+              }
+              return c;
+          }));
+
+          // 3. Atualiza chamado selecionado se aberto
+          if (chamadoSelecionado && chamadoSelecionado.tags) {
+              setChamadoSelecionado(prev => ({
+                  ...prev,
+                  tags: prev.tags.map(t => t.id === id ? { ...t, cor: novaCor } : t)
+              }));
+          }
+
+          setEditandoTagId(null); // Fecha modo edição
+          toast.success("Cor atualizada!");
+      } catch (error) {
+          toast.error("Erro ao atualizar cor.");
+      }
+  };
+
+  // 🗑️ EXCLUIR TAG
   const handleDeleteTag = async (id) => {
       try {
           await api.delete(`${API_URL}/chamados/tags/${id}`);
-          
-          // Remove da lista geral
           setTodasTags(prev => prev.filter(t => t.id !== id));
-          
-          // Remove do chamado selecionado se ele tiver essa tag
           if (chamadoSelecionado && chamadoSelecionado.tags) {
               const novasTags = chamadoSelecionado.tags.filter(t => t.id !== id);
-              // Só atualiza se mudou algo
               if (novasTags.length !== chamadoSelecionado.tags.length) {
                   setChamadoSelecionado(prev => ({ ...prev, tags: novasTags }));
                   setChamados(prev => prev.map(c => c.id === chamadoSelecionado.id ? { ...c, tags: novasTags } : c));
               }
           }
-
           toast.success("Tag excluída!");
       } catch (error) {
-          toast.error("Erro ao excluir tag (verifique se backend tem rota DELETE).");
+          toast.error("Erro ao excluir tag.");
       }
   };
 
@@ -505,49 +537,12 @@ export default function KanbanBoardView() {
       {mostrarFiltros && (
         <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }}>
             <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} md={3}>
-                    <TextField fullWidth variant="outlined" placeholder="Buscar..." size="small" value={busca} onChange={(e) => setBusca(e.target.value)} InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>) }} />
-                </Grid>
-                <Grid item xs={12} md={2}>
-                    <FormControl size="small" fullWidth>
-                        <InputLabel>Status</InputLabel>
-                        <Select multiple value={filtroStatus} label="Status" onChange={(e) => { const value = e.target.value; setFiltroStatus(typeof value === 'string' ? value.split(',') : value); }} renderValue={(selected) => selected.map(val => COLUMNS[val].title.split(' ')[1]).join(', ')}>
-                            {Object.entries(COLUMNS).map(([key, col]) => (
-                                <MenuItem key={key} value={key}><Checkbox checked={filtroStatus.indexOf(key) > -1} /><MuiListItemText primary={col.title} /></MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Grid>
-                <Grid item xs={12} md={2}>
-                    <FormControl size="small" fullWidth>
-                        <InputLabel>Responsável</InputLabel>
-                        <Select multiple value={filtroResponsavel} label="Responsável" onChange={(e) => { const value = e.target.value; setFiltroResponsavel(typeof value === 'string' ? value.split(',') : value); }} renderValue={(selected) => selected.join(', ')}>
-                            {responsaveisUnicos.map((resp) => (
-                                <MenuItem key={resp} value={resp}><Checkbox checked={filtroResponsavel.indexOf(resp) > -1} /><MuiListItemText primary={resp} /></MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Grid>
-                <Grid item xs={12} md={2}>
-                     <FormControl size="small" fullWidth>
-                        <InputLabel>Tags</InputLabel>
-                        <Select multiple value={filtroTags} label="Tags" onChange={(e) => { const value = e.target.value; setFiltroTags(typeof value === 'string' ? value.split(',') : value); }} renderValue={(selected) => selected.join(', ')}>
-                            {todasTags.map((tag) => (
-                                <MenuItem key={tag.id} value={tag.nome}>
-                                  <Checkbox checked={filtroTags.indexOf(tag.nome) > -1} />
-                                  <Chip label={tag.nome} size="small" sx={{ bgcolor: tag.cor, color: '#fff', height: 20, fontSize: '0.65rem' }} />
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Grid>
-                <Grid item xs={6} md={1.5}>
-                    <TextField fullWidth label="De" type="date" size="small" InputLabelProps={{ shrink: true }} value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} />
-                </Grid>
-                <Grid item xs={6} md={1.5} display="flex" alignItems="center" justifyContent="space-between">
-                    <FormControlLabel control={<Switch checked={apenasNaoLidos} onChange={(e) => setApenasNaoLidos(e.target.checked)} color="success" />} label={<Typography variant="caption" fontWeight="bold">Ñ Lidos</Typography>} />
-                    <IconButton onClick={limparFiltros} title="Limpar Filtros" size="small"><ClearIcon /></IconButton>
-                </Grid>
+                <Grid item xs={12} md={3}><TextField fullWidth variant="outlined" placeholder="Buscar..." size="small" value={busca} onChange={(e) => setBusca(e.target.value)} InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>) }} /></Grid>
+                <Grid item xs={12} md={2}><FormControl size="small" fullWidth><InputLabel>Status</InputLabel><Select multiple value={filtroStatus} label="Status" onChange={(e) => { const value = e.target.value; setFiltroStatus(typeof value === 'string' ? value.split(',') : value); }} renderValue={(selected) => selected.map(val => COLUMNS[val].title.split(' ')[1]).join(', ')}>{Object.entries(COLUMNS).map(([key, col]) => (<MenuItem key={key} value={key}><Checkbox checked={filtroStatus.indexOf(key) > -1} /><MuiListItemText primary={col.title} /></MenuItem>))}</Select></FormControl></Grid>
+                <Grid item xs={12} md={2}><FormControl size="small" fullWidth><InputLabel>Responsável</InputLabel><Select multiple value={filtroResponsavel} label="Responsável" onChange={(e) => { const value = e.target.value; setFiltroResponsavel(typeof value === 'string' ? value.split(',') : value); }} renderValue={(selected) => selected.join(', ')}>{responsaveisUnicos.map((resp) => (<MenuItem key={resp} value={resp}><Checkbox checked={filtroResponsavel.indexOf(resp) > -1} /><MuiListItemText primary={resp} /></MenuItem>))}</Select></FormControl></Grid>
+                <Grid item xs={12} md={2}><FormControl size="small" fullWidth><InputLabel>Tags</InputLabel><Select multiple value={filtroTags} label="Tags" onChange={(e) => { const value = e.target.value; setFiltroTags(typeof value === 'string' ? value.split(',') : value); }} renderValue={(selected) => selected.join(', ')}>{todasTags.map((tag) => (<MenuItem key={tag.id} value={tag.nome}><Checkbox checked={filtroTags.indexOf(tag.nome) > -1} /><Chip label={tag.nome} size="small" sx={{ bgcolor: tag.cor, color: '#fff', height: 20, fontSize: '0.65rem' }} /></MenuItem>))}</Select></FormControl></Grid>
+                <Grid item xs={6} md={1.5}><TextField fullWidth label="De" type="date" size="small" InputLabelProps={{ shrink: true }} value={filtroDataInicio} onChange={(e) => setFiltroDataInicio(e.target.value)} /></Grid>
+                <Grid item xs={6} md={1.5} display="flex" alignItems="center" justifyContent="space-between"><FormControlLabel control={<Switch checked={apenasNaoLidos} onChange={(e) => setApenasNaoLidos(e.target.checked)} color="success" />} label={<Typography variant="caption" fontWeight="bold">Ñ Lidos</Typography>} /><IconButton onClick={limparFiltros} title="Limpar Filtros" size="small"><ClearIcon /></IconButton></Grid>
             </Grid>
         </Paper>
       )}
@@ -557,99 +552,29 @@ export default function KanbanBoardView() {
         <Box sx={{ display: 'flex', gap: 10, overflowX: 'auto', flexGrow: 1, alignItems: 'flex-start', justifyContent: 'center' }}>
           {Object.entries(COLUMNS).map(([columnId, column]) => {
             const cardsDaColuna = chamadosFiltrados.filter((c) => c.status === columnId);
-
             return (
               <Droppable key={columnId} droppableId={columnId}>
                 {(provided, snapshot) => (
-                  <Paper
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    elevation={0}
-                    sx={{
-                      width: 350, minWidth: 350,
-                      backgroundColor: snapshot.isDraggingOver ? '#e0e0e0' : '#ebecf0',
-                      p: 2, borderRadius: 3, display: 'flex', flexDirection: 'column',
-                      maxHeight: '100%'
-                    }}
-                  >
-                    <Box sx={{ mb: 2, pb: 1, borderBottom: `3px solid ${column.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#555' }}>{column.title}</Typography>
-                      <Chip label={cardsDaColuna.length} size="small" />
-                    </Box>
-
+                  <Paper ref={provided.innerRef} {...provided.droppableProps} elevation={0} sx={{ width: 350, minWidth: 350, backgroundColor: snapshot.isDraggingOver ? '#e0e0e0' : '#ebecf0', p: 2, borderRadius: 3, display: 'flex', flexDirection: 'column', maxHeight: '100%' }}>
+                    <Box sx={{ mb: 2, pb: 1, borderBottom: `3px solid ${column.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><Typography variant="h6" sx={{ fontWeight: 'bold', color: '#555' }}>{column.title}</Typography><Chip label={cardsDaColuna.length} size="small" /></Box>
                     <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 1 }}>
                       {cardsDaColuna.map((item, index) => (
                         <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
                           {(provided, snapshot) => {
                             const prioridadeInfo = PRIORITY_CONFIG[item.prioridade || 'BAIXA'];
-                            
                             return (
-                            <Card
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              onClick={() => handleAbrirChamado(item)}
-                              sx={{
-                                mb: 2, borderRadius: 2, cursor: 'pointer',
-                                boxShadow: snapshot.isDragging ? 6 : 1,
-                                transition: 'transform 0.2s',
-                                '&:hover': { boxShadow: 4, transform: 'translateY(-2px)' },
-                                position: 'relative',
-                                borderLeft: `5px solid ${prioridadeInfo.color}` 
-                              }}
-                            >
+                            <Card ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} onClick={() => handleAbrirChamado(item)} sx={{ mb: 2, borderRadius: 2, cursor: 'pointer', boxShadow: snapshot.isDragging ? 6 : 1, transition: 'transform 0.2s', '&:hover': { boxShadow: 4, transform: 'translateY(-2px)' }, position: 'relative', borderLeft: `5px solid ${prioridadeInfo.color}` }}>
                               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                                   <Typography variant="caption" color="text.secondary">#{item.id}</Typography>
-                                  {item.responsavel && (
-                                    <Box display="flex" alignItems="center" gap={1} sx={{ bgcolor: `${item.responsavelCor || '#1976d2'}15`, p: 0.5, borderRadius: 1, maxWidth: '140px' }}>
-                                      <Avatar sx={{ width: 20, height: 20, fontSize: 10, bgcolor: item.responsavelCor || '#1976d2', color: '#fff' }}>
-                                        {item.responsavel.charAt(0).toUpperCase()}
-                                      </Avatar>
-                                      <Typography variant="caption" fontWeight="bold" noWrap sx={{ color: item.responsavelCor || '#1976d2' }}>
-                                        {item.responsavel}
-                                      </Typography>
-                                    </Box>
-                                  )}
+                                  {item.responsavel && (<Box display="flex" alignItems="center" gap={1} sx={{ bgcolor: `${item.responsavelCor || '#1976d2'}15`, p: 0.5, borderRadius: 1, maxWidth: '140px' }}><Avatar sx={{ width: 20, height: 20, fontSize: 10, bgcolor: item.responsavelCor || '#1976d2', color: '#fff' }}>{item.responsavel.charAt(0).toUpperCase()}</Avatar><Typography variant="caption" fontWeight="bold" noWrap sx={{ color: item.responsavelCor || '#1976d2' }}>{item.responsavel}</Typography></Box>)}
                                   <Typography variant="caption" color="text.secondary">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</Typography>
                                 </Box>
-
                                 <Typography variant="subtitle1" fontWeight="bold" gutterBottom>{item.nomeEmpresa}</Typography>
-                                
-                                <Box display="flex" gap={1} mb={1} flexWrap="wrap">
-                                    <Chip label={item.servico} size="small" sx={{ bgcolor: column.bg, color: '#444', fontWeight: 'bold', fontSize: '0.75rem' }} />
-                                    {item.prioridade === 'CRITICA' && (
-                                        <Chip label="URGENTE" size="small" sx={{ bgcolor: '#ffebee', color: '#d32f2f', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid #ffcdd2' }} />
-                                    )}
-                                </Box>
-
-                                <Box display="flex" gap={0.5} mb={1} flexWrap="wrap">
-                                    {item.tags?.map(tag => (
-                                        <Chip 
-                                            key={tag.id} 
-                                            label={tag.nome} 
-                                            size="small" 
-                                            sx={{ 
-                                                height: 20, 
-                                                fontSize: '0.65rem', 
-                                                bgcolor: tag.cor + '20', 
-                                                color: tag.cor,
-                                                fontWeight: 'bold',
-                                                border: `1px solid ${tag.cor}`
-                                            }} 
-                                        />
-                                    ))}
-                                </Box>
-
+                                <Box display="flex" gap={1} mb={1} flexWrap="wrap"><Chip label={item.servico} size="small" sx={{ bgcolor: column.bg, color: '#444', fontWeight: 'bold', fontSize: '0.75rem' }} />{item.prioridade === 'CRITICA' && (<Chip label="URGENTE" size="small" sx={{ bgcolor: '#ffebee', color: '#d32f2f', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid #ffcdd2' }} />)}</Box>
+                                <Box display="flex" gap={0.5} mb={1} flexWrap="wrap">{item.tags?.map(tag => (<Chip key={tag.id} label={tag.nome} size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: tag.cor + '20', color: tag.cor, fontWeight: 'bold', border: `1px solid ${tag.cor}` }} />))}</Box>
                                 <Typography variant="body2" color="text.secondary" noWrap>{item.descricao}</Typography>
-                                
-                                {/* ✅ CONTADOR MSG (VOLTOU PRO CANTO INFERIOR) */}
-                                {item.mensagensNaoLidas > 0 && (
-                                    <Box sx={{ position: 'absolute', bottom: 12, right: 12, width: 24, height: 24, borderRadius: '50%', backgroundColor: '#2e7d32', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: 2, zIndex: 10 }}>
-                                      {item.mensagensNaoLidas}
-                                    </Box>
-                                )}
-
+                                {item.mensagensNaoLidas > 0 && (<Box sx={{ position: 'absolute', bottom: 12, right: 12, width: 24, height: 24, borderRadius: '50%', backgroundColor: '#2e7d32', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: 2, zIndex: 10 }}>{item.mensagensNaoLidas}</Box>)}
                               </CardContent>
                             </Card>
                           )}}
@@ -666,147 +591,71 @@ export default function KanbanBoardView() {
       </DragDropContext>
 
       {/* --- MODAL DETALHES --- */}
-      <Dialog 
-        open={Boolean(chamadoSelecionado)} 
-        onClose={() => setChamadoSelecionado(null)}
-        maxWidth="md"
-        fullWidth
-      >
+      <Dialog open={Boolean(chamadoSelecionado)} onClose={() => setChamadoSelecionado(null)} maxWidth="md" fullWidth>
         {chamadoSelecionado && (
           <>
-            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f5f5f5' }}>
-              <Box display="flex" alignItems="center" gap={2}>
-                <Typography variant="h6">Chamado #{chamadoSelecionado.id}</Typography>
-                <Chip 
-                  label={COLUMNS[chamadoSelecionado.status]?.title || chamadoSelecionado.status} 
-                  sx={{ bgcolor: COLUMNS[chamadoSelecionado.status]?.bg || '#eee' }}
-                />
-              </Box>
-              <IconButton onClick={() => setChamadoSelecionado(null)}>
-                <CloseIcon />
-              </IconButton>
-            </DialogTitle>
-
+            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f5f5f5' }}><Box display="flex" alignItems="center" gap={2}><Typography variant="h6">Chamado #{chamadoSelecionado.id}</Typography><Chip label={COLUMNS[chamadoSelecionado.status]?.title || chamadoSelecionado.status} sx={{ bgcolor: COLUMNS[chamadoSelecionado.status]?.bg || '#eee' }} /></Box><IconButton onClick={() => setChamadoSelecionado(null)}><CloseIcon /></IconButton></DialogTitle>
             <DialogContent dividers>
               <Grid container spacing={2} sx={{ height: '100%' }}>
                 <Grid item xs={12} md={8} display="flex" flexDirection="column">
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>Histórico do Chamado</Typography>
                   <Box sx={{ flexGrow: 1, bgcolor: '#f9f9f9', borderRadius: 2, p: 2, mb: 2, border: '1px solid #eee', maxHeight: '400px', overflowY: 'auto' }}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mb: 2 }}>
-                        <Box display="flex" alignItems="center" gap={1} mb={0.5}>
-                          <Avatar sx={{ width: 24, height: 24, bgcolor: '#9e9e9e' }}><PersonIcon fontSize="small" /></Avatar>
-                          <Typography variant="caption" fontWeight="bold">Cliente (Abertura)</Typography>
-                          <Typography variant="caption" color="text.secondary">{new Date(chamadoSelecionado.createdAt).toLocaleString()}</Typography>
-                        </Box>
-                        <Paper elevation={0} sx={{ p: 2, bgcolor: '#ffffff', border: '1px solid #ddd', borderRadius: '0 12px 12px 12px', maxWidth: '90%' }}>
-                          <Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{chamadoSelecionado.descricao}</Typography>
-                        </Paper>
-                    </Box>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mb: 2 }}><Box display="flex" alignItems="center" gap={1} mb={0.5}><Avatar sx={{ width: 24, height: 24, bgcolor: '#9e9e9e' }}><PersonIcon fontSize="small" /></Avatar><Typography variant="caption" fontWeight="bold">Cliente (Abertura)</Typography><Typography variant="caption" color="text.secondary">{new Date(chamadoSelecionado.createdAt).toLocaleString()}</Typography></Box><Paper elevation={0} sx={{ p: 2, bgcolor: '#ffffff', border: '1px solid #ddd', borderRadius: '0 12px 12px 12px', maxWidth: '90%' }}><Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{chamadoSelecionado.descricao}</Typography></Paper></Box>
                     {chamadoSelecionado.interacoes?.map((interacao, idx) => {
                       const isSuporte = interacao.autor === 'SUPORTE';
                       const isInterno = interacao.interno; 
-                      return (
-                        <Box key={idx} sx={{ display: 'flex', flexDirection: 'column', alignItems: isSuporte ? 'flex-end' : 'flex-start', mb: 2 }}>
-                            <Box display="flex" alignItems="center" gap={1} mb={0.5} flexDirection={isSuporte ? 'row-reverse' : 'row'}>
-                              <Avatar sx={{ width: 24, height: 24, bgcolor: isSuporte ? '#1976d2' : '#9e9e9e' }}>{isSuporte ? <SupportAgentIcon fontSize="small" /> : <PersonIcon fontSize="small" />}</Avatar>
-                              <Typography variant="caption" fontWeight="bold">{isSuporte ? 'Suporte' : 'Cliente'}</Typography>
-                              <Typography variant="caption" color="text.secondary">{new Date(interacao.createdAt).toLocaleString()}</Typography>
-                            </Box>
-                            <Paper elevation={0} sx={{ p: 2, bgcolor: isInterno ? '#FFF3E0' : (isSuporte ? '#E3F2FD' : '#ffffff'), border: isInterno ? '1px dashed #FF9800' : (isSuporte ? 'none' : '1px solid #ddd'), borderRadius: isSuporte ? '12px 0 12px 12px' : '0 12px 12px 12px', maxWidth: '90%', color: isSuporte ? '#0d47a1' : 'inherit' }}>
-                              {isInterno && (<Box display="flex" alignItems="center" gap={0.5} mb={0.5} color="warning.main"><LockIcon style={{ fontSize: 14 }} /><Typography variant="caption" fontWeight="bold">NOTA INTERNA (Cliente não vê)</Typography></Box>)}
-                              <Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{interacao.texto}</Typography>
-                              {interacao.anexos && interacao.anexos.length > 0 && (<Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">{interacao.anexos.map(anexo => (<Chip key={anexo.id} icon={<AttachIcon />} label={anexo.nomeOriginal.length > 20 ? anexo.nomeOriginal.substring(0, 17) + '...' : anexo.nomeOriginal} component="a" href={anexo.caminho && anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`} target="_blank" clickable size="small" sx={{ m: 0.5, bgcolor: 'rgba(0,0,0,0.05)' }} />))}</Box>)}
-                            </Paper>
-                        </Box>
-                      )
+                      return (<Box key={idx} sx={{ display: 'flex', flexDirection: 'column', alignItems: isSuporte ? 'flex-end' : 'flex-start', mb: 2 }}><Box display="flex" alignItems="center" gap={1} mb={0.5} flexDirection={isSuporte ? 'row-reverse' : 'row'}> <Avatar sx={{ width: 24, height: 24, bgcolor: isSuporte ? '#1976d2' : '#9e9e9e' }}>{isSuporte ? <SupportAgentIcon fontSize="small" /> : <PersonIcon fontSize="small" />}</Avatar><Typography variant="caption" fontWeight="bold">{isSuporte ? 'Suporte' : 'Cliente'}</Typography><Typography variant="caption" color="text.secondary">{new Date(interacao.createdAt).toLocaleString()}</Typography></Box><Paper elevation={0} sx={{ p: 2, bgcolor: isInterno ? '#FFF3E0' : (isSuporte ? '#E3F2FD' : '#ffffff'), border: isInterno ? '1px dashed #FF9800' : (isSuporte ? 'none' : '1px solid #ddd'), borderRadius: isSuporte ? '12px 0 12px 12px' : '0 12px 12px 12px', maxWidth: '90%', color: isSuporte ? '#0d47a1' : 'inherit' }}>{isInterno && (<Box display="flex" alignItems="center" gap={0.5} mb={0.5} color="warning.main"><LockIcon style={{ fontSize: 14 }} /><Typography variant="caption" fontWeight="bold">NOTA INTERNA (Cliente não vê)</Typography></Box>)}<Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{interacao.texto}</Typography>{interacao.anexos && interacao.anexos.length > 0 && (<Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">{interacao.anexos.map(anexo => (<Chip key={anexo.id} icon={<AttachIcon />} label={anexo.nomeOriginal.length > 20 ? anexo.nomeOriginal.substring(0, 17) + '...' : anexo.nomeOriginal} component="a" href={anexo.caminho && anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`} target="_blank" clickable size="small" sx={{ m: 0.5, bgcolor: 'rgba(0,0,0,0.05)' }} />))}</Box>)}</Paper></Box>)
                     })}
                   </Box>
                   <Box>
-                    <Box display="flex" justifyContent="flex-end" mb={1}>
-                        <FormControlLabel control={<Switch checked={notaInterna} onChange={(e) => setNotaInterna(e.target.checked)} color="warning" size="small" />} label={<Box display="flex" alignItems="center" gap={0.5}>{notaInterna && <LockIcon fontSize="small" color="warning" />}<Typography variant="caption" sx={{ color: notaInterna ? '#ed6c02' : 'gray', fontWeight: 'bold' }}>Nota Interna (Privado)</Typography></Box>} />
-                    </Box>
+                    <Box display="flex" justifyContent="flex-end" mb={1}><FormControlLabel control={<Switch checked={notaInterna} onChange={(e) => setNotaInterna(e.target.checked)} color="warning" size="small" />} label={<Box display="flex" alignItems="center" gap={0.5}>{notaInterna && <LockIcon fontSize="small" color="warning" />}<Typography variant="caption" sx={{ color: notaInterna ? '#ed6c02' : 'gray', fontWeight: 'bold' }}>Nota Interna (Privado)</Typography></Box>} /></Box>
                     {files.length > 0 && (<Box mb={1} display="flex" gap={1} flexWrap="wrap">{files.map((file, i) => (<Chip key={i} label={file.name} onDelete={() => removeFile(i)} size="small" icon={<AttachIcon />} />))}</Box>)}
-                    <Box display="flex" gap={1} alignItems="flex-end">
-                      <input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
-                      <IconButton onClick={() => fileInputRef.current?.click()} sx={{ border: '1px solid #ccc', borderRadius: 1 }}><AttachIcon /></IconButton>
-                      <IconButton onClick={(e) => setAnchorElMacros(e.currentTarget)} sx={{ border: '1px solid #ff9800', color: '#ff9800', borderRadius: 1 }} title="Respostas Prontas"><BoltIcon /></IconButton>
-                      <TextField fullWidth size="small" placeholder={notaInterna ? "Escreva uma nota interna..." : "Responder ao cliente..."} value={novoComentario} onChange={(e) => setNovoComentario(e.target.value)} multiline maxRows={3} sx={{ bgcolor: notaInterna ? '#FFF3E0' : 'white' }} />
-                      <Button variant="contained" onClick={handleAddInteracao} disabled={enviandoComentario || (!novoComentario.trim() && files.length === 0)} color={notaInterna ? "warning" : "primary"}><SendIcon /></Button>
-                    </Box>
+                    <Box display="flex" gap={1} alignItems="flex-end"><input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} /><IconButton onClick={() => fileInputRef.current?.click()} sx={{ border: '1px solid #ccc', borderRadius: 1 }}><AttachIcon /></IconButton><IconButton onClick={(e) => setAnchorElMacros(e.currentTarget)} sx={{ border: '1px solid #ff9800', color: '#ff9800', borderRadius: 1 }} title="Respostas Prontas"><BoltIcon /></IconButton><TextField fullWidth size="small" placeholder={notaInterna ? "Escreva uma nota interna..." : "Responder ao cliente..."} value={novoComentario} onChange={(e) => setNovoComentario(e.target.value)} multiline maxRows={3} sx={{ bgcolor: notaInterna ? '#FFF3E0' : 'white' }} /><Button variant="contained" onClick={handleAddInteracao} disabled={enviandoComentario || (!novoComentario.trim() && files.length === 0)} color={notaInterna ? "warning" : "primary"}><SendIcon /></Button></Box>
                   </Box>
                 </Grid>
-
                 <Grid item xs={12} md={4}>
-                    <Box mb={3}>
-                      <Typography variant="subtitle2" color="text.secondary">Empresa</Typography>
-                      <Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gap={1}><BusinessIcon color="primary" fontSize="small"/> {chamadoSelecionado.nomeEmpresa}</Typography>
-                    </Box>
-
-                    <Box mb={3}>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>Nível de Urgência (SLA)</Typography>
-                        <FormControl fullWidth size="small">
-                            <Select value={chamadoSelecionado.prioridade || 'BAIXA'} onChange={(e) => handleChangePriority(e.target.value)} sx={{ color: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color, fontWeight: 'bold', '& .MuiOutlinedInput-notchedOutline': { borderColor: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color } }}>
-                                {Object.entries(PRIORITY_CONFIG).map(([key, config]) => (<MenuItem key={key} value={key} sx={{ color: config.color, fontWeight: 'bold' }}><Box display="flex" alignItems="center" gap={1}>{config.icon} {config.label}</Box></MenuItem>))}
-                            </Select>
-                        </FormControl>
-                    </Box>
-
-                    {/* ✅ TAGS COM BOTÃO DE GERENCIAR */}
-                    <Box mb={3}>
-                        <Box display="flex" justifyContent="space-between" alignItems="center">
-                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>Etiquetas (Tags)</Typography>
-                          <IconButton size="small" onClick={() => setModalGerenciarTagsOpen(true)} title="Gerenciar Etiquetas"><SettingsIcon fontSize="small" /></IconButton>
-                        </Box>
-                        <Autocomplete
-                            multiple
-                            options={todasTags}
-                            getOptionLabel={(option) => option.nome}
-                            value={chamadoSelecionado.tags || []}
-                            onChange={(event, newValue) => { handleSalvarTags(newValue); }}
-                            renderInput={(params) => (<TextField {...params} variant="outlined" size="small" placeholder="Adicionar tags..." onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value) { const valor = e.target.value; const existe = todasTags.find(t => t.nome.toLowerCase() === valor.toLowerCase()); if (!existe) { e.preventDefault(); handleInitiateCriarTag(valor); } } }} />)}
-                            renderTags={(value, getTagProps) => value.map((option, index) => (<Chip label={option.nome} size="small" {...getTagProps({ index })} sx={{ bgcolor: option.cor, color: '#fff', fontWeight: 'bold' }} />))}
-                            noOptionsText="Digite e dê Enter para criar..."
-                        />
-                    </Box>
-
+                    <Box mb={3}><Typography variant="subtitle2" color="text.secondary">Empresa</Typography><Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gap={1}><BusinessIcon color="primary" fontSize="small"/> {chamadoSelecionado.nomeEmpresa}</Typography></Box>
+                    <Box mb={3}><Typography variant="subtitle2" color="text.secondary" gutterBottom>Nível de Urgência (SLA)</Typography><FormControl fullWidth size="small"><Select value={chamadoSelecionado.prioridade || 'BAIXA'} onChange={(e) => handleChangePriority(e.target.value)} sx={{ color: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color, fontWeight: 'bold', '& .MuiOutlinedInput-notchedOutline': { borderColor: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color } }}>{Object.entries(PRIORITY_CONFIG).map(([key, config]) => (<MenuItem key={key} value={key} sx={{ color: config.color, fontWeight: 'bold' }}><Box display="flex" alignItems="center" gap={1}>{config.icon} {config.label}</Box></MenuItem>))}</Select></FormControl></Box>
+                    <Box mb={3}><Box display="flex" justifyContent="space-between" alignItems="center"><Typography variant="subtitle2" color="text.secondary" gutterBottom>Etiquetas (Tags)</Typography><IconButton size="small" onClick={() => setModalGerenciarTagsOpen(true)} title="Gerenciar Etiquetas"><SettingsIcon fontSize="small" /></IconButton></Box><Autocomplete multiple options={todasTags} getOptionLabel={(option) => option.nome} value={chamadoSelecionado.tags || []} onChange={(event, newValue) => { handleSalvarTags(newValue); }} renderInput={(params) => (<TextField {...params} variant="outlined" size="small" placeholder="Adicionar tags..." onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value) { const valor = e.target.value; const existe = todasTags.find(t => t.nome.toLowerCase() === valor.toLowerCase()); if (!existe) { e.preventDefault(); handleInitiateCriarTag(valor); } } }} />)} renderTags={(value, getTagProps) => value.map((option, index) => (<Chip label={option.nome} size="small" {...getTagProps({ index })} sx={{ bgcolor: option.cor, color: '#fff', fontWeight: 'bold' }} />))} noOptionsText="Digite e dê Enter para criar..." /></Box>
                     <Divider sx={{ my: 2 }} />
                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>Contatos</Typography>
-                    <List dense disablePadding>
-                      {chamadoSelecionado.emails?.map((email, idx) => (<ListItem key={idx} disableGutters><ListItemIcon sx={{ minWidth: 30 }}><EmailIcon fontSize="small" /></ListItemIcon><ListItemText primary={email.endereco} /></ListItem>))}
-                      {chamadoSelecionado.telefones?.map((tel, idx) => (<ListItem key={idx} disableGutters><ListItemIcon sx={{ minWidth: 30 }}><PhoneIcon fontSize="small" /></ListItemIcon><ListItemText primary={tel.numero} secondary={<a href={`https://wa.me/55${tel.numero.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: '#25D366', fontSize: '0.8rem', fontWeight: 'bold' }}>Abrir WhatsApp</a>} /></ListItem>))}
-                    </List>
+                    <List dense disablePadding>{chamadoSelecionado.emails?.map((email, idx) => (<ListItem key={idx} disableGutters><ListItemIcon sx={{ minWidth: 30 }}><EmailIcon fontSize="small" /></ListItemIcon><ListItemText primary={email.endereco} /></ListItem>))}{chamadoSelecionado.telefones?.map((tel, idx) => (<ListItem key={idx} disableGutters><ListItemIcon sx={{ minWidth: 30 }}><PhoneIcon fontSize="small" /></ListItemIcon><ListItemText primary={tel.numero} secondary={<a href={`https://wa.me/55${tel.numero.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: '#25D366', fontSize: '0.8rem', fontWeight: 'bold' }}>Abrir WhatsApp</a>} /></ListItem>))}</List>
                 </Grid>
               </Grid>
             </DialogContent>
-            
-            <DialogActions sx={{ p: 2, justifyContent: 'space-between', bgcolor: '#f5f5f5' }}>
-               <Button variant="text" color="error" startIcon={<DeleteIcon />} onClick={() => setConfirmDeleteOpen(true)}>Excluir</Button>
-               {chamadoSelecionado.status !== 'FINALIZADO' && (<Button variant="contained" color="secondary" endIcon={<ArrowForwardIcon />} onClick={handleNextStep}>Mover para {COLUMNS[FLOW_ORDER[FLOW_ORDER.indexOf(chamadoSelecionado.status) + 1] as keyof typeof COLUMNS]?.title}</Button>)}
-            </DialogActions>
+            <DialogActions sx={{ p: 2, justifyContent: 'space-between', bgcolor: '#f5f5f5' }}><Button variant="text" color="error" startIcon={<DeleteIcon />} onClick={() => setConfirmDeleteOpen(true)}>Excluir</Button>{chamadoSelecionado.status !== 'FINALIZADO' && (<Button variant="contained" color="secondary" endIcon={<ArrowForwardIcon />} onClick={handleNextStep}>Mover para {COLUMNS[FLOW_ORDER[FLOW_ORDER.indexOf(chamadoSelecionado.status) + 1] as keyof typeof COLUMNS]?.title}</Button>)}</DialogActions>
           </>
         )}
       </Dialog>
 
       {/* ✅ MODAL CRIAR TAG */}
-      <Dialog open={modalCriarTagOpen} onClose={() => setModalCriarTagOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><LabelIcon color="primary" /> Nova Etiqueta</DialogTitle>
-        <DialogContent dividers>
-            <Box mb={2}><Typography variant="body2" color="text.secondary" gutterBottom>Nome:</Typography><Chip label={novaTagData.nome} sx={{ bgcolor: novaTagData.cor, color: '#fff', fontWeight: 'bold', fontSize: '1rem', px: 1 }} /></Box>
-            <Typography variant="body2" color="text.secondary" gutterBottom>Escolha uma cor:</Typography>
-            <Box display="flex" gap={1} flexWrap="wrap" justifyContent="center">{TAG_COLORS.map((cor) => (<Box key={cor} onClick={() => setNovaTagData(prev => ({ ...prev, cor }))} sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: cor, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', border: novaTagData.cor === cor ? '3px solid #333' : '2px solid transparent', transform: novaTagData.cor === cor ? 'scale(1.1)' : 'scale(1)', transition: 'all 0.2s' }}>{novaTagData.cor === cor && <CheckCircleIcon sx={{ color: '#fff', fontSize: 20 }} />}</Box>))}</Box>
-        </DialogContent>
-        <DialogActions><Button onClick={() => setModalCriarTagOpen(false)} color="inherit">Cancelar</Button><Button onClick={handleConfirmarCriacaoTag} variant="contained" color="primary">Criar Tag</Button></DialogActions>
-      </Dialog>
+      <Dialog open={modalCriarTagOpen} onClose={() => setModalCriarTagOpen(false)} maxWidth="xs" fullWidth><DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><LabelIcon color="primary" /> Nova Etiqueta</DialogTitle><DialogContent dividers><Box mb={2}><Typography variant="body2" color="text.secondary" gutterBottom>Nome:</Typography><Chip label={novaTagData.nome} sx={{ bgcolor: novaTagData.cor, color: '#fff', fontWeight: 'bold', fontSize: '1rem', px: 1 }} /></Box><Typography variant="body2" color="text.secondary" gutterBottom>Escolha uma cor:</Typography><Box display="flex" gap={1} flexWrap="wrap" justifyContent="center">{TAG_COLORS.map((cor) => (<Box key={cor} onClick={() => setNovaTagData(prev => ({ ...prev, cor }))} sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: cor, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', border: novaTagData.cor === cor ? '3px solid #333' : '2px solid transparent', transform: novaTagData.cor === cor ? 'scale(1.1)' : 'scale(1)', transition: 'all 0.2s' }}>{novaTagData.cor === cor && <CheckCircleIcon sx={{ color: '#fff', fontSize: 20 }} />}</Box>))}</Box></DialogContent><DialogActions><Button onClick={() => setModalCriarTagOpen(false)} color="inherit">Cancelar</Button><Button onClick={handleConfirmarCriacaoTag} variant="contained" color="primary">Criar Tag</Button></DialogActions></Dialog>
 
-      {/* ✅ MODAL GERENCIAR TAGS (EXCLUIR) */}
+      {/* ✅ MODAL GERENCIAR TAGS (COM EDIÇÃO DE COR) */}
       <Dialog open={modalGerenciarTagsOpen} onClose={() => setModalGerenciarTagsOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Gerenciar Etiquetas</DialogTitle>
         <DialogContent dividers>
             <List dense>
                 {todasTags.length === 0 && <Typography variant="caption" align="center" display="block">Nenhuma tag criada.</Typography>}
                 {todasTags.map((tag) => (
-                    <ListItem key={tag.id} secondaryAction={<IconButton edge="end" color="error" onClick={() => handleDeleteTag(tag.id)}><DeleteIcon /></IconButton>}>
-                        <Chip label={tag.nome} size="small" sx={{ bgcolor: tag.cor, color: '#fff', fontWeight: 'bold' }} />
+                    <ListItem key={tag.id} sx={{ mb: 1, borderBottom: '1px solid #f0f0f0' }}>
+                        {editandoTagId === tag.id ? (
+                            <Box display="flex" flexDirection="column" width="100%">
+                                <Typography variant="caption" gutterBottom>Selecione a nova cor:</Typography>
+                                <Box display="flex" gap={0.5} flexWrap="wrap">
+                                    {TAG_COLORS.map(cor => (
+                                        <Box key={cor} onClick={() => handleUpdateCorTag(tag.id, cor)} sx={{ width: 24, height: 24, borderRadius: '50%', bgcolor: cor, cursor: 'pointer', border: tag.cor === cor ? '2px solid #000' : '1px solid #ddd' }} />
+                                    ))}
+                                </Box>
+                                <Button size="small" onClick={() => setEditandoTagId(null)} sx={{ mt: 1, alignSelf: 'flex-end' }}>Cancelar</Button>
+                            </Box>
+                        ) : (
+                            <>
+                                <Chip label={tag.nome} size="small" sx={{ bgcolor: tag.cor, color: '#fff', fontWeight: 'bold', mr: 'auto' }} />
+                                <IconButton size="small" onClick={() => setEditandoTagId(tag.id)} title="Editar Cor"><EditIcon fontSize="small" /></IconButton>
+                                <IconButton size="small" color="error" onClick={() => handleDeleteTag(tag.id)} title="Excluir"><DeleteIcon fontSize="small" /></IconButton>
+                            </>
+                        )}
                     </ListItem>
                 ))}
             </List>
@@ -814,14 +663,9 @@ export default function KanbanBoardView() {
         <DialogActions><Button onClick={() => setModalGerenciarTagsOpen(false)}>Fechar</Button></DialogActions>
       </Dialog>
 
-      {/* MODAL MACROS */}
-      <Popover open={Boolean(anchorElMacros)} anchorEl={anchorElMacros} onClose={() => setAnchorElMacros(null)} anchorOrigin={{ vertical: 'top', horizontal: 'left' }} transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}>
-        <Box sx={{ width: 300, maxHeight: 400, overflow: 'auto' }}>
-          <Box p={2} bgcolor="#f5f5f5" borderBottom="1px solid #ddd" display="flex" justifyContent="space-between" alignItems="center"><Typography variant="subtitle2" fontWeight="bold">Respostas Prontas</Typography><Button size="small" startIcon={<AddIcon />} onClick={() => setModalMacrosOpen(true)}>Gerenciar</Button></Box>
-          <List dense>{respostasProntas.length === 0 && <Typography variant="caption" sx={{ p: 2, display: 'block', textAlign: 'center' }}>Nenhuma resposta.</Typography>}{respostasProntas.map((macro) => (<ListItem key={macro.id} button onClick={() => handleUsarMacro(macro.texto)}><ListItemText primary={macro.titulo} secondary={macro.texto.substring(0, 40) + '...'} primaryTypographyProps={{ fontWeight: 'bold', fontSize: '0.875rem' }} /></ListItem>))}</List>
-        </Box>
-      </Popover>
-      <Dialog open={modalMacrosOpen} onClose={() => setModalMacrosOpen(false)} maxWidth="sm" fullWidth><DialogTitle>Gerenciar Respostas</DialogTitle><DialogContent dividers><Box display="flex" gap={2} mb={3} alignItems="flex-start"><TextField label="Título" size="small" value={novaMacro.titulo} onChange={(e) => setNovaMacro({...novaMacro, titulo: e.target.value})} /><TextField label="Texto" size="small" fullWidth multiline maxRows={3} value={novaMacro.texto} onChange={(e) => setNovaMacro({...novaMacro, texto: e.target.value})} /><Button variant="contained" onClick={handleCriarMacro}>Salvar</Button></Box><Divider sx={{ mb: 2 }}><Chip label="Cadastradas" size="small" /></Divider><List dense>{respostasProntas.map((macro) => (<ListItem key={macro.id} secondaryAction={<IconButton edge="end" color="error" onClick={() => handleDeleteMacro(macro.id)}><DeleteIcon /></IconButton>}><ListItemText primary={macro.titulo} secondary={macro.texto} /></ListItem>))}</List></DialogContent><DialogActions><Button onClick={() => setModalMacrosOpen(false)}>Fechar</Button></DialogActions></Dialog>
+      {/* OUTROS MODAIS (MACROS, LINKTREE, EXCLUSÃO) */}
+      <Popover open={Boolean(anchorElMacros)} anchorEl={anchorElMacros} onClose={() => setAnchorElMacros(null)} anchorOrigin={{ vertical: 'top', horizontal: 'left' }} transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}><Box sx={{ width: 300, maxHeight: 400, overflow: 'auto' }}><Box p={2} bgcolor="#f5f5f5" borderBottom="1px solid #ddd" display="flex" justifyContent="space-between" alignItems="center"><Typography variant="subtitle2" fontWeight="bold">Respostas Prontas</Typography><Button size="small" startIcon={<AddIcon />} onClick={() => setModalMacrosOpen(true)}>Gerenciar</Button></Box><List dense>{respostasProntas.map((macro) => (<ListItem key={macro.id} button onClick={() => handleUsarMacro(macro.texto)}><ListItemText primary={macro.titulo} secondary={macro.texto.substring(0, 40) + '...'} /></ListItem>))}</List></Box></Popover>
+      <Dialog open={modalMacrosOpen} onClose={() => setModalMacrosOpen(false)} maxWidth="sm" fullWidth><DialogTitle>Gerenciar Respostas</DialogTitle><DialogContent dividers><Box display="flex" gap={2} mb={3} alignItems="flex-start"><TextField label="Título" size="small" value={novaMacro.titulo} onChange={(e) => setNovaMacro({...novaMacro, titulo: e.target.value})} /><TextField label="Texto" size="small" fullWidth multiline maxRows={3} value={novaMacro.texto} onChange={(e) => setNovaMacro({...novaMacro, texto: e.target.value})} /><Button variant="contained" onClick={handleCriarMacro}>Salvar</Button></Box><List dense>{respostasProntas.map((macro) => (<ListItem key={macro.id} secondaryAction={<IconButton edge="end" color="error" onClick={() => handleDeleteMacro(macro.id)}><DeleteIcon /></IconButton>}><ListItemText primary={macro.titulo} secondary={macro.texto} /></ListItem>))}</List></DialogContent><DialogActions><Button onClick={() => setModalMacrosOpen(false)}>Fechar</Button></DialogActions></Dialog>
       <Dialog open={modalLinksOpen} onClose={() => setModalLinksOpen(false)} maxWidth="xs" fullWidth><DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', pb: 1 }}>Links & Ferramentas</DialogTitle><DialogContent><Stack spacing={2}>{SUPORTE_LINKS.map((link, idx) => (<Button key={idx} variant="outlined" component="a" href={link.url} target="_blank" startIcon={link.icon} sx={{ justifyContent: 'flex-start', py: 1.5, px: 3, color: link.color, borderColor: link.color, '&:hover': { backgroundColor: `${link.color}10`, borderColor: link.color } }}>{link.title}</Button>))}</Stack></DialogContent><DialogActions sx={{ justifyContent: 'center', pb: 2 }}><Button onClick={() => setModalLinksOpen(false)} color="inherit">Fechar</Button></DialogActions></Dialog>
       <Dialog open={confirmDeleteOpen} onClose={() => setConfirmDeleteOpen(false)}><DialogTitle sx={{ color: '#d32f2f', display: 'flex', alignItems: 'center', gap: 1 }}><DeleteIcon /> Excluir Chamado?</DialogTitle><DialogContent><Typography>Tem certeza que deseja excluir o chamado <strong>#{chamadoSelecionado?.id}</strong>?</Typography></DialogContent><DialogActions><Button onClick={() => setConfirmDeleteOpen(false)} color="inherit">Cancelar</Button><Button onClick={handleDeleteChamado} variant="contained" color="error">Sim, Excluir</Button></DialogActions></Dialog>
 
