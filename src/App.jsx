@@ -1,17 +1,21 @@
 // src/App.jsx
 import React from 'react';
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext'
 import ThemeProviderContext from './contexts/ThemeProviderContext';
+import ToggleThemeButton from './components/ToggleThemeButton';
 import MultilineTextFields from './components/form.component';
 import NotificationProvider from './components/NotificationProvider';
 import LogoHeader from './components/LogoHeader';
+import Footer from './components/Footer';
 import KanbanBoardView from './components/KanbanBoard';
 import DashboardView from './components/DashboardView';
 import LoginView from './components/LoginView'; 
 import PrivateRoute from './components/PrivateRoute'; 
 import ClientTracking from './components/ClientTracking'; 
-import RegisterForm from './components/RegisterForm'; 
+
+// 👇 1. IMPORT NOVO (Certifique-se que o arquivo está na pasta components)
+import RegisterForm from './components/RegisterForm'; // <--- AQUI
 
 // Componente de Layout para o Admin
 const AdminLayout = () => {
@@ -24,6 +28,7 @@ const AdminLayout = () => {
 
 export default function App() {
   return (
+    
       <AuthProvider>
       <div
         style={{
@@ -31,15 +36,12 @@ export default function App() {
           width: '100vw',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'flex-start', // Mudei para flex-start para não centralizar verticalmente se tiver scroll
+          justifyContent: 'center',
           alignItems: 'center',
           position: 'relative',
-          
-          // ✅ CORREÇÃO AQUI: Mudei de 'hidden' para 'auto'
-          // 'auto' só mostra a barra de rolagem se o conteúdo for maior que a tela
-          overflow: 'auto', 
-          
+          overflow: 'scroll', 
           backgroundColor: 'inherit',
+          
         }}
       >
         <NotificationProvider />
@@ -47,21 +49,42 @@ export default function App() {
         {/* 🔺 Logo fixada no topo esquerdo */}
         <LogoHeader />
 
+        {/* 🔘 Botão modo escuro no topo direito */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            zIndex: 999,
+          }}
+        >
+          {/* <ToggleThemeButton /> Se quiser ativar o botão */}
+        </div>
+
         {/* Roteamento */}
         <BrowserRouter>
+          
           <Routes>
-              {/* --- ROTAS PÚBLICAS (Sem Tema Dark) --- */}
-              
-              <Route path="/" element={<MultilineTextFields />} />
-              <Route path="/login" element={<LoginView />} />
-              <Route path="/register" element={<RegisterForm />} /> 
-              
-              <Route 
-                path="/acompanhamento/:id" 
-                element={<div style={{ width: '100%', minHeight: '100%' }}><ClientTracking /></div>} 
-              />
+                  {/* --- ROTAS PÚBLICAS --- */}
+                  
+                  {/* Formulário Inicial (Abertura de Chamado) */}
+                  <Route path="/" element={<MultilineTextFields />} />
+                  
+                  {/* Login */}
+                  <Route path="/login" element={<LoginView />} />
 
-              {/* --- ROTAS PRIVADAS (COM TEMA DARK) --- */}
+                  {/* 👇 2. NOVA ROTA DE CADASTRO */}
+                  <Route path="/register" element={<RegisterForm />} /> 
+                  
+                  {/* Acompanhamento (Cliente) */}
+                  <Route 
+                    path="/acompanhamento/:id" 
+                    element={<div style={{ width: '100%' }}><ClientTracking /></div>} 
+                  />
+
+                  {/* --- ROTAS PRIVADAS (ADMIN) --- */}
+                  
+                  {/* --- ROTAS PRIVADAS (COM TEMA DARK) --- */}
               <Route element={<AdminLayout />}>
                   
                   <Route 
@@ -89,5 +112,6 @@ export default function App() {
         
       </div>
       </AuthProvider>
+   
   );
 }
