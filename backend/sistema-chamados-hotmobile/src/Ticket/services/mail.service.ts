@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly API_URL = 'https://api.hotmobile.com.br/Whatsapp/EnviarEmailChamados';
+  private readonly API_URL = 'https://api.hotmobile.com.br/Email/EnviarEmailChamados';
 
   // Injetamos o HttpService para fazer a requisição POST
   constructor(private readonly httpService: HttpService) {}
