@@ -13,7 +13,7 @@ import {
   AttachFile as AttachIcon,
   ArrowBack as ArrowBackIcon,
   WarningAmberRounded as WarningIcon,
-  Mic as MicIcon // 👈 Ícone Mic
+  Mic as MicIcon 
 } from '@mui/icons-material';
 import api from '../services/api';
 import { toast } from 'react-toastify';
@@ -36,16 +36,12 @@ export default function ClientTracking() {
   const [chamado, setChamado] = useState(null);
   const [novoComentario, setNovoComentario] = useState('');
   const [loading, setLoading] = useState(true);
-  
   const [files, setFiles] = useState([]);
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
-
   const [openWarning, setOpenWarning] = useState(false);
 
-  useEffect(() => {
-    if (id) fetchChamado();
-  }, [id]);
+  useEffect(() => { if (id) fetchChamado(); }, [id]);
 
   useEffect(() => {
     if (chatEndRef.current) {
@@ -59,7 +55,6 @@ export default function ClientTracking() {
     
     socket.on('nova_interacao', (data) => {
       if (data.interno === true) return; 
-
       if (Number(data.chamadoId) === Number(id)) {
         setChamado((prev) => {
           if (!prev) return null;
@@ -67,7 +62,6 @@ export default function ClientTracking() {
           if (jaExiste) return prev;
           return { ...prev, interacoes: [...prev.interacoes, data] };
         });
-
         if (data.autor === 'SUPORTE') {
           audioNotification.play().catch(() => {});
           toast.info("🔔 Nova mensagem do suporte!");
@@ -81,7 +75,6 @@ export default function ClientTracking() {
         if (data.status === 'FINALIZADO') toast.warn("Chamado finalizado.");
       }
     });
-
     return () => { socket.disconnect(); };
   }, [id]);
 
@@ -91,9 +84,7 @@ export default function ClientTracking() {
       setChamado(response.data);
     } catch (error) {
       toast.error('Chamado não encontrado.');
-    } finally {
-      setLoading(false); 
-    }
+    } finally { setLoading(false); }
   };
 
   const handleFileChange = (e) => {
@@ -101,41 +92,28 @@ export default function ClientTracking() {
       const selectedFiles = Array.from(e.target.files);
       const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
       const validFiles = selectedFiles.filter(file => allowedTypes.includes(file.type));
-
       if (validFiles.length < selectedFiles.length) setOpenWarning(true);
       if (validFiles.length > 0) setFiles((prev) => [...prev, ...validFiles]);
-      
       e.target.value = '';
     }
   };
 
-  const handleAudioRecorded = (audioFile) => {
-    setFiles((prev) => [...prev, audioFile]);
-  };
-
-  const removeFile = (index) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
-  };
+  const handleAudioRecorded = (audioFile) => { setFiles((prev) => [...prev, audioFile]); };
+  const removeFile = (index) => { setFiles((prev) => prev.filter((_, i) => i !== index)); };
 
   const handleSendReply = async () => {
     if (!novoComentario.trim() && files.length === 0) return;
-
     const formData = new FormData();
     formData.append('texto', novoComentario || 'Segue anexo.'); 
     formData.append('autor', 'CLIENTE');
     files.forEach((file) => formData.append('files', file));
 
     try {
-      await api.post(`${API_URL}/chamados/${id}/interacoes`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setNovoComentario('');
-      setFiles([]); 
+      await api.post(`${API_URL}/chamados/${id}/interacoes`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setNovoComentario(''); setFiles([]); 
       if (fileInputRef.current) fileInputRef.current.value = ''; 
       toast.success("Enviado!");
-    } catch (error) {
-      toast.error('Erro ao enviar.');
-    }
+    } catch (error) { toast.error('Erro ao enviar.'); }
   };
 
   if (loading) return <Box sx={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}><CircularProgress /></Box>;
@@ -145,6 +123,7 @@ export default function ClientTracking() {
 
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#f5f5f5', pt: { xs: 9, md: 12 } }}>
+      
       <AppBar position="fixed" color="default" elevation={1} sx={{ bgcolor: 'white' }}>
         <Toolbar>
            <IconButton edge="start" onClick={() => window.history.back()}><ArrowBackIcon /></IconButton>
@@ -158,23 +137,26 @@ export default function ClientTracking() {
 
       <Container maxWidth="md" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: { xs: 1, md: 3 }, overflow: 'hidden' }}>
         <Paper sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', borderRadius: 3, overflow: 'hidden', boxShadow: 3 }}>
+          
           <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2, display: 'flex', flexDirection: 'column' }}>
             
-            {/* Abertura (Descrição Original) */}
+            {/* Abertura (Descrição + Áudios Iniciais) */}
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', mb: 3 }}>
                 <Box display="flex" gap={1} mb={0.5}><Typography variant="caption" fontWeight="bold">Você</Typography><Avatar sx={{ width: 24, height: 24, bgcolor: '#1976d2' }}><PersonIcon fontSize="small" /></Avatar></Box>
                 <Paper elevation={0} sx={{ p: 2, bgcolor: '#E3F2FD', borderRadius: '12px 0 12px 12px', maxWidth: '90%' }}>
                   <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>{chamado.descricao}</Typography>
-                  
-                  {/* ✅ EXIBIR ANEXOS/ÁUDIO DO FORMULÁRIO INICIAL */}
                   {chamado.anexos && chamado.anexos.length > 0 && (
                       <Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">
                           {chamado.anexos.map(anexo => {
                               const isAudio = anexo.nomeArquivo.match(/\.(mp3|wav|webm|ogg)$/i);
                               const url = anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`;
-                              
                               if (isAudio) {
-                                  return (<Box key={anexo.id} mt={1}><audio controls src={url} style={{ height: 35, width: '100%', maxWidth: 250 }} /></Box>);
+                                  // ✅ CORREÇÃO: minWidth e width: 100% para não colapsar
+                                  return (
+                                    <Box key={anexo.id} mt={1} sx={{ width: '100%', minWidth: '260px' }}>
+                                        <audio controls src={url} style={{ width: '100%', height: 40 }} />
+                                    </Box>
+                                  );
                               }
                               return (<Chip key={anexo.id} icon={<AttachIcon />} label={anexo.nomeOriginal} component="a" href={url} target="_blank" clickable size="small" sx={{ m: 0.5 }} />);
                           })}
@@ -196,7 +178,6 @@ export default function ClientTracking() {
                   <Paper elevation={0} sx={{ p: 2, bgcolor: isCliente ? '#E3F2FD' : '#F5F5F5', borderRadius: isCliente ? '12px 0 12px 12px' : '0 12px 12px 12px', maxWidth: '90%' }}>
                     <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>{msg.texto}</Typography>
                     
-                    {/* ✅ EXIBIR ÁUDIO E ANEXOS NO CHAT */}
                     {msg.anexos && msg.anexos.length > 0 && (
                       <Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">
                         {msg.anexos.map(anexo => {
@@ -204,7 +185,12 @@ export default function ClientTracking() {
                           const url = anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`;
                           
                           if (isAudio) {
-                             return (<Box key={anexo.id} mt={1}><audio controls src={url} style={{ height: 35, width: '100%', maxWidth: 250 }} /></Box>);
+                             // ✅ CORREÇÃO: minWidth e width: 100% para não colapsar
+                             return (
+                                <Box key={anexo.id} mt={1} sx={{ width: '100%', minWidth: '260px' }}>
+                                    <audio controls src={url} style={{ width: '100%', height: 40 }} />
+                                </Box>
+                             );
                           }
                           return (<Chip key={anexo.id} icon={<AttachIcon />} label={anexo.nomeOriginal} component="a" href={url} target="_blank" clickable size="small" sx={{ m: 0.5 }} />);
                         })}
@@ -219,7 +205,6 @@ export default function ClientTracking() {
 
           <Divider />
 
-          {/* ÁREA DE RESPOSTA */}
           {chamado.status !== 'FINALIZADO' ? (
             <Box sx={{ p: 2, bgcolor: '#fafafa' }}>
               {files.length > 0 && (
@@ -231,15 +216,8 @@ export default function ClientTracking() {
               <Box display="flex" gap={1} alignItems="flex-end">
                 <input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
                 <IconButton color="primary" onClick={() => fileInputRef.current?.click()} sx={{ border: '1px solid #ccc' }}><AttachIcon /></IconButton>
-                
-                {/* ✅ BOTÃO DE GRAVAR PARA O CLIENTE */}
                 <AudioRecorder onAudioReady={handleAudioRecorded} />
-
-                <TextField 
-                  fullWidth size="small" placeholder="Responder..." variant="outlined" multiline maxRows={3} 
-                  value={novoComentario} onChange={(e) => setNovoComentario(e.target.value)} sx={{ bgcolor: 'white' }} 
-                />
-                
+                <TextField fullWidth size="small" placeholder="Responder..." variant="outlined" multiline maxRows={3} value={novoComentario} onChange={(e) => setNovoComentario(e.target.value)} sx={{ bgcolor: 'white' }} />
                 <IconButton color="primary" onClick={handleSendReply} disabled={!novoComentario.trim() && files.length === 0} sx={{ bgcolor: '#1976d2', color: 'white', '&:hover': { bgcolor: '#1565c0' } }}><SendIcon /></IconButton>
               </Box>
             </Box>
