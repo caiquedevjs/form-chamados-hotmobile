@@ -695,8 +695,28 @@ export default function KanbanBoardView() {
                     <Chip icon={<AccessTimeIcon style={{ fontSize: 14 }}/>} label={`${horasAberto}h`} size="small" sx={{ bgcolor: 'transparent', border: '1px solid #ccc', fontSize: '0.7rem' }} />
                     {item.tags?.map(t => <Chip key={t.id} label={t.nome} size="small" sx={{ bgcolor: t.cor, color: '#fff', height: 20, fontSize: 10 }} />)}
                 </Box>
-                {/* ✅ MENSAGENS NÃO LIDAS (MANTIDO NO LUGAR CERTO) */}
-                {item.mensagensNaoLidas > 0 && <Box sx={{ position: 'absolute', bottom: 12, right: 12, width: 24, height: 24, borderRadius: '50%', backgroundColor: '#2e7d32', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: 2, zIndex: 10 }}>{item.mensagensNaoLidas}</Box>}
+                {/* ✅ MENSAGENS NÃO LIDAS NO CANTO INFERIOR DIREITO DO CARD */}
+                {item.mensagensNaoLidas > 0 && (
+                    <Box sx={{ 
+                        position: 'absolute', 
+                        bottom: 12, 
+                        right: 12, 
+                        width: 24, 
+                        height: 24, 
+                        borderRadius: '50%', 
+                        backgroundColor: '#2e7d32', 
+                        color: 'white', 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 'bold', 
+                        boxShadow: 2, 
+                        zIndex: 10 
+                    }}>
+                        {item.mensagensNaoLidas}
+                    </Box>
+                )}
                 </CardContent>
             </Card>
             )}}</Draggable>))}{prov.placeholder}</Box></Paper>)}</Droppable>); })}</Box>
