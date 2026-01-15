@@ -1,19 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Resend } from 'resend';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  
-  // 👇 COLOCAR SUA API KEY AQUI (Idealmente use process.env.RESEND_API_KEY)
-  private resend = new Resend('re_haBMqw7k_P3FqaY2Z4vj7rMLrgGWXn6m2'); 
+  private readonly API_URL = 'https://api.hotmobile.com.br/Whatsapp/EnviarEmailChamados';
 
-  constructor() {}
+  // Injetamos o HttpService para fazer a requisição POST
+  constructor(private readonly httpService: HttpService) {}
 
-  // --- MÉTODOS PÚBLICOS (Mantidos iguais para não quebrar o resto do app) ---
+  // --- MÉTODOS PÚBLICOS (Mantidos IGUAIS para compatibilidade) ---
 
   async enviarAvisoInicioAtendimento(emailDestino: string, nomeEmpresa: string, linkAcompanhamento: string) {
-      const corpoHtml = `
+    const corpoHtml = `
         <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
           <h2 style="color: #1976d2;">Olá, ${nomeEmpresa}!</h2>
           <p>Temos boas notícias. Um de nossos técnicos iniciou o atendimento.</p>
@@ -27,7 +27,8 @@ export class MailService {
           <p>Atenciosamente,<br><strong>Equipe Hotmobile</strong></p>
         </div>
       `;
-      return this.enviarEmailBase(emailDestino, '🚀 Seu chamado iniciou o atendimento!', corpoHtml);
+    // Chama o novo método base
+    return this.enviarEmailBase(emailDestino, '🚀 Seu chamado iniciou o atendimento!', corpoHtml);
   }
 
   async enviarNotificacaoGenerica(emailDestino: string, assunto: string, mensagem: string, linkAcao?: string) {
@@ -53,30 +54,40 @@ export class MailService {
     return this.enviarEmailBase(emailDestino, assunto, corpoHtml);
   }
 
-  // --- MÉTODO DE ENVIO VIA API HTTP (RESEND) ---
+  // --- NOVO MÉTODO DE ENVIO VIA API HOTMOBILE ---
   private async enviarEmailBase(emailDestino: string, assunto: string, html: string) {
+    
+    // Monta o body exatamente como a API pede
+    const payload = {
+      html: html,
+      dataEnvio: new Date().toISOString(), // Data atual em formato string
+      agendada: false, // False para enviar agora
+      quemMandaNome: "Suporte Hotmobile",
+      quemMandaEmail: "caique.menezes@hotmobile.com.br", // Ajuste conforme necessário
+      assuntoEmail: assunto,
+      listEmails: [
+        {
+          email: emailDestino
+        }
+      ]
+    };
+
     try {
-      this.logger.debug(`📧 Enviando email via Resend para ${emailDestino}...`);
-      
-      const data = await this.resend.emails.send({
-        // 🚨 MODO GRATUITO: Você OBRIGATORIAMENTE tem que usar este email como remetente
-        // Depois de configurar o domínio 'hotmobile.com.br' no painel do Resend, você poderá mudar.
-        from: 'Suporte Hotmobile <onboarding@resend.dev>', 
-        
-        // No modo gratuito, você só pode enviar para o email que cadastrou a conta (caique...)
-        to: [emailDestino], 
-        subject: assunto,
-        html: html,
-      });
+      this.logger.debug(`📧 Disparando via API Hotmobile para: ${emailDestino}`);
 
-      if (data.error) {
-          this.logger.error(`❌ Resend recusou: ${data.error.message}`);
-          return;
-      }
+      // Faz o POST usando HttpService e converte o Observable para Promise
+      const response = await firstValueFrom(
+        this.httpService.post(this.API_URL, payload)
+      );
 
-      this.logger.log(`✅ Email enviado com sucesso! ID: ${data.data?.id}`);
+      this.logger.log(`✅ Email enviado com sucesso! Status: ${response.status}`);
+      return response.data;
+
     } catch (error) {
-      this.logger.error(`❌ Erro crítico no envio: ${error.message}`);
+      // Tratamento de erro detalhado para Axios
+      const status = error.response?.status;
+      const data = error.response?.data;
+      this.logger.error(`❌ Erro ao enviar email via API Hotmobile. Status: ${status}`, data);
     }
   }
 }
