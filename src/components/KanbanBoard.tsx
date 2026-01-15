@@ -17,7 +17,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SettingsIcon from '@mui/icons-material/Settings'; 
 import EditIcon from '@mui/icons-material/Edit'; 
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import MicIcon from '@mui/icons-material/Mic'; // 👈 Ícone novo para o Chip de áudio
+import MicIcon from '@mui/icons-material/Mic'; // 👈 IMPORTANTE: Ícone de Microfone
 import { useTheme } from '@mui/material/styles';
 
 import { 
@@ -53,7 +53,7 @@ import { io } from 'socket.io-client';
 import { useAuth } from '../contexts/AuthContext';
 import UserProfileModal from './UserProfileModal';
 import ToggleThemeButton from '../components/ToggleThemeButton';
-import AudioRecorder from './AudioRecorder'; // 👈 COMPONENTE NOVO
+import AudioRecorder from './AudioRecorder'; // 👈 IMPORTANTE: Componente de Gravar Audio
 
 // --- CONFIGURAÇÃO DAS COLUNAS ---
 const COLUMNS = {
@@ -137,7 +137,7 @@ export default function KanbanBoardView() {
   const [chamados, setChamados] = useState([]);
   const { logout, user } = useAuth();
   
-  // ✅ ESTADO DA EQUIPE (Para o Dropdown de Responsável)
+  // ✅ ESTADO DA EQUIPE
   const [equipe, setEquipe] = useState([]);
 
   // --- ESTADOS DE FILTRO ---
@@ -188,7 +188,7 @@ export default function KanbanBoardView() {
     carregarChamados();
     carregarMacros(); 
     carregarTags(); 
-    carregarUsuarios(); // ✅ Carrega a lista de usuários do backend
+    carregarUsuarios(); // ✅ Carrega a equipe ao iniciar
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission();
     }
@@ -203,7 +203,7 @@ export default function KanbanBoardView() {
     }
   };
 
-  // ✅ Função para popular o dropdown de responsáveis
+  // ✅ NOVA FUNÇÃO: BUSCAR USUÁRIOS DO BACKEND
   const carregarUsuarios = async () => {
     try {
         const { data } = await api.get('/auth/users');
@@ -223,18 +223,27 @@ export default function KanbanBoardView() {
     try {
       const { data } = await api.get(`${API_URL}/chamados/tags/list`);
       setTodasTags(data);
-    } catch (error) { console.error("Erro ao carregar tags"); }
+    } catch (error) {
+      console.error("Erro ao carregar tags");
+    }
   };
 
   const handleSalvarTags = async (novasTags) => {
     setChamadoSelecionado(prev => ({ ...prev, tags: novasTags }));
     setChamados(prev => prev.map(c => c.id === chamadoSelecionado.id ? { ...c, tags: novasTags } : c));
+
     const tagIds = novasTags.map(t => t.id);
-    try { await api.patch(`${API_URL}/chamados/${chamadoSelecionado.id}/tags`, { tagIds }); } 
-    catch (error) { toast.error("Erro ao salvar tags."); }
+    try {
+        await api.patch(`${API_URL}/chamados/${chamadoSelecionado.id}/tags`, { tagIds });
+    } catch (error) {
+        toast.error("Erro ao salvar tags.");
+    }
   };
 
-  const handleInitiateCriarTag = (nome) => { setNovaTagData({ nome, cor: TAG_COLORS[5] }); setModalCriarTagOpen(true); };
+  const handleInitiateCriarTag = (nome) => {
+      setNovaTagData({ nome, cor: TAG_COLORS[5] }); 
+      setModalCriarTagOpen(true);
+  };
 
   const handleConfirmarCriacaoTag = async () => {
     if (!novaTagData.nome) return;
@@ -245,7 +254,9 @@ export default function KanbanBoardView() {
         handleSalvarTags([...tagsAtuais, novaTag]);
         toast.success("Tag criada com sucesso!");
         setModalCriarTagOpen(false); 
-    } catch (error) { toast.error("Erro ao criar tag."); }
+    } catch (error) {
+        toast.error("Erro ao criar tag.");
+    }
   };
 
   const handleUpdateCorTag = async (id, novaCor) => {
@@ -263,7 +274,9 @@ export default function KanbanBoardView() {
           }
           setEditandoTagId(null); 
           toast.success("Cor atualizada!");
-      } catch (error) { toast.error("Erro ao atualizar cor."); }
+      } catch (error) {
+          toast.error("Erro ao atualizar cor.");
+      }
   };
 
   const handleDeleteTag = async (id) => {
@@ -278,12 +291,17 @@ export default function KanbanBoardView() {
               }
           }
           toast.success("Tag excluída!");
-      } catch (error) { toast.error("Erro ao excluir tag."); }
+      } catch (error) {
+          toast.error("Erro ao excluir tag.");
+      }
   };
 
   // --- MACROS ---
   const carregarMacros = async () => {
-    try { const { data } = await api.get(`${API_URL}/respostas-prontas`); setRespostasProntas(data); } catch (error) { console.error("Erro macros"); }
+    try {
+      const { data } = await api.get(`${API_URL}/respostas-prontas`);
+      setRespostasProntas(data);
+    } catch (error) { console.error("Erro macros"); }
   };
 
   const handleCriarMacro = async () => {
@@ -297,13 +315,19 @@ export default function KanbanBoardView() {
   };
 
   const handleDeleteMacro = async (id) => {
-    try { await api.delete(`${API_URL}/respostas-prontas/${id}`); carregarMacros(); toast.success("Resposta removida."); } 
-    catch (error) { toast.error("Erro ao excluir."); }
+    try {
+      await api.delete(`${API_URL}/respostas-prontas/${id}`);
+      carregarMacros();
+      toast.success("Resposta removida.");
+    } catch (error) { toast.error("Erro ao excluir."); }
   };
 
-  const handleUsarMacro = (texto) => { setNovoComentario(texto); setAnchorElMacros(null); };
+  const handleUsarMacro = (texto) => {
+    setNovoComentario(texto); 
+    setAnchorElMacros(null); 
+  };
 
-  // --- SLA / STATUS ---
+  // --- SLA / STATUS / RESPONSAVEL ---
   const handleChangePriority = async (novaPrioridade) => {
     try {
         setChamadoSelecionado(prev => ({ ...prev, prioridade: novaPrioridade }));
@@ -313,7 +337,7 @@ export default function KanbanBoardView() {
     } catch (error) { toast.error("Erro ao mudar prioridade"); }
   };
 
-  // ✅ Função para trocar responsável no Modal
+  // ✅ FUNÇÃO PARA TROCAR O RESPONSÁVEL
   const handleTrocarResponsavel = async (novoResponsavel) => {
     if (!chamadoSelecionado) return;
     const nome = novoResponsavel ? (novoResponsavel.nome || novoResponsavel) : null;
@@ -324,7 +348,10 @@ export default function KanbanBoardView() {
         setChamados(prev => prev.map(c => c.id === chamadoSelecionado.id ? { ...c, responsavel: nome, responsavelCor: cor } : c));
         await api.patch(`${API_URL}/chamados/${chamadoSelecionado.id}/responsavel`, { responsavel: nome, responsavelCor: cor });
         toast.success(`Responsável alterado para ${nome || 'Ninguém'}`);
-    } catch (error) { toast.error("Erro ao alterar responsável."); }
+    } catch (error) {
+        toast.error("Erro ao alterar responsável.");
+        console.error(error);
+    }
   };
 
   const onDragEnd = async (result) => {
@@ -406,7 +433,9 @@ export default function KanbanBoardView() {
   const handleAbrirChamado = async (item) => {
     setChamadoSelecionado(item);
     setChamados(prev => prev.map(c => c.id === item.id ? { ...c, mensagensNaoLidas: 0 } : c));
-    try { await api.get(`${API_URL}/chamados/${item.id}`); } catch (error) { console.error("Erro ao marcar lido", error); }
+    try {
+        await api.get(`${API_URL}/chamados/${item.id}`); 
+    } catch (error) { console.error("Erro ao marcar lido", error); }
   };
 
   const handleFileChange = (e) => {
@@ -433,8 +462,7 @@ export default function KanbanBoardView() {
     formData.append('texto', novoComentario || 'Segue anexo.');
     formData.append('autor', 'SUPORTE');
     if (notaInterna) formData.append('interno', 'true');
-    
-    // ✅ O nome deve ser 'files' para bater com o backend
+    // ✅ Campo deve ser 'files'
     files.forEach((file) => formData.append('files', file));
 
     try {
@@ -663,75 +691,95 @@ export default function KanbanBoardView() {
                 <Grid item xs={12} md={8} display="flex" flexDirection="column">
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>Histórico do Chamado</Typography>
                   <Box sx={{ flexGrow: 1, bgcolor: isDark ? 'rgba(0,0,0,0.2)' : '#f9f9f9', borderRadius: 2, p: 2, mb: 2, border: '1px solid', borderColor: 'divider', maxHeight: '400px', overflowY: 'auto'}}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mb: 2 }}><Box display="flex" alignItems="center" gap={1} mb={0.5}><Avatar sx={{ width: 24, height: 24, bgcolor: '#9e9e9e' }}><PersonIcon fontSize="small" /></Avatar><Typography variant="caption" fontWeight="bold">Cliente (Abertura)</Typography><Typography variant="caption" color="text.secondary">{new Date(chamadoSelecionado.createdAt).toLocaleString()}</Typography></Box><Paper elevation={0} sx={{ p: 2, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: '0 12px 12px 12px', maxWidth: '90%' }}><Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{chamadoSelecionado.descricao}</Typography></Paper></Box>
-                    {chamadoSelecionado.interacoes?.map((interacao, idx) => {
-                      const isSuporte = interacao.autor === 'SUPORTE';
-                      const isInterno = interacao.interno; 
-                      return (<Box key={idx} sx={{ display: 'flex', flexDirection: 'column', alignItems: isSuporte ? 'flex-end' : 'flex-start', mb: 2 }}><Box display="flex" alignItems="center" gap={1} mb={0.5} flexDirection={isSuporte ? 'row-reverse' : 'row'}> <Avatar sx={{ width: 24, height: 24, bgcolor: isSuporte ? '#1976d2' : '#9e9e9e' }}>{isSuporte ? <SupportAgentIcon fontSize="small" /> : <PersonIcon fontSize="small" />}</Avatar><Typography variant="caption" fontWeight="bold">{isSuporte ? 'Suporte' : 'Cliente'}</Typography><Typography variant="caption" color="text.secondary">{new Date(interacao.createdAt).toLocaleString()}</Typography></Box><Paper elevation={0} sx={{ p: 2, bgcolor: isInterno ? (isDark ? 'rgba(237, 108, 2, 0.15)' : '#FFF3E0') : (isSuporte ? (isDark ? 'rgba(25, 118, 210, 0.15)' : '#E3F2FD') : 'background.paper'), border: isInterno ? '1px dashed #FF9800' : (isSuporte ? 'none' : '1px solid'), borderColor: 'divider', borderRadius: isSuporte ? '12px 0 12px 12px' : '0 12px 12px 12px', maxWidth: '90%', color: 'text.primary'}}>{isInterno && (<Box display="flex" alignItems="center" gap={0.5} mb={0.5} color="warning.main"><LockIcon style={{ fontSize: 14 }} /><Typography variant="caption" fontWeight="bold">NOTA INTERNA (Cliente não vê)</Typography></Box>)}<Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{interacao.texto}</Typography>
-                      
-                    {/* Abertura (Descrição Original) */}
+                    
+                    {/* ✅ BLOCO "ABERTURA" COM ANEXOS (ÁUDIO) DO FORMULÁRIO */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mb: 2 }}>
-                        <Box display="flex" gap={1} mb={0.5}><Avatar sx={{ width: 24, height: 24 }}><PersonIcon fontSize="small" /></Avatar><Typography variant="caption" fontWeight="bold">Abertura</Typography></Box>
-                        <Paper sx={{ p: 2, maxWidth: '90%', borderRadius: '0 12px 12px 12px' }}>
+                        <Box display="flex" alignItems="center" gap={1} mb={0.5}><Avatar sx={{ width: 24, height: 24, bgcolor: '#9e9e9e' }}><PersonIcon fontSize="small" /></Avatar><Typography variant="caption" fontWeight="bold">Cliente (Abertura)</Typography><Typography variant="caption" color="text.secondary">{new Date(chamadoSelecionado.createdAt).toLocaleString()}</Typography></Box>
+                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: '0 12px 12px 12px', maxWidth: '90%' }}>
                             <Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{chamadoSelecionado.descricao}</Typography>
                             
-                            {/* ✅ EXIBIR ANEXOS/ÁUDIO DO FORMULÁRIO INICIAL */}
+                            {/* 🔥 Renderiza anexos da abertura (ÁUDIO/ARQUIVOS) */}
                             {chamadoSelecionado.anexos && chamadoSelecionado.anexos.length > 0 && (
                                 <Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">
                                     {chamadoSelecionado.anexos.map(anexo => {
                                         const isAudio = anexo.nomeArquivo.match(/\.(mp3|wav|webm|ogg)$/i);
-                                        const url = anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`;
+                                        const url = anexo.caminho && anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`;
                                         
                                         if (isAudio) {
                                             return (
                                                 <Box key={anexo.id} mt={1} display="flex" alignItems="center" gap={1}>
-                                                    <Avatar sx={{ width: 24, height: 24, bgcolor: '#9c27b0' }}><MicIcon style={{ fontSize: 14 }} /></Avatar>
-                                                    <audio controls src={url} style={{ height: 35, maxWidth: 250 }} />
+                                                    <Avatar sx={{ width: 24, height: 24, bgcolor: '#9c27b0' }}>
+                                                        <MicIcon style={{ fontSize: 14 }} />
+                                                    </Avatar>
+                                                    <audio controls src={url} style={{ height: 36, maxWidth: '250px' }} />
                                                 </Box>
                                             );
                                         }
                                         return (
-                                            <Chip key={anexo.id} icon={<AttachIcon />} label={anexo.nomeOriginal} component="a" href={url} target="_blank" clickable size="small" sx={{ m: 0.5 }} />
+                                            <Chip 
+                                                key={anexo.id} 
+                                                icon={<AttachIcon />} 
+                                                label={anexo.nomeOriginal.length > 20 ? anexo.nomeOriginal.substring(0, 17) + '...' : anexo.nomeOriginal} 
+                                                component="a" 
+                                                href={url} 
+                                                target="_blank" 
+                                                clickable 
+                                                size="small" 
+                                                sx={{ m: 0.5, bgcolor: 'rgba(0,0,0,0.05)' }} 
+                                            />
                                         );
                                     })}
                                 </Box>
                             )}
                         </Paper>
                     </Box>
+
+                    {chamadoSelecionado.interacoes?.map((interacao, idx) => {
+                      const isSuporte = interacao.autor === 'SUPORTE';
+                      const isInterno = interacao.interno; 
+                      return (<Box key={idx} sx={{ display: 'flex', flexDirection: 'column', alignItems: isSuporte ? 'flex-end' : 'flex-start', mb: 2 }}><Box display="flex" alignItems="center" gap={1} mb={0.5} flexDirection={isSuporte ? 'row-reverse' : 'row'}> <Avatar sx={{ width: 24, height: 24, bgcolor: isSuporte ? '#1976d2' : '#9e9e9e' }}>{isSuporte ? <SupportAgentIcon fontSize="small" /> : <PersonIcon fontSize="small" />}</Avatar><Typography variant="caption" fontWeight="bold">{isSuporte ? 'Suporte' : 'Cliente'}</Typography><Typography variant="caption" color="text.secondary">{new Date(interacao.createdAt).toLocaleString()}</Typography></Box><Paper elevation={0} sx={{ p: 2, bgcolor: isInterno ? (isDark ? 'rgba(237, 108, 2, 0.15)' : '#FFF3E0') : (isSuporte ? (isDark ? 'rgba(25, 118, 210, 0.15)' : '#E3F2FD') : 'background.paper'), border: isInterno ? '1px dashed #FF9800' : (isSuporte ? 'none' : '1px solid'), borderColor: 'divider', borderRadius: isSuporte ? '12px 0 12px 12px' : '0 12px 12px 12px', maxWidth: '90%', color: 'text.primary'}}>{isInterno && (<Box display="flex" alignItems="center" gap={0.5} mb={0.5} color="warning.main"><LockIcon style={{ fontSize: 14 }} /><Typography variant="caption" fontWeight="bold">NOTA INTERNA (Cliente não vê)</Typography></Box>)}<Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{interacao.texto}</Typography>
+                      
+                      {/* 🔥 Renderiza anexos do chat (ÁUDIO/ARQUIVOS) */}
+                      {interacao.anexos && interacao.anexos.length > 0 && (<Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">{interacao.anexos.map(anexo => {
+                          const isAudio = anexo.nomeArquivo.match(/\.(mp3|wav|webm|ogg)$/i);
+                          const url = anexo.caminho && anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`;
+                          if (isAudio) return (<Box key={anexo.id} mt={1} display="flex" alignItems="center" gap={1}><Avatar sx={{ width: 24, height: 24, bgcolor: '#9c27b0' }}><MicIcon style={{ fontSize: 14 }} /></Avatar><audio controls src={url} style={{ height: 36, maxWidth: '250px' }} /></Box>);
+                          return (<Chip key={anexo.id} icon={<AttachIcon />} label={anexo.nomeOriginal.length > 20 ? anexo.nomeOriginal.substring(0, 17) + '...' : anexo.nomeOriginal} component="a" href={url} target="_blank" clickable size="small" sx={{ m: 0.5, bgcolor: 'rgba(0,0,0,0.05)' }} />)
+                      })}</Box>)}
+                      
+                      </Paper></Box>)
+                    })}
+                  </Box>
                   <Box>
                     <Box display="flex" justifyContent="flex-end" mb={1}><FormControlLabel control={<Switch checked={notaInterna} onChange={(e) => setNotaInterna(e.target.checked)} color="warning" size="small" />} label={<Box display="flex" alignItems="center" gap={0.5}>{notaInterna && <LockIcon fontSize="small" color="warning" />}<Typography variant="caption" sx={{ color: notaInterna ? '#ed6c02' : 'gray', fontWeight: 'bold' }}>Nota Interna (Privado)</Typography></Box>} /></Box>
                     {files.length > 0 && (<Box mb={1} display="flex" gap={1} flexWrap="wrap">{files.map((file, i) => (<Chip key={i} label={file.name} onDelete={() => removeFile(i)} size="small" icon={file.type.includes('audio') ? <MicIcon/> : <AttachIcon />} />))}</Box>)}
                     
-                    <Box display="flex" gap={1} alignItems="flex-end">
-                        <input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
-                        <IconButton onClick={() => fileInputRef.current?.click()} sx={{ border: '1px solid #ccc', borderRadius: 1 }}><AttachIcon /></IconButton>
-                        <IconButton onClick={(e) => setAnchorElMacros(e.currentTarget)} sx={{ border: '1px solid #ff9800', color: '#ff9800', borderRadius: 1 }} title="Respostas Prontas"><BoltIcon /></IconButton>
-                        
-                        {/* ✅ BOTÃO DE GRAVAR ÁUDIO */}
-                        <AudioRecorder onAudioReady={handleAudioRecorded} />
+                    <Box display="flex" gap={1} alignItems="flex-end"><input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} /><IconButton onClick={() => fileInputRef.current?.click()} sx={{ border: '1px solid #ccc', borderRadius: 1 }}><AttachIcon /></IconButton><IconButton onClick={(e) => setAnchorElMacros(e.currentTarget)} sx={{ border: '1px solid #ff9800', color: '#ff9800', borderRadius: 1 }} title="Respostas Prontas"><BoltIcon /></IconButton>
+                    
+                    {/* ✅ BOTÃO GRAVAR ÁUDIO */}
+                    <AudioRecorder onAudioReady={handleAudioRecorded} />
 
-                        <TextField 
-                            fullWidth 
-                            size="small" 
-                            placeholder={notaInterna ? "Escreva uma nota interna..." : "Responder ao cliente..."} 
-                            value={novoComentario} 
-                            onChange={(e) => setNovoComentario(e.target.value)} 
-                            multiline 
-                            maxRows={3} 
-                            sx={{ 
-                                '& .MuiOutlinedInput-root': {
-                                    backgroundColor: notaInterna 
-                                        ? (isDark ? 'rgba(237, 108, 2, 0.15)' : '#FFF3E0') 
-                                        : 'background.paper',
-                                    color: 'text.primary',
-                                },
-                                '& .MuiInputBase-input': {
-                                    color: 'text.primary',
-                                }
-                            }} 
-                        />
-                        <Button variant="contained" onClick={handleAddInteracao} disabled={enviandoComentario || (!novoComentario.trim() && files.length === 0)} color={notaInterna ? "warning" : "primary"}><SendIcon /></Button>
-                    </Box>
+                    <TextField 
+                        fullWidth 
+                        size="small" 
+                        placeholder={notaInterna ? "Escreva uma nota interna..." : "Responder ao cliente..."} 
+                        value={novoComentario} 
+                        onChange={(e) => setNovoComentario(e.target.value)} 
+                        multiline 
+                        maxRows={3} 
+                        sx={{ 
+                            '& .MuiOutlinedInput-root': {
+                                backgroundColor: notaInterna 
+                                    ? (isDark ? 'rgba(237, 108, 2, 0.15)' : '#FFF3E0') 
+                                    : 'background.paper',
+                                color: 'text.primary',
+                            },
+                            '& .MuiInputBase-input': {
+                                color: 'text.primary',
+                            }
+                        }} 
+                    />
+                    <Button variant="contained" onClick={handleAddInteracao} disabled={enviandoComentario || (!novoComentario.trim() && files.length === 0)} color={notaInterna ? "warning" : "primary"}><SendIcon /></Button></Box>
                   </Box>
                 </Grid>
 

@@ -18,8 +18,7 @@ import {
 import api from '../services/api';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
-import AudioRecorder from './AudioRecorder'; // 👈 Importe o AudioRecorder
-
+import AudioRecorder from './AudioRecorder';
 const API_URL = 'https://form-chamados-hotmobile-production.up.railway.app';
 
 const STATUS_COLORS = {
