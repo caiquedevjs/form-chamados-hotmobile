@@ -16,7 +16,6 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import MultipleSelectCheckmarks from './priority.checkbox.component';
 import LoadingButtonsTransition from './button.send.component';
 import InputFileUpload from './button.file.upload.component';
-import Footer from './Footer';
 import AudioRecorder from './AudioRecorder';
 
 export default function MultilineTextFields() {
@@ -151,7 +150,7 @@ export default function MultilineTextFields() {
           </Grid>
         </Box>
       </Box>
-      <Footer />
+      
 
       <Dialog open={openWarning} onClose={() => setOpenWarning(false)}>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#ed6c02' }}><WarningAmberRoundedIcon /> Tipo Inválido</DialogTitle>
