@@ -393,4 +393,14 @@ async getDashboardMetrics(startStr?: string, endStr?: string) {
       data: { cor: data.cor }
     });
   }
+
+  async updateResponsavel(id: number, responsavel: string, responsavelCor: string) {
+  return this.prisma.chamado.update({
+    where: { id },
+    data: { 
+      responsavel, 
+      responsavelCor 
+    },
+  });
+}
 }

@@ -110,4 +110,12 @@ export class ChamadosController {
   ) {
     return this.chamadosService.updateTag(id, body);
   }
+
+  @Patch(':id/responsavel')
+async updateResponsavel(
+  @Param('id') id: string, 
+  @Body() body: { responsavel: string, responsavelCor: string }
+) {
+  return this.chamadosService.updateResponsavel(Number(id), body.responsavel, body.responsavelCor);
+}
 }

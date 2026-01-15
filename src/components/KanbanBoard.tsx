@@ -97,6 +97,15 @@ const TAG_COLORS = [
     '#FF5722', '#795548', '#9E9E9E', '#607D8B'
 ];
 
+// 👥 LISTA SIMULADA DE EQUIPE (Você pode buscar do banco depois)
+const EQUIPE_PADRAO = [
+    { nome: 'Caique', cor: '#1976d2' },
+    { nome: 'Ana', cor: '#e91e63' },
+    { nome: 'Carlos', cor: '#2e7d32' },
+    { nome: 'Suporte', cor: '#ff9800' },
+    { nome: 'Financeiro', cor: '#9c27b0' }
+];
+
 const FLOW_ORDER = ['NOVO', 'EM_ATENDIMENTO', 'FINALIZADO'];
 
 const API_URL = 'https://form-chamados-hotmobile-production.up.railway.app';
@@ -315,6 +324,32 @@ export default function KanbanBoardView() {
         });
         toast.success(`Prioridade alterada para ${PRIORITY_CONFIG[novaPrioridade].label}`);
     } catch (error) { toast.error("Erro ao mudar prioridade"); }
+  };
+
+  // ✅ NOVA FUNÇÃO: TROCAR RESPONSÁVEL
+  const handleTrocarResponsavel = async (novoResponsavel) => {
+    if (!chamadoSelecionado) return;
+
+    // Se novoResponsavel for null (limpar), definimos valores padrão
+    const nome = novoResponsavel ? (novoResponsavel.nome || novoResponsavel) : null;
+    const cor = novoResponsavel ? (novoResponsavel.cor || '#999') : null;
+
+    try {
+        // 1. Atualiza visualmente primeiro (Otimista)
+        setChamadoSelecionado(prev => ({ ...prev, responsavel: nome, responsavelCor: cor }));
+        setChamados(prev => prev.map(c => c.id === chamadoSelecionado.id ? { ...c, responsavel: nome, responsavelCor: cor } : c));
+
+        // 2. Chama API
+        await api.patch(`${API_URL}/chamados/${chamadoSelecionado.id}/responsavel`, {
+            responsavel: nome,
+            responsavelCor: cor
+        });
+
+        toast.success(`Responsável alterado para ${nome || 'Ninguém'}`);
+    } catch (error) {
+        toast.error("Erro ao alterar responsável. Verifique se o backend tem a rota PATCH :id/responsavel");
+        console.error(error);
+    }
   };
 
   const onDragEnd = async (result) => {
@@ -629,7 +664,6 @@ export default function KanbanBoardView() {
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
               <Box display="flex" alignItems="center" gap={2}>
                 <Typography variant="h6">Chamado #{chamadoSelecionado.id}</Typography>
-                {/* ✅ CORREÇÃO 1: Chip com !important para ficar preto no Dark Mode */}
                 <Chip 
                   label={COLUMNS[chamadoSelecionado.status]?.title || chamadoSelecionado.status} 
                   sx={{ 
@@ -660,8 +694,6 @@ export default function KanbanBoardView() {
                     <Box display="flex" justifyContent="flex-end" mb={1}><FormControlLabel control={<Switch checked={notaInterna} onChange={(e) => setNotaInterna(e.target.checked)} color="warning" size="small" />} label={<Box display="flex" alignItems="center" gap={0.5}>{notaInterna && <LockIcon fontSize="small" color="warning" />}<Typography variant="caption" sx={{ color: notaInterna ? '#ed6c02' : 'gray', fontWeight: 'bold' }}>Nota Interna (Privado)</Typography></Box>} /></Box>
                     {files.length > 0 && (<Box mb={1} display="flex" gap={1} flexWrap="wrap">{files.map((file, i) => (<Chip key={i} label={file.name} onDelete={() => removeFile(i)} size="small" icon={<AttachIcon />} />))}</Box>)}
                     <Box display="flex" gap={1} alignItems="flex-end"><input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} /><IconButton onClick={() => fileInputRef.current?.click()} sx={{ border: '1px solid #ccc', borderRadius: 1 }}><AttachIcon /></IconButton><IconButton onClick={(e) => setAnchorElMacros(e.currentTarget)} sx={{ border: '1px solid #ff9800', color: '#ff9800', borderRadius: 1 }} title="Respostas Prontas"><BoltIcon /></IconButton>
-                    
-                    {/* ✅ CORREÇÃO 2: TextField com background.paper para ficar escuro no Dark Mode */}
                     <TextField 
                         fullWidth 
                         size="small" 
@@ -682,12 +714,63 @@ export default function KanbanBoardView() {
                             }
                         }} 
                     />
-                    
                     <Button variant="contained" onClick={handleAddInteracao} disabled={enviandoComentario || (!novoComentario.trim() && files.length === 0)} color={notaInterna ? "warning" : "primary"}><SendIcon /></Button></Box>
                   </Box>
                 </Grid>
+
+                {/* --- COLUNA LATERAL (DIREITA) --- */}
                 <Grid item xs={12} md={4}>
                     <Box mb={3}><Typography variant="subtitle2" color="text.secondary">Empresa</Typography><Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gap={1}><BusinessIcon color="primary" fontSize="small"/> {chamadoSelecionado.nomeEmpresa}</Typography></Box>
+                    
+                    {/* ✅ NOVO: Bloco de Atribuição (Responsável) */}
+                    <Box mb={3}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                            Atribuído a
+                        </Typography>
+                        <Autocomplete
+                            options={EQUIPE_PADRAO}
+                            getOptionLabel={(option) => option.nome || option}
+                            value={EQUIPE_PADRAO.find(u => u.nome === chamadoSelecionado.responsavel) || chamadoSelecionado.responsavel || null}
+                            onChange={(event, newValue) => handleTrocarResponsavel(newValue)}
+                            isOptionEqualToValue={(option, value) => option.nome === (value.nome || value)}
+                            renderOption={(props, option) => (
+                                <li {...props}>
+                                    <Box display="flex" alignItems="center" gap={1}>
+                                        <Avatar sx={{ width: 24, height: 24, bgcolor: option.cor, fontSize: 12 }}>
+                                            {option.nome?.charAt(0)}
+                                        </Avatar>
+                                        <Typography variant="body2">{option.nome}</Typography>
+                                    </Box>
+                                </li>
+                            )}
+                            renderInput={(params) => (
+                                <TextField 
+                                    {...params} 
+                                    variant="outlined" 
+                                    size="small" 
+                                    placeholder="Selecionar responsável..."
+                                    InputProps={{
+                                        ...params.InputProps,
+                                        startAdornment: chamadoSelecionado.responsavel && (
+                                            <Avatar 
+                                                sx={{ 
+                                                    width: 24, 
+                                                    height: 24, 
+                                                    mr: 1, 
+                                                    ml: 0.5,
+                                                    bgcolor: chamadoSelecionado.responsavelCor || '#999',
+                                                    fontSize: 12
+                                                }}
+                                            >
+                                                {chamadoSelecionado.responsavel.charAt(0)}
+                                            </Avatar>
+                                        )
+                                    }}
+                                />
+                            )}
+                        />
+                    </Box>
+
                     <Box mb={3}><Typography variant="subtitle2" color="text.secondary" gutterBottom>Nível de Urgência (SLA)</Typography><FormControl fullWidth size="small"><Select value={chamadoSelecionado.prioridade || 'BAIXA'} onChange={(e) => handleChangePriority(e.target.value)} sx={{ color: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color, fontWeight: 'bold', '& .MuiOutlinedInput-notchedOutline': { borderColor: PRIORITY_CONFIG[chamadoSelecionado.prioridade || 'BAIXA'].color } }}>{Object.entries(PRIORITY_CONFIG).map(([key, config]) => (<MenuItem key={key} value={key} sx={{ color: config.color, fontWeight: 'bold' }}><Box display="flex" alignItems="center" gap={1}>{config.icon} {config.label}</Box></MenuItem>))}</Select></FormControl></Box>
                     <Box mb={3}><Box display="flex" justifyContent="space-between" alignItems="center"><Typography variant="subtitle2" color="text.secondary" gutterBottom>Etiquetas (Tags)</Typography><IconButton size="small" onClick={() => setModalGerenciarTagsOpen(true)} title="Gerenciar Etiquetas"><SettingsIcon fontSize="small" /></IconButton></Box><Autocomplete multiple options={todasTags} getOptionLabel={(option) => option.nome} value={chamadoSelecionado.tags || []} onChange={(event, newValue) => { handleSalvarTags(newValue); }} renderInput={(params) => (<TextField {...params} variant="outlined" size="small" placeholder="Adicionar tags..." onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value) { const valor = e.target.value; const existe = todasTags.find(t => t.nome.toLowerCase() === valor.toLowerCase()); if (!existe) { e.preventDefault(); handleInitiateCriarTag(valor); } } }} />)} renderTags={(value, getTagProps) => value.map((option, index) => (<Chip label={option.nome} size="small" {...getTagProps({ index })} sx={{ bgcolor: option.cor, color: '#fff', fontWeight: 'bold' }} />))} noOptionsText="Digite e dê Enter para criar..." /></Box>
                     <Divider sx={{ my: 2 }} />
