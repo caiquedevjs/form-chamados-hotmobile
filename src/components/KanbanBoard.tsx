@@ -671,7 +671,7 @@ export default function KanbanBoardView() {
             const estourado = horasAberto >= 24 && item.status !== 'FINALIZADO';
             
             return (
-            <Card ref={p.innerRef} {...p.draggableProps} {...p.dragHandleProps} onClick={() => handleAbrirChamado(item)} sx={{ mb: 2, cursor: 'pointer', borderLeft: `5px solid ${configVisual.color}`, boxShadow: estourado ? '0 0 5px rgba(211, 47, 47, 0.5)' : 1 }}>
+            <Card ref={p.innerRef} {...p.draggableProps} {...p.dragHandleProps} onClick={() => handleAbrirChamado(item)} sx={{ mb: 2, cursor: 'pointer', borderLeft: `5px solid ${configVisual.color}`, boxShadow: estourado ? '0 0 5px rgba(211, 47, 47, 0.5)' : 1 , position: 'relative'}}>
                 <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                 <Box display="flex" justifyContent="space-between" mb={1}>
                     <Typography variant="caption">#{item.id}</Typography>
