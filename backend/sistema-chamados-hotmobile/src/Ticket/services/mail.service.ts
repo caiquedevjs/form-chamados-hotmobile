@@ -7,13 +7,10 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly API_URL = 'https://api.hotmobile.com.br/Email/EnviarEmailChamados';
 
-  // 👇 CREDENCIAIS (Idealmente, coloque isso no .env depois)
-  private readonly API_USER = 'caique.menezes@hotmobile.com.br';
-  private readonly API_PASS = 'OCai123@';
-
+  // Injetamos o HttpService para fazer a requisição POST
   constructor(private readonly httpService: HttpService) {}
 
-  // --- MÉTODOS PÚBLICOS (Mantidos) ---
+  // --- MÉTODOS PÚBLICOS (Mantidos IGUAIS para compatibilidade) ---
 
   async enviarAvisoInicioAtendimento(emailDestino: string, nomeEmpresa: string, linkAcompanhamento: string) {
     const corpoHtml = `
@@ -30,6 +27,7 @@ export class MailService {
           <p>Atenciosamente,<br><strong>Equipe Hotmobile</strong></p>
         </div>
       `;
+    // Chama o novo método base
     return this.enviarEmailBase(emailDestino, '🚀 Seu chamado iniciou o atendimento!', corpoHtml);
   }
 
@@ -56,55 +54,41 @@ export class MailService {
     return this.enviarEmailBase(emailDestino, assunto, corpoHtml);
   }
 
-  // --- MÉTODO PRIVADO DE ENVIO ---
+  // --- NOVO MÉTODO DE ENVIO VIA API HOTMOBILE ---
   private async enviarEmailBase(emailDestino: string, assunto: string, html: string) {
     
+    // Monta o body exatamente como a API pede
     const payload = {
       html: html,
-      dataEnvio: new Date().toISOString(),
-      agendada: false,
+      dataEnvio: new Date().toISOString(), // Data atual em formato string
+      agendada: false, // False para enviar agora
       quemMandaNome: "Suporte Hotmobile",
-      quemMandaEmail: "suporte@hotmobile.com.br",
+      quemMandaEmail: "caique.menezes@hotmobile.com.br", // Ajuste conforme necessário
       assuntoEmail: assunto,
       listEmails: [
-        { email: emailDestino }
+        {
+          email: emailDestino
+        }
       ]
     };
 
-    // 👇 A MÁGICA ACONTECE AQUI
-    // Transforma "usuario:senha" em Base64 para Autenticação Básica
-    const tokenBase64 = Buffer.from(`${this.API_USER}:${this.API_PASS}`).toString('base64');
-
-    const config = {
-      headers: {
-        'Authorization': `Basic ${tokenBase64}`, // Envia cabeçalho Basic Auth
-        'Content-Type': 'application/json'
-      }
-    };
-
     try {
-      this.logger.debug(`📧 Tentando autenticar como: ${this.API_USER}`);
-      this.logger.debug(`📧 Disparando para: ${emailDestino}`);
+      this.logger.debug(`📧 Disparando via API Hotmobile para: ${emailDestino}`);
 
+      // Faz o POST usando HttpService e converte o Observable para Promise
       const response = await firstValueFrom(
-        this.httpService.post(this.API_URL, payload, config)
+        this.httpService.post(this.API_URL, payload)
       );
-
-      // Loga a resposta para vermos se deu certo ("erro": false)
+// 👇 ADICIONE ESTE LOG PARA VER O QUE A API DISSE
       this.logger.warn(`🔍 RESPOSTA DA API: ${JSON.stringify(response.data)}`);
-
-      if (response.data && response.data.erro) {
-         this.logger.error(`❌ A API recusou: ${response.data.mensagemRetorno}`);
-      } else {
-         this.logger.log(`✅ Email enviado e aceito pela Hotmobile!`);
-      }
-
+      this.logger.log(`✅ Email enviado com sucesso! Status: ${response.status}`);
       return response.data;
 
     } catch (error) {
+      // Tratamento de erro detalhado para Axios
       const status = error.response?.status;
       const data = error.response?.data;
-      this.logger.error(`❌ Erro HTTP ${status}. Detalhes: ${JSON.stringify(data)}`);
+      this.logger.error(`❌ Erro ao enviar email via API Hotmobile. Status: ${status}`, data);
     }
   }
 }
