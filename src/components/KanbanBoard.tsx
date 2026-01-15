@@ -5,7 +5,7 @@ import {
   TextField, InputAdornment, Dialog, DialogTitle, DialogContent, 
   DialogActions, Button, Grid, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar,
   FormControlLabel, Switch, Select, MenuItem, Checkbox, ListItemText as MuiListItemText,
-  InputLabel, FormControl, Stack, Popover, Autocomplete 
+  InputLabel, FormControl, Stack, Popover, Autocomplete, Tooltip
 } from '@mui/material';
 import { ListAlt } from '@mui/icons-material';
 import LockIcon from '@mui/icons-material/Lock'; 
@@ -18,8 +18,8 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import EditIcon from '@mui/icons-material/Edit'; 
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import MicIcon from '@mui/icons-material/Mic'; 
-import AccessTimeIcon from '@mui/icons-material/AccessTime'; // 🟢 Ícone Tempo
-import WarningIcon from '@mui/icons-material/Warning'; // 🟢 Ícone Alerta SLA
+import AccessTimeIcon from '@mui/icons-material/AccessTime'; // 🟢 Novo Import
+import WarningIcon from '@mui/icons-material/Warning';       // 🟢 Novo Import
 import { useTheme } from '@mui/material/styles';
 
 import { 
@@ -64,7 +64,7 @@ const COLUMNS = {
   FINALIZADO: { id: 'FINALIZADO', title: 'Finalizados', icon: <TaskAltIcon />, bg: '#E8F5E9', border: '#4CAF50', iconColor: '#2e7d32' }
 };
 
-// --- SLA / PRIORIDADE ---
+// --- CONFIGURAÇÃO DE SLA / PRIORIDADE ---
 const PRIORITY_CONFIG = {
   BAIXA:   { label: 'Baixa',   color: '#4CAF50', icon: <LowPriorityIcon fontSize="small"/> }, 
   MEDIA:   { label: 'Média',   color: '#2196F3', icon: <LowPriorityIcon fontSize="small"/> }, 
@@ -76,18 +76,27 @@ const TAG_COLORS = ['#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#219
 const FLOW_ORDER = ['NOVO', 'EM_ATENDIMENTO', 'FINALIZADO'];
 const API_URL = 'https://form-chamados-hotmobile-production.up.railway.app';
 
+// LINKS ÚTEIS
 const SUPORTE_LINKS = [
   { title: 'Central de Ajuda Hotmobile', url: 'https://ajuda.hotmobile.com.br/', icon: <HelpIcon />, color: '#1976d2' },
+  { title: 'Central de Ajuda Atendchat', url: 'https://ajudachat.hotmobile.com.br/', icon: <HelpIcon />, color: '#1976d2' },
+  { title: 'Central de Ajuda Hotmenu', url: 'https://ajuda.hotmenu.com.br/', icon: <HelpIcon />, color: '#1976d2' },
+  { title: 'Formulario de Chamados suporte', url: 'https://form-chamados-hotmobile.vercel.app/', icon: <ListAlt />, color:  '#9c27b0'}, 
+  { title: 'Formulario de montagem  de bot', url: 'https://hotmobile.com.br/hot360/monte-seu-bot/', icon: <ListAlt />, color:  '#9c27b0'}, 
+  { title: 'Formulario de montagem  de IA', url: 'https://hotmobile.com.br/hot360/monte-sua-ia/', icon: <ListAlt />, color:  '#9c27b0'}, 
+  { title: 'Documentação Hot Api', url: 'https://api.hotmobile.com.br/index.html', icon: <BookIcon />, color: '#e65100' },
+  { title: 'Atualizações Atendchat', url: 'https://changelog.atendchat.app.br/', icon: <BookIcon />, color: '#e65100' },
   { title: 'Painel Hot', url: 'https://painel.hotmobile.com.br/a/', icon: <DnsIcon />, color: '#2e7d32' },
+  { title: 'Site Institucional', url: 'https://hotmobile.com.br', icon: <PublicIcon />, color: '#555' }
 ];
 
 function stringToColor(string) {
-    if (!string) return '#999';
-    let hash = 0;
-    for (let i = 0; i < string.length; i++) { hash = string.charCodeAt(i) + ((hash << 5) - hash); }
-    let color = '#';
-    for (let i = 0; i < 3; i++) { const value = (hash >> (i * 8)) & 0xff; color += `00${value.toString(16)}`.slice(-2); }
-    return color;
+  if (!string) return '#999';
+  let hash = 0;
+  for (let i = 0; i < string.length; i++) { hash = string.charCodeAt(i) + ((hash << 5) - hash); }
+  let color = '#';
+  for (let i = 0; i < 3; i++) { const value = (hash >> (i * 8)) & 0xff; color += `00${value.toString(16)}`.slice(-2); }
+  return color;
 }
 
 // 🟢 FUNÇÃO AUXILIAR: CALCULAR HORAS ABERTO
@@ -104,6 +113,7 @@ export default function KanbanBoardView() {
   const navigate = useNavigate(); 
   const [chamados, setChamados] = useState([]);
   const { logout, user } = useAuth();
+  
   const [equipe, setEquipe] = useState([]); 
 
   // Estados Filtro e UI
@@ -173,7 +183,6 @@ export default function KanbanBoardView() {
   const carregarTags = async () => { try { const { data } = await api.get(`${API_URL}/chamados/tags/list`); setTodasTags(data); } catch (error) { console.error("Erro tags"); } };
   const carregarMacros = async () => { try { const { data } = await api.get(`${API_URL}/respostas-prontas`); setRespostasProntas(data); } catch (error) { console.error("Erro macros"); } };
 
-  // --- ARQUIVOS E ÁUDIO ---
   const handleFileChange = (e) => { if (e.target.files) setFiles(prev => [...prev, ...Array.from(e.target.files)]); };
   const handleAudioRecorded = (audioFile) => { setFiles(prev => [...prev, audioFile]); };
   const removeFile = (index) => { setFiles(prev => prev.filter((_, i) => i !== index)); };
@@ -181,61 +190,19 @@ export default function KanbanBoardView() {
   const handleAddInteracao = async () => {
     if (!chamadoSelecionado || (!novoComentario.trim() && files.length === 0)) return;
     setEnviandoComentario(true);
-    
     const formData = new FormData();
     formData.append('texto', novoComentario || 'Segue anexo.');
     formData.append('autor', 'SUPORTE');
     if (notaInterna) formData.append('interno', 'true');
     files.forEach((file) => formData.append('files', file));
-
-    try {
-      await api.post(`${API_URL}/chamados/${chamadoSelecionado.id}/interacoes`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setNovoComentario(''); setFiles([]); setNotaInterna(false); 
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      toast.success(notaInterna ? 'Nota interna adicionada!' : 'Mensagem enviada!');
-    } catch (error) { toast.error('Erro ao enviar mensagem.'); } finally { setEnviandoComentario(false); }
+    try { await api.post(`${API_URL}/chamados/${chamadoSelecionado.id}/interacoes`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }); setNovoComentario(''); setFiles([]); setNotaInterna(false); if (fileInputRef.current) fileInputRef.current.value = ''; toast.success(notaInterna ? 'Nota interna adicionada!' : 'Mensagem enviada!'); } catch (error) { toast.error('Erro ao enviar mensagem.'); } finally { setEnviandoComentario(false); }
   };
 
-  // --- KANBAN & STATUS ---
-  const onDragEnd = async (result) => {
-    const { destination, source, draggableId } = result;
-    if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) return;
-    atualizarStatus(parseInt(draggableId), destination.droppableId);
-  };
-
-  const atualizarStatus = async (id, novoStatus) => {
-    const dados = { status: novoStatus };
-    if (novoStatus === 'EM_ATENDIMENTO' && user?.nome) {
-        dados.responsavel = user.nome;
-        dados.responsavelCor = user.cor || '#1976d2';
-    }
-    setChamados(prev => prev.map(c => c.id === id ? { ...c, ...dados } : c));
-    if (chamadoSelecionado?.id === id) setChamadoSelecionado(prev => ({ ...prev, ...dados }));
-    try { await api.patch(`${API_URL}/chamados/${id}/status`, dados); toast.success('Status atualizado!'); } catch { toast.error('Erro ao atualizar.'); }
-  };
-
-  const handleTrocarResponsavel = async (novo) => {
-    if (!chamadoSelecionado) return;
-    const nome = novo?.nome || novo; 
-    const cor = novo?.cor || '#999';
-    setChamadoSelecionado(prev => ({ ...prev, responsavel: nome, responsavelCor: cor }));
-    setChamados(prev => prev.map(c => c.id === chamadoSelecionado.id ? { ...c, responsavel: nome, responsavelCor: cor } : c));
-    try { await api.patch(`${API_URL}/chamados/${chamadoSelecionado.id}/responsavel`, { responsavel: nome, responsavelCor: cor }); toast.success(`Responsável: ${nome || 'Ninguém'}`); } catch { toast.error("Erro ao alterar."); }
-  };
-
-  const handleChangePriority = async (val) => {
-      setChamadoSelecionado(prev => ({ ...prev, prioridade: val }));
-      setChamados(prev => prev.map(c => c.id === chamadoSelecionado.id ? { ...c, prioridade: val } : c));
-      try { await api.patch(`${API_URL}/chamados/${chamadoSelecionado.id}/status`, { prioridade: val }); toast.success(`Prioridade alterada`); } catch {}
-  };
-
-  const handleSalvarTags = async (novasTags) => {
-    setChamadoSelecionado(prev => ({ ...prev, tags: novasTags }));
-    setChamados(prev => prev.map(c => c.id === chamadoSelecionado.id ? { ...c, tags: novasTags } : c));
-    try { await api.patch(`${API_URL}/chamados/${chamadoSelecionado.id}/tags`, { tagIds: novasTags.map(t=>t.id) }); } catch { toast.error("Erro ao salvar tags."); }
-  };
-
-  // Tags & Macros Helpers
+  const onDragEnd = async (result) => { const { destination, source, draggableId } = result; if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) return; atualizarStatus(parseInt(draggableId), destination.droppableId); };
+  const atualizarStatus = async (id, novoStatus) => { const dados = { status: novoStatus }; if (novoStatus === 'EM_ATENDIMENTO' && user?.nome) { dados.responsavel = user.nome; dados.responsavelCor = user.cor || '#1976d2'; } setChamados(prev => prev.map(c => c.id === id ? { ...c, ...dados } : c)); if (chamadoSelecionado?.id === id) setChamadoSelecionado(prev => ({ ...prev, ...dados })); try { await api.patch(`${API_URL}/chamados/${id}/status`, dados); toast.success('Status atualizado!'); } catch { toast.error('Erro ao atualizar.'); } };
+  const handleTrocarResponsavel = async (novo) => { if (!chamadoSelecionado) return; const nome = novo?.nome || novo; const cor = novo?.cor || '#999'; setChamadoSelecionado(prev => ({ ...prev, responsavel: nome, responsavelCor: cor })); setChamados(prev => prev.map(c => c.id === chamadoSelecionado.id ? { ...c, responsavel: nome, responsavelCor: cor } : c)); try { await api.patch(`${API_URL}/chamados/${chamadoSelecionado.id}/responsavel`, { responsavel: nome, responsavelCor: cor }); toast.success(`Responsável: ${nome || 'Ninguém'}`); } catch { toast.error("Erro ao alterar."); } };
+  const handleChangePriority = async (val) => { setChamadoSelecionado(prev => ({ ...prev, prioridade: val })); setChamados(prev => prev.map(c => c.id === chamadoSelecionado.id ? { ...c, prioridade: val } : c)); try { await api.patch(`${API_URL}/chamados/${chamadoSelecionado.id}/status`, { prioridade: val }); toast.success(`Prioridade alterada`); } catch {} };
+  const handleSalvarTags = async (novasTags) => { setChamadoSelecionado(prev => ({ ...prev, tags: novasTags })); setChamados(prev => prev.map(c => c.id === chamadoSelecionado.id ? { ...c, tags: novasTags } : c)); try { await api.patch(`${API_URL}/chamados/${chamadoSelecionado.id}/tags`, { tagIds: novasTags.map(t=>t.id) }); } catch { toast.error("Erro ao salvar tags."); } };
   const handleInitiateCriarTag = (nome) => { setNovaTagData({ nome, cor: TAG_COLORS[5] }); setModalCriarTagOpen(true); };
   const handleConfirmarCriacaoTag = async () => { if (!novaTagData.nome) return; try { const { data: novaTag } = await api.post(`${API_URL}/chamados/tags`, novaTagData); setTodasTags(prev => [...prev, novaTag]); const tagsAtuais = chamadoSelecionado.tags || []; handleSalvarTags([...tagsAtuais, novaTag]); toast.success("Tag criada!"); setModalCriarTagOpen(false); } catch { toast.error("Erro ao criar."); } };
   const handleUpdateCorTag = async (id, novaCor) => { try { await api.patch(`${API_URL}/chamados/tags/${id}`, { cor: novaCor }); setTodasTags(prev => prev.map(t => t.id === id ? { ...t, cor: novaCor } : t)); setChamados(prev => prev.map(c => { if (c.tags?.some(t => t.id === id)) return { ...c, tags: c.tags.map(t => t.id === id ? { ...t, cor: novaCor } : t) }; return c; })); if (chamadoSelecionado?.tags) setChamadoSelecionado(prev => ({ ...prev, tags: prev.tags.map(t => t.id === id ? { ...t, cor: novaCor } : t) })); setEditandoTagId(null); toast.success("Cor atualizada!"); } catch { toast.error("Erro ao atualizar cor."); } };
@@ -243,13 +210,12 @@ export default function KanbanBoardView() {
   const handleCriarMacro = async () => { if (!novaMacro.titulo || !novaMacro.texto) return toast.warning("Preencha tudo!"); try { await api.post(`${API_URL}/respostas-prontas`, novaMacro); toast.success("Salvo!"); setNovaMacro({ titulo: '', texto: '' }); carregarMacros(); } catch { toast.error("Erro ao salvar."); } };
   const handleDeleteMacro = async (id) => { try { await api.delete(`${API_URL}/respostas-prontas/${id}`); carregarMacros(); toast.success("Removido."); } catch { toast.error("Erro ao excluir."); } };
   const handleUsarMacro = (texto) => { setNovoComentario(texto); setAnchorElMacros(null); };
-
-  // Handlers Gerais
   const handleNextStep = () => { if (!chamadoSelecionado) return; const idx = FLOW_ORDER.indexOf(chamadoSelecionado.status); if (idx < FLOW_ORDER.length - 1) atualizarStatus(chamadoSelecionado.id, FLOW_ORDER[idx + 1]); };
   const handleDeleteChamado = async () => { if (!chamadoSelecionado) return; try { await api.delete(`${API_URL}/chamados/${chamadoSelecionado.id}`); setChamados(prev => prev.filter(c => c.id !== chamadoSelecionado.id)); toast.success('Excluído.'); setConfirmDeleteOpen(false); setChamadoSelecionado(null); } catch { toast.error('Erro ao excluir.'); } };
   const handleAbrirChamado = async (item) => { setChamadoSelecionado(item); setChamados(prev => prev.map(c => c.id === item.id ? { ...c, mensagensNaoLidas: 0 } : c)); try { await api.get(`${API_URL}/chamados/${item.id}`); } catch { console.error("Erro ao marcar lido"); } };
 
-  // Socket
+  const chamadosFiltrados = chamados.filter(c => { const t = busca.toLowerCase(); const match = c.nomeEmpresa.toLowerCase().includes(t) || c.id.toString().includes(t); return match && filtroStatus.includes(c.status) && (apenasNaoLidos ? c.mensagensNaoLidas > 0 : true) && (filtroResponsavel.length === 0 || filtroResponsavel.includes(c.responsavel)) && (filtroTags.length === 0 || c.tags?.some(tag => filtroTags.includes(tag.nome))); });
+
   useEffect(() => {
     const socket = io(API_URL, { transports: ['websocket', 'polling'], reconnection: true });
     socket.on('nova_interacao', (data) => {
@@ -261,8 +227,6 @@ export default function KanbanBoardView() {
     socket.on('mudanca_status', (d) => { setChamados(prev => prev.map(c => c.id === d.id ? { ...c, ...d } : c)); if (chamadoSelecionado?.id === d.id) setChamadoSelecionado(prev => ({ ...prev, ...d })); });
     return () => socket.disconnect();
   }, [chamadoSelecionado]);
-
-  const chamadosFiltrados = chamados.filter(c => { const t = busca.toLowerCase(); const match = c.nomeEmpresa.toLowerCase().includes(t) || c.id.toString().includes(t); return match && filtroStatus.includes(c.status) && (apenasNaoLidos ? c.mensagensNaoLidas > 0 : true) && (filtroResponsavel.length === 0 || filtroResponsavel.includes(c.responsavel)) && (filtroTags.length === 0 || c.tags?.some(tag => filtroTags.includes(tag.nome))); });
 
   return (
     <Box sx={{ p: 3, height: '90vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', marginTop: 5 }}>
@@ -284,9 +248,10 @@ export default function KanbanBoardView() {
       <DragDropContext onDragEnd={onDragEnd}>
         <Box sx={{ display: 'flex', gap: 10, overflowX: 'auto', flexGrow: 1 }}>{Object.entries(COLUMNS).map(([cid, col]) => { const list = chamadosFiltrados.filter(c => c.status === cid); return (<Droppable key={cid} droppableId={cid}>{(prov, snap) => (<Paper ref={prov.innerRef} {...prov.droppableProps} elevation={0} sx={{ width: 350, minWidth: 350, bgcolor: snap.isDraggingOver ? '#e0e0e0' : (isDark?'#2e2e2e':'#ebecf0'), p: 2, borderRadius: 3, display: 'flex', flexDirection: 'column', maxHeight: '100%' }}><Box sx={{ mb: 2, pb: 1, borderBottom: `3px solid ${col.border}`, display: 'flex', justifyContent: 'space-between' }}><Box display="flex" gap={1} color={col.iconColor}>{col.icon}<Typography variant="h6">{col.title}</Typography></Box><Chip label={list.length} size="small"/></Box><Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 1 }}>{list.map((item, idx) => (<Draggable key={item.id} draggableId={item.id.toString()} index={idx}>{(p, s) => {
             
-            // 🟢 LÓGICA DE VISUALIZAÇÃO DE SLA NO CARD
+            // 🟢 LÓGICA DE SLA VISUAL
             const horasAberto = calcularHorasAberto(item.createdAt);
             const slaEstourado = horasAberto >= 24 && item.status !== 'FINALIZADO';
+            // Se estourar SLA, card fica com borda vermelha e sombra vermelha
             const corBorda = slaEstourado ? '#d32f2f' : PRIORITY_CONFIG[item.prioridade || 'BAIXA'].color;
 
             return (
@@ -302,13 +267,13 @@ export default function KanbanBoardView() {
                 {slaEstourado && (
                     <Box display="flex" alignItems="center" gap={0.5} mt={0.5} mb={0.5} sx={{ color: '#d32f2f', bgcolor: '#ffebee', p: 0.5, borderRadius: 1 }}>
                         <WarningIcon fontSize="small" />
-                        <Typography variant="caption" fontWeight="bold">SLA ESTOURADO (+24h)</Typography>
+                        <Typography variant="caption" fontWeight="bold">SLA ATRASADO (+24h)</Typography>
                     </Box>
                 )}
 
                 <Box display="flex" gap={1} mt={1} flexWrap="wrap">
                     <Chip label={item.servico} size="small" sx={{ bgcolor: col.bg, color: '#1d1d1d', fontWeight: 'bold', fontSize: '0.75rem' }} />
-                    {/* 🟢 TEMPO DE ABERTURA NO CARD */}
+                    {/* 🟢 TEMPO ABERTO */}
                     <Chip icon={<AccessTimeIcon style={{ fontSize: 14 }}/>} label={`${horasAberto}h`} size="small" sx={{ bgcolor: 'transparent', border: '1px solid #ccc', fontSize: '0.7rem' }} />
                     {item.tags?.map(t => <Chip key={t.id} label={t.nome} size="small" sx={{ bgcolor: t.cor, color: '#fff', height: 20, fontSize: 10 }} />)}
                 </Box>
@@ -328,7 +293,7 @@ export default function KanbanBoardView() {
                 <Grid item xs={12} md={8} display="flex" flexDirection="column">
                   <Box sx={{ flexGrow: 1, bgcolor: isDark?'rgba(0,0,0,0.2)':'#f9f9f9', borderRadius: 2, p: 2, mb: 2, border: '1px solid', borderColor: 'divider', maxHeight: '400px', overflowY: 'auto'}}>
                     
-                    {/* ABERTURA: COM ANEXOS E ÁUDIO INICIAIS */}
+                    {/* ✅ ABERTURA: COM ANEXOS E ÁUDIO */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mb: 2 }}>
                         <Box display="flex" gap={1} mb={0.5}><Avatar sx={{ width: 24, height: 24 }}><PersonIcon fontSize="small" /></Avatar><Typography variant="caption" fontWeight="bold">Abertura</Typography></Box>
                         <Paper sx={{ p: 2, maxWidth: '90%', borderRadius: '0 12px 12px 12px' }}>
@@ -358,8 +323,8 @@ export default function KanbanBoardView() {
                                 {msg.anexos && msg.anexos.length > 0 && (<Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">{msg.anexos.map(anexo => {
                                     const isAudio = anexo.nomeArquivo.match(/\.(mp3|wav|webm|ogg)$/i);
                                     const url = anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`;
-                                    if (isAudio) return (<Box key={anexo.id} mt={1} display="flex" gap={1} alignItems="center"><Avatar sx={{width:24,height:24,bgcolor:'#9c27b0'}}><MicIcon style={{fontSize:14}}/></Avatar><audio controls src={url} style={{height:35,maxWidth:250}}/></Box>);
-                                    return (<Chip key={anexo.id} icon={<AttachIcon />} label={anexo.nomeOriginal} component="a" href={url} target="_blank" clickable size="small" sx={{ m: 0.5 }} />);
+                                    if (isAudio) return (<Box key={anexo.id} mt={1} display="flex" gap={1} alignItems="center"><Avatar sx={{width:24,height:24,bgcolor:'#9c27b0'}}><MicIcon style={{fontSize:14}}/></Avatar><audio controls src={url} style={{height:36,maxWidth:250}}/></Box>);
+                                    return (<Chip key={anexo.id} icon={<AttachIcon />} label={anexo.nomeOriginal} component="a" href={url} target="_blank" clickable size="small" sx={{ m: 0.5, bgcolor: 'rgba(0,0,0,0.05)' }} />)
                                 })}</Box>)}
                             </Paper>
                         </Box>
@@ -390,32 +355,22 @@ export default function KanbanBoardView() {
         )}
       </Dialog>
       
-      {/* 🟢 MODAL DE RESUMO DE SLA AO LOGAR */}
+      {/* 🟢 MODAL DE SLA (DIÁRIO) */}
       <Dialog open={modalSlaOpen} onClose={() => setModalSlaOpen(false)}>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#d32f2f' }}>
             <WarningIcon /> Atenção: SLA Crítico
         </DialogTitle>
         <DialogContent>
-            <Typography variant="body1" gutterBottom>
-                Olá, <strong>{user?.nome || 'Admin'}</strong>.
-            </Typography>
-            <Typography variant="body2" paragraph>
-                Identificamos que existem <strong>{metricasSla.estourados}</strong> chamados que excederam o tempo limite de 24 horas sem resolução.
-            </Typography>
+            <Typography variant="body1" gutterBottom>Olá, <strong>{user?.nome || 'Admin'}</strong>.</Typography>
+            <Typography variant="body2" paragraph>Existem <strong>{metricasSla.estourados}</strong> chamados abertos há mais de 24 horas.</Typography>
             <Box bgcolor="#ffebee" p={2} borderRadius={1} border="1px solid #ffcdd2">
-                <Typography variant="caption" fontWeight="bold" color="error">
-                    Total Pendente: {metricasSla.totalAbertos} | SLA Estourado: {metricasSla.estourados}
-                </Typography>
+                <Typography variant="caption" fontWeight="bold" color="error">Total Pendente: {metricasSla.totalAbertos} | Estourados: {metricasSla.estourados}</Typography>
             </Box>
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                Recomendamos verificar o Dashboard para uma análise detalhada de performance.
-            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>Verifique o Dashboard para detalhes.</Typography>
         </DialogContent>
         <DialogActions>
-            <Button onClick={() => setModalSlaOpen(false)} color="inherit">Fechar</Button>
-            <Button variant="contained" color="primary" onClick={() => navigate('/dashboard')} startIcon={<BarChartIcon />}>
-                Ir para Dashboard
-            </Button>
+            <Button onClick={() => setModalSlaOpen(false)}>Fechar</Button>
+            <Button variant="contained" onClick={() => navigate('/dashboard')} startIcon={<BarChartIcon />}>Dashboard</Button>
         </DialogActions>
       </Dialog>
 
