@@ -97,15 +97,6 @@ const TAG_COLORS = [
     '#FF5722', '#795548', '#9E9E9E', '#607D8B'
 ];
 
-// 👥 LISTA SIMULADA DE EQUIPE (Você pode buscar do banco depois)
-const EQUIPE_PADRAO = [
-    { nome: 'Caique', cor: '#1976d2' },
-    { nome: 'Ana', cor: '#e91e63' },
-    { nome: 'Carlos', cor: '#2e7d32' },
-    { nome: 'Suporte', cor: '#ff9800' },
-    { nome: 'Financeiro', cor: '#9c27b0' }
-];
-
 const FLOW_ORDER = ['NOVO', 'EM_ATENDIMENTO', 'FINALIZADO'];
 
 const API_URL = 'https://form-chamados-hotmobile-production.up.railway.app';
@@ -124,6 +115,21 @@ const SUPORTE_LINKS = [
   { title: 'Site Institucional', url: 'https://hotmobile.com.br', icon: <PublicIcon />, color: '#555' }
 ];
 
+// 🎨 Função Auxiliar: Gera cor única baseada no nome (para usuários sem cor cadastrada)
+function stringToColor(string) {
+    if (!string) return '#999';
+    let hash = 0;
+    for (let i = 0; i < string.length; i++) {
+        hash = string.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    let color = '#';
+    for (let i = 0; i < 3; i++) {
+        const value = (hash >> (i * 8)) & 0xff;
+        color += `00${value.toString(16)}`.slice(-2);
+    }
+    return color;
+}
+
 export default function KanbanBoardView() {
 
   const theme = useTheme(); 
@@ -132,6 +138,9 @@ export default function KanbanBoardView() {
   const [chamados, setChamados] = useState([]);
   const { logout, user } = useAuth();
   
+  // --- ESTADOS DE DADOS ---
+  const [equipe, setEquipe] = useState([]); // ✅ Lista de Usuários do Sistema
+
   // --- ESTADOS DE FILTRO ---
   const [busca, setBusca] = useState('');
   const [filtroStatus, setFiltroStatus] = useState(Object.keys(COLUMNS)); 
@@ -180,6 +189,7 @@ export default function KanbanBoardView() {
     carregarChamados();
     carregarMacros(); 
     carregarTags(); 
+    carregarUsuarios(); // ✅ Carrega a equipe ao iniciar
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission();
     }
@@ -191,6 +201,22 @@ export default function KanbanBoardView() {
       setChamados(response.data);
     } catch (error) {
       toast.error('Erro ao carregar chamados.');
+    }
+  };
+
+  // ✅ NOVA FUNÇÃO: BUSCAR USUÁRIOS DO BACKEND
+  const carregarUsuarios = async () => {
+    try {
+        const { data } = await api.get('/auth/users');
+        // Formata garantindo que tenha cor
+        const listaFormatada = data.map(u => ({
+            id: u.id,
+            nome: u.nome,
+            cor: u.cor || stringToColor(u.nome) // Usa a cor do banco ou gera uma
+        }));
+        setEquipe(listaFormatada);
+    } catch (error) {
+        console.error("Erro ao carregar equipe:", error);
     }
   };
 
@@ -313,7 +339,7 @@ export default function KanbanBoardView() {
     setAnchorElMacros(null); 
   };
 
-  // --- SLA / STATUS ---
+  // --- SLA / STATUS / RESPONSAVEL ---
   const handleChangePriority = async (novaPrioridade) => {
     try {
         setChamadoSelecionado(prev => ({ ...prev, prioridade: novaPrioridade }));
@@ -326,7 +352,7 @@ export default function KanbanBoardView() {
     } catch (error) { toast.error("Erro ao mudar prioridade"); }
   };
 
-  // ✅ NOVA FUNÇÃO: TROCAR RESPONSÁVEL
+  // ✅ FUNÇÃO PARA TROCAR O RESPONSÁVEL
   const handleTrocarResponsavel = async (novoResponsavel) => {
     if (!chamadoSelecionado) return;
 
@@ -347,7 +373,7 @@ export default function KanbanBoardView() {
 
         toast.success(`Responsável alterado para ${nome || 'Ninguém'}`);
     } catch (error) {
-        toast.error("Erro ao alterar responsável. Verifique se o backend tem a rota PATCH :id/responsavel");
+        toast.error("Erro ao alterar responsável.");
         console.error(error);
     }
   };
@@ -664,6 +690,7 @@ export default function KanbanBoardView() {
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
               <Box display="flex" alignItems="center" gap={2}>
                 <Typography variant="h6">Chamado #{chamadoSelecionado.id}</Typography>
+                {/* ✅ CORREÇÃO 1: Chip com !important para ficar preto no Dark Mode */}
                 <Chip 
                   label={COLUMNS[chamadoSelecionado.status]?.title || chamadoSelecionado.status} 
                   sx={{ 
@@ -694,6 +721,8 @@ export default function KanbanBoardView() {
                     <Box display="flex" justifyContent="flex-end" mb={1}><FormControlLabel control={<Switch checked={notaInterna} onChange={(e) => setNotaInterna(e.target.checked)} color="warning" size="small" />} label={<Box display="flex" alignItems="center" gap={0.5}>{notaInterna && <LockIcon fontSize="small" color="warning" />}<Typography variant="caption" sx={{ color: notaInterna ? '#ed6c02' : 'gray', fontWeight: 'bold' }}>Nota Interna (Privado)</Typography></Box>} /></Box>
                     {files.length > 0 && (<Box mb={1} display="flex" gap={1} flexWrap="wrap">{files.map((file, i) => (<Chip key={i} label={file.name} onDelete={() => removeFile(i)} size="small" icon={<AttachIcon />} />))}</Box>)}
                     <Box display="flex" gap={1} alignItems="flex-end"><input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} /><IconButton onClick={() => fileInputRef.current?.click()} sx={{ border: '1px solid #ccc', borderRadius: 1 }}><AttachIcon /></IconButton><IconButton onClick={(e) => setAnchorElMacros(e.currentTarget)} sx={{ border: '1px solid #ff9800', color: '#ff9800', borderRadius: 1 }} title="Respostas Prontas"><BoltIcon /></IconButton>
+                    
+                    {/* ✅ CORREÇÃO 2: TextField com background.paper para ficar escuro no Dark Mode */}
                     <TextField 
                         fullWidth 
                         size="small" 
@@ -714,30 +743,33 @@ export default function KanbanBoardView() {
                             }
                         }} 
                     />
+                    
                     <Button variant="contained" onClick={handleAddInteracao} disabled={enviandoComentario || (!novoComentario.trim() && files.length === 0)} color={notaInterna ? "warning" : "primary"}><SendIcon /></Button></Box>
                   </Box>
                 </Grid>
-
-                {/* --- COLUNA LATERAL (DIREITA) --- */}
                 <Grid item xs={12} md={4}>
                     <Box mb={3}><Typography variant="subtitle2" color="text.secondary">Empresa</Typography><Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gap={1}><BusinessIcon color="primary" fontSize="small"/> {chamadoSelecionado.nomeEmpresa}</Typography></Box>
                     
-                    {/* ✅ NOVO: Bloco de Atribuição (Responsável) */}
+                    {/* ✅ NOVO BLOCO: ATRIBUIÇÃO DE RESPONSÁVEL (COM AUTOCOMPLETE DO BANCO) */}
                     <Box mb={3}>
                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             Atribuído a
                         </Typography>
                         <Autocomplete
-                            options={EQUIPE_PADRAO}
+                            options={equipe} 
                             getOptionLabel={(option) => option.nome || option}
-                            value={EQUIPE_PADRAO.find(u => u.nome === chamadoSelecionado.responsavel) || chamadoSelecionado.responsavel || null}
+                            
+                            // Lógica para encontrar o objeto certo baseado no nome que está no chamado
+                            value={equipe.find(u => u.nome === chamadoSelecionado.responsavel) || (chamadoSelecionado.responsavel ? { nome: chamadoSelecionado.responsavel, cor: chamadoSelecionado.responsavelCor } : null)}
+                            
                             onChange={(event, newValue) => handleTrocarResponsavel(newValue)}
                             isOptionEqualToValue={(option, value) => option.nome === (value.nome || value)}
+                            
                             renderOption={(props, option) => (
                                 <li {...props}>
                                     <Box display="flex" alignItems="center" gap={1}>
                                         <Avatar sx={{ width: 24, height: 24, bgcolor: option.cor, fontSize: 12 }}>
-                                            {option.nome?.charAt(0)}
+                                            {option.nome?.charAt(0).toUpperCase()}
                                         </Avatar>
                                         <Typography variant="body2">{option.nome}</Typography>
                                     </Box>
@@ -762,7 +794,7 @@ export default function KanbanBoardView() {
                                                     fontSize: 12
                                                 }}
                                             >
-                                                {chamadoSelecionado.responsavel.charAt(0)}
+                                                {chamadoSelecionado.responsavel.charAt(0).toUpperCase()}
                                             </Avatar>
                                         )
                                     }}

@@ -81,4 +81,18 @@ export class AuthService {
       cor: userAtualizado.cor
     };
   }
+
+  async findAllForDropdown() {
+    return this.prisma.usuario.findMany({
+      select: {
+        id: true,
+        nome: true,
+        email: true, // Opcional, bom para diferenciar homônimos
+        cor: true,   // Importante para o Avatar
+      },
+      orderBy: {
+        nome: 'asc',
+      },
+    });
+  }
 }

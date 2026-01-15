@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Patch, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Body, Patch, UseGuards, Req, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import express from 'express';
@@ -38,4 +38,13 @@ export class AuthController {
 
     return this.authService.updateProfile(userId, dados);
   }
+
+  @UseGuards(AuthGuard('jwt')) 
+  @Get('users')
+  async listUsers() {
+    return this.authService.findAllForDropdown();
+  }
+
+  
+
 }
