@@ -669,24 +669,35 @@ export default function KanbanBoardView() {
                       const isInterno = interacao.interno; 
                       return (<Box key={idx} sx={{ display: 'flex', flexDirection: 'column', alignItems: isSuporte ? 'flex-end' : 'flex-start', mb: 2 }}><Box display="flex" alignItems="center" gap={1} mb={0.5} flexDirection={isSuporte ? 'row-reverse' : 'row'}> <Avatar sx={{ width: 24, height: 24, bgcolor: isSuporte ? '#1976d2' : '#9e9e9e' }}>{isSuporte ? <SupportAgentIcon fontSize="small" /> : <PersonIcon fontSize="small" />}</Avatar><Typography variant="caption" fontWeight="bold">{isSuporte ? 'Suporte' : 'Cliente'}</Typography><Typography variant="caption" color="text.secondary">{new Date(interacao.createdAt).toLocaleString()}</Typography></Box><Paper elevation={0} sx={{ p: 2, bgcolor: isInterno ? (isDark ? 'rgba(237, 108, 2, 0.15)' : '#FFF3E0') : (isSuporte ? (isDark ? 'rgba(25, 118, 210, 0.15)' : '#E3F2FD') : 'background.paper'), border: isInterno ? '1px dashed #FF9800' : (isSuporte ? 'none' : '1px solid'), borderColor: 'divider', borderRadius: isSuporte ? '12px 0 12px 12px' : '0 12px 12px 12px', maxWidth: '90%', color: 'text.primary'}}>{isInterno && (<Box display="flex" alignItems="center" gap={0.5} mb={0.5} color="warning.main"><LockIcon style={{ fontSize: 14 }} /><Typography variant="caption" fontWeight="bold">NOTA INTERNA (Cliente não vê)</Typography></Box>)}<Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{interacao.texto}</Typography>
                       
-                      {/* ✅ ÁREA DE ANEXOS COM SUPORTE A ÁUDIO */}
-                      {interacao.anexos && interacao.anexos.length > 0 && (<Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">{interacao.anexos.map(anexo => {
-                          const isAudio = anexo.nomeArquivo.match(/\.(mp3|wav|webm|ogg)$/i);
-                          const url = anexo.caminho && anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`;
-                          
-                          if(isAudio) {
-                              return (
-                                <Box key={anexo.id} mt={1} display="flex" alignItems="center" gap={1}>
-                                    <audio controls src={url} style={{ height: 35, maxWidth: 250 }} />
+                    {/* Abertura (Descrição Original) */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mb: 2 }}>
+                        <Box display="flex" gap={1} mb={0.5}><Avatar sx={{ width: 24, height: 24 }}><PersonIcon fontSize="small" /></Avatar><Typography variant="caption" fontWeight="bold">Abertura</Typography></Box>
+                        <Paper sx={{ p: 2, maxWidth: '90%', borderRadius: '0 12px 12px 12px' }}>
+                            <Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{chamadoSelecionado.descricao}</Typography>
+                            
+                            {/* ✅ EXIBIR ANEXOS/ÁUDIO DO FORMULÁRIO INICIAL */}
+                            {chamadoSelecionado.anexos && chamadoSelecionado.anexos.length > 0 && (
+                                <Box mt={1} pt={1} borderTop="1px solid rgba(0,0,0,0.1)">
+                                    {chamadoSelecionado.anexos.map(anexo => {
+                                        const isAudio = anexo.nomeArquivo.match(/\.(mp3|wav|webm|ogg)$/i);
+                                        const url = anexo.caminho.startsWith('http') ? anexo.caminho : `${API_URL}/uploads/${anexo.nomeArquivo}`;
+                                        
+                                        if (isAudio) {
+                                            return (
+                                                <Box key={anexo.id} mt={1} display="flex" alignItems="center" gap={1}>
+                                                    <Avatar sx={{ width: 24, height: 24, bgcolor: '#9c27b0' }}><MicIcon style={{ fontSize: 14 }} /></Avatar>
+                                                    <audio controls src={url} style={{ height: 35, maxWidth: 250 }} />
+                                                </Box>
+                                            );
+                                        }
+                                        return (
+                                            <Chip key={anexo.id} icon={<AttachIcon />} label={anexo.nomeOriginal} component="a" href={url} target="_blank" clickable size="small" sx={{ m: 0.5 }} />
+                                        );
+                                    })}
                                 </Box>
-                              )
-                          }
-                          return (<Chip key={anexo.id} icon={<AttachIcon />} label={anexo.nomeOriginal.length > 20 ? anexo.nomeOriginal.substring(0, 17) + '...' : anexo.nomeOriginal} component="a" href={url} target="_blank" clickable size="small" sx={{ m: 0.5, bgcolor: 'rgba(0,0,0,0.05)' }} />)
-                      })}</Box>)}
-                      
-                      </Paper></Box>)
-                    })}
-                  </Box>
+                            )}
+                        </Paper>
+                    </Box>
                   <Box>
                     <Box display="flex" justifyContent="flex-end" mb={1}><FormControlLabel control={<Switch checked={notaInterna} onChange={(e) => setNotaInterna(e.target.checked)} color="warning" size="small" />} label={<Box display="flex" alignItems="center" gap={0.5}>{notaInterna && <LockIcon fontSize="small" color="warning" />}<Typography variant="caption" sx={{ color: notaInterna ? '#ed6c02' : 'gray', fontWeight: 'bold' }}>Nota Interna (Privado)</Typography></Box>} /></Box>
                     {files.length > 0 && (<Box mb={1} display="flex" gap={1} flexWrap="wrap">{files.map((file, i) => (<Chip key={i} label={file.name} onDelete={() => removeFile(i)} size="small" icon={file.type.includes('audio') ? <MicIcon/> : <AttachIcon />} />))}</Box>)}
