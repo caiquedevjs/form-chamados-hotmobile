@@ -216,14 +216,12 @@ export default function KanbanBoardView() {
       setChamados(response.data);
 
       // 🟢 MONITORAMENTO DE SLA AO LOGAR
-      // Conta quantos chamados estão abertos e quantos estouraram 24h
       const abertos = response.data.filter(c => c.status !== 'FINALIZADO');
       const estourados = abertos.filter(c => calcularHorasAberto(c.createdAt) >= 24).length;
       
-      if (estourados > 0) {
-          setMetricasSla({ estourados, totalAbertos: abertos.length });
-          setModalSlaOpen(true); // Abre o modal automaticamente
-      }
+      // ✅ ATUALIZAÇÃO: SEMPRE ABRE O MODAL (seja bom ou ruim)
+      setMetricasSla({ estourados, totalAbertos: abertos.length });
+      setModalSlaOpen(true); 
 
     } catch (error) {
       toast.error('Erro ao carregar chamados.');
@@ -954,36 +952,50 @@ export default function KanbanBoardView() {
           onClose={() => setModalPerfilOpen(false)} 
       />    
 
-
-      {/* 🟢 MODAL DE RESUMO DE SLA AO LOGAR */}
-      <Dialog open={modalSlaOpen} onClose={() => setModalLinksOpen(false)}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#d32f2f' }}>
-            <WarningIcon /> Atenção: SLA Crítico detectado
+{/* 🟢 MODAL DE RESUMO DE SLA AO LOGAR */}
+      <Dialog open={modalSlaOpen} onClose={() => setModalSlaOpen(false)}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: metricasSla.estourados > 0 ? '#d32f2f' : '#2e7d32' }}>
+            {metricasSla.estourados > 0 ? <WarningIcon /> : <CheckCircleIcon />}
+            {metricasSla.estourados > 0 ? " Atenção: SLA Crítico" : " Monitoramento de SLA"}
         </DialogTitle>
         <DialogContent>
             <Typography variant="body1" gutterBottom>
                 Olá, <strong>{user?.nome || 'Admin'}</strong>.
             </Typography>
-            <Typography variant="body2" paragraph>
-                O monitoramento identificou <strong>{metricasSla.estourados}</strong> chamados que excederam o ciclo de 24 horas sem conclusão.
-            </Typography>
             
-            <Box bgcolor="#ffebee" p={2} borderRadius={1} border="1px solid #ffcdd2" mt={1}>
-                <Grid container spacing={2} textAlign="center">
-                    <Grid item xs={6}>
-                        <Typography variant="caption" color="text.secondary">Total em Aberto</Typography>
-                        <Typography variant="h6">{metricasSla.totalAbertos}</Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                        <Typography variant="caption" color="error" fontWeight="bold">SLA Estourado</Typography>
-                        <Typography variant="h6" color="error" fontWeight="bold">{metricasSla.estourados}</Typography>
-                    </Grid>
-                </Grid>
-            </Box>
+            {metricasSla.estourados > 0 ? (
+                <>
+                    <Typography variant="body2" paragraph>
+                        Existem <strong>{metricasSla.estourados}</strong> chamados que excederam o ciclo de 24 horas sem conclusão.
+                    </Typography>
+                    <Box bgcolor="#ffebee" p={2} borderRadius={1} border="1px solid #ffcdd2" mb={2}>
+                        <Grid container spacing={2} textAlign="center">
+                            <Grid item xs={6}>
+                                <Typography variant="caption" color="text.secondary">Total em Aberto</Typography>
+                                <Typography variant="h6">{metricasSla.totalAbertos}</Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Typography variant="caption" color="error" fontWeight="bold">Estourados</Typography>
+                                <Typography variant="h6" color="error" fontWeight="bold">{metricasSla.estourados}</Typography>
+                            </Grid>
+                        </Grid>
+                    </Box>
+                </>
+            ) : (
+                <Typography variant="body2" paragraph color="success.main" fontWeight="bold">
+                    Parabéns! Todos os chamados estão dentro do prazo.
+                </Typography>
+            )}
+
+            {/* 🟢 EXPLICAÇÃO DO CICLO DE 24H */}
+            <Typography variant="subtitle2" fontWeight="bold" mt={2} mb={1}>Entenda o Ciclo de Prioridade (24h):</Typography>
+            <Grid container spacing={1}>
+                <Grid item xs={3}><Chip label="< 6h" size="small" sx={{ bgcolor: PRIORITY_CONFIG.BAIXA.color, color: '#fff', width: '100%' }} /></Grid>
+                <Grid item xs={3}><Chip label="6-12h" size="small" sx={{ bgcolor: PRIORITY_CONFIG.MEDIA.color, color: '#fff', width: '100%' }} /></Grid>
+                <Grid item xs={3}><Chip label="12-24h" size="small" sx={{ bgcolor: PRIORITY_CONFIG.ALTA.color, color: '#fff', width: '100%' }} /></Grid>
+                <Grid item xs={3}><Chip label="> 24h" size="small" sx={{ bgcolor: '#d32f2f', color: '#fff', width: '100%' }} /></Grid>
+            </Grid>
             
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                Estes chamados foram marcados visualmente em vermelho no quadro.
-            </Typography>
         </DialogContent>
         <DialogActions>
             <Button onClick={() => setModalSlaOpen(false)} color="inherit">Fechar</Button>
@@ -991,8 +1003,7 @@ export default function KanbanBoardView() {
                 Ver Dashboard
             </Button>
         </DialogActions>
-      </Dialog>      
-
+      </Dialog>
     </Box>
   );
 }
