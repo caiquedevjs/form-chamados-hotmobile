@@ -675,6 +675,8 @@ export default function KanbanBoardView() {
                 <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                 <Box display="flex" justifyContent="space-between" mb={1}>
                     <Typography variant="caption">#{item.id}</Typography>
+                    {/* ✅ MANTIDO: Renderiza Data de Criação */}
+                    <Typography variant="caption" color="text.secondary">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</Typography>
                     {item.responsavel && <Box display="flex" gap={1} bgcolor={item.responsavelCor+'15'} p={0.5} borderRadius={1}><Avatar sx={{ width: 20, height: 20, fontSize: 10, bgcolor: item.responsavelCor }}>{item.responsavel[0]}</Avatar><Typography variant="caption" color={item.responsavelCor}>{item.responsavel}</Typography></Box>}
                 </Box>
                 <Typography variant="subtitle1" fontWeight="bold">{item.nomeEmpresa}</Typography>
@@ -693,7 +695,8 @@ export default function KanbanBoardView() {
                     <Chip icon={<AccessTimeIcon style={{ fontSize: 14 }}/>} label={`${horasAberto}h`} size="small" sx={{ bgcolor: 'transparent', border: '1px solid #ccc', fontSize: '0.7rem' }} />
                     {item.tags?.map(t => <Chip key={t.id} label={t.nome} size="small" sx={{ bgcolor: t.cor, color: '#fff', height: 20, fontSize: 10 }} />)}
                 </Box>
-                {item.mensagensNaoLidas > 0 && <Box sx={{ position: 'absolute', bottom: 10, right: 10, width: 24, height: 24, borderRadius: '50%', bgcolor: 'green', color: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: 10 }}>{item.mensagensNaoLidas}</Box>}
+                {/* ✅ MENSAGENS NÃO LIDAS (MANTIDO NO LUGAR CERTO) */}
+                {item.mensagensNaoLidas > 0 && <Box sx={{ position: 'absolute', bottom: 12, right: 12, width: 24, height: 24, borderRadius: '50%', backgroundColor: '#2e7d32', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: 2, zIndex: 10 }}>{item.mensagensNaoLidas}</Box>}
                 </CardContent>
             </Card>
             )}}</Draggable>))}{prov.placeholder}</Box></Paper>)}</Droppable>); })}</Box>
