@@ -79,7 +79,8 @@ export class MailService {
       const response = await firstValueFrom(
         this.httpService.post(this.API_URL, payload)
       );
-
+// 👇 ADICIONE ESTE LOG PARA VER O QUE A API DISSE
+      this.logger.warn(`🔍 RESPOSTA DA API: ${JSON.stringify(response.data)}`);
       this.logger.log(`✅ Email enviado com sucesso! Status: ${response.status}`);
       return response.data;
 
