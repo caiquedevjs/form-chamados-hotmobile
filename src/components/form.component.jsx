@@ -10,7 +10,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import BusinessIcon from '@mui/icons-material/Business';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
-import MicIcon from '@mui/icons-material/Mic'; // Importe o ícone de microfone
+import MicIcon from '@mui/icons-material/Mic'; 
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 
 import MultipleSelectCheckmarks from './priority.checkbox.component';
@@ -26,17 +26,15 @@ export default function MultilineTextFields() {
 
   const [openWarning, setOpenWarning] = React.useState(false);
   
-  // Removemos o estado 'files' solto e usamos apenas o formData
   const [formData, setFormData] = React.useState({
     nome: '',
     email: [''],
     telefone: [''],
     servico: '',
     descricao: '',
-    anexos: [] // Inicializa como array vazio
+    anexos: [] 
   });
 
-  // ✅ CORREÇÃO: Adiciona o áudio direto no formData.anexos
   const handleAudioRecorded = (audioFile) => {
     setFormData((prev) => ({
       ...prev,
@@ -89,7 +87,6 @@ export default function MultilineTextFields() {
     });
   };
 
-  // Função para remover anexo da lista visual
   const handleRemoveAnexo = (index) => {
     setFormData((prev) => {
         const novosAnexos = [...prev.anexos];
@@ -110,7 +107,6 @@ export default function MultilineTextFields() {
     if (validFiles.length > 0) {
       setFormData((prev) => ({
         ...prev,
-        // Concatena os novos arquivos com os que já existem (incluindo áudios)
         anexos: [...(prev.anexos || []), ...validFiles]
       }));
     }
@@ -141,16 +137,19 @@ export default function MultilineTextFields() {
           </Box>
 
           <Grid container spacing={2}>
-            {/* Campos de Nome, Serviço, Email, Telefone mantidos iguais... */}
-            <Grid item xs={12} sm={6}>
+            
+            {/* Nome da Empresa - Agora xs={12} (Largura Total) */}
+            <Grid item xs={12}>
               <TextField label="Nome da empresa" value={formData.nome} onChange={handleChange('nome')} fullWidth InputProps={{ startAdornment: (<InputAdornment position="start"><BusinessIcon fontSize="small" /></InputAdornment>) }} />
             </Grid>
-            <Grid item xs={12} sm={6}>
+
+            {/* Serviço - Agora xs={12} (Largura Total) */}
+            <Grid item xs={12}>
                <Box sx={{ width: '100%' }}><MultipleSelectCheckmarks value={formData.servico} onChange={handleChange('servico')} sx={{ width: '100%' }} /></Box>
             </Grid>
 
-            {/* ... (Lógica de repetição de telefones e emails mantida igual) ... */}
-            <Grid item xs={12} sm={6}>
+            {/* Telefones - Agora xs={12} (Largura Total) */}
+            <Grid item xs={12}>
               {formData.telefone.map((tel, index) => (
                 <Grid container spacing={1} key={index} alignItems="center" sx={{ mb: index === formData.telefone.length - 1 ? 0 : 2 }}>
                   <Grid item xs={11}><TextField label={`Telefone ${index + 1}`} value={tel} onChange={handleChange('telefone', index)} fullWidth placeholder="(11) 99999-9999" InputProps={{ startAdornment: (<InputAdornment position="start"><PhoneIcon fontSize="small" /></InputAdornment>) }} /></Grid>
@@ -160,7 +159,8 @@ export default function MultilineTextFields() {
               <Button onClick={() => handleAddField('telefone')} size="small" sx={{ mt: 1 }}>+ Adicionar Telefone</Button>
             </Grid>
 
-            <Grid item xs={12} sm={6}>
+            {/* Emails - Agora xs={12} (Largura Total) */}
+            <Grid item xs={12}>
               {formData.email.map((email, index) => (
                 <Grid container spacing={1} key={index} alignItems="center" sx={{ mb: index === formData.email.length - 1 ? 0 : 2 }}>
                   <Grid item xs={11}><TextField label={`E-mail ${index + 1}`} value={email} onChange={handleChange('email', index)} fullWidth InputProps={{ startAdornment: (<InputAdornment position="start"><EmailIcon fontSize="small" /></InputAdornment>) }} /></Grid>
@@ -177,11 +177,9 @@ export default function MultilineTextFields() {
               <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
                 <InputFileUpload onChange={handleFileChange} accept=".jpg,.jpeg,.png,.pdf" />
                 <Typography variant="caption" color="text.secondary">ou</Typography>
-                {/* ✅ Componente de Áudio Integrado */}
                 <AudioRecorder onAudioReady={handleAudioRecorded} />
               </Box>
 
-              {/* ✅ Lista Visual de Arquivos (Incluindo Áudio) */}
               {formData.anexos && formData.anexos.length > 0 && (
                 <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                    {formData.anexos.map((file, index) => (
@@ -189,7 +187,6 @@ export default function MultilineTextFields() {
                         key={index}
                         label={file.name}
                         onDelete={() => handleRemoveAnexo(index)}
-                        // Mostra ícone de microfone se for áudio
                         icon={file.type.includes('audio') ? <MicIcon /> : <AttachFileIcon />}
                         color={file.type.includes('audio') ? "secondary" : "default"}
                         variant="outlined"

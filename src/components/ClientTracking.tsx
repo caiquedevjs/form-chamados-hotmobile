@@ -18,7 +18,8 @@ import {
 import api from '../services/api';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
-import AudioRecorder from './AudioRecorder';
+import AudioRecorder from './AudioRecorder'; 
+
 const API_URL = 'https://form-chamados-hotmobile-production.up.railway.app';
 
 const STATUS_COLORS = {
@@ -108,7 +109,6 @@ export default function ClientTracking() {
     }
   };
 
-  // ✅ Função para receber o áudio gravado
   const handleAudioRecorded = (audioFile) => {
     setFiles((prev) => [...prev, audioFile]);
   };
@@ -123,8 +123,6 @@ export default function ClientTracking() {
     const formData = new FormData();
     formData.append('texto', novoComentario || 'Segue anexo.'); 
     formData.append('autor', 'CLIENTE');
-    
-    // ✅ Padronizado para 'files'
     files.forEach((file) => formData.append('files', file));
 
     try {
@@ -147,8 +145,6 @@ export default function ClientTracking() {
 
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#f5f5f5', pt: { xs: 9, md: 12 } }}>
-      
-      {/* APP BAR */}
       <AppBar position="fixed" color="default" elevation={1} sx={{ bgcolor: 'white' }}>
         <Toolbar>
            <IconButton edge="start" onClick={() => window.history.back()}><ArrowBackIcon /></IconButton>
@@ -160,14 +156,11 @@ export default function ClientTracking() {
         </Toolbar>
       </AppBar>
 
-      {/* ÁREA DE CONTEÚDO */}
       <Container maxWidth="md" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: { xs: 1, md: 3 }, overflow: 'hidden' }}>
         <Paper sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', borderRadius: 3, overflow: 'hidden', boxShadow: 3 }}>
-          
-          {/* MENSAGENS */}
           <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2, display: 'flex', flexDirection: 'column' }}>
             
-            {/* Descrição Original */}
+            {/* Abertura (Descrição Original) */}
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', mb: 3 }}>
                 <Box display="flex" gap={1} mb={0.5}><Typography variant="caption" fontWeight="bold">Você</Typography><Avatar sx={{ width: 24, height: 24, bgcolor: '#1976d2' }}><PersonIcon fontSize="small" /></Avatar></Box>
                 <Paper elevation={0} sx={{ p: 2, bgcolor: '#E3F2FD', borderRadius: '12px 0 12px 12px', maxWidth: '90%' }}>
@@ -226,7 +219,7 @@ export default function ClientTracking() {
 
           <Divider />
 
-          {/* --- ÁREA DE RESPOSTA --- */}
+          {/* ÁREA DE RESPOSTA */}
           {chamado.status !== 'FINALIZADO' ? (
             <Box sx={{ p: 2, bgcolor: '#fafafa' }}>
               {files.length > 0 && (
@@ -257,7 +250,6 @@ export default function ClientTracking() {
         </Paper>
       </Container>
 
-      {/* MODAL AVISO */}
       <Dialog open={openWarning} onClose={() => setOpenWarning(false)}>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#ed6c02' }}><WarningIcon /> Tipo Inválido</DialogTitle>
         <DialogContent><DialogContentText>Apenas JPG, PNG e PDF permitidos.</DialogContentText></DialogContent>
