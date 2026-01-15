@@ -35,7 +35,7 @@ const API_URL =  'https://form-chamados-hotmobile-production.up.railway.app';
       
       if (formData.anexos && formData.anexos.length > 0) {
         Array.from(formData.anexos).forEach((file) => {
-          dataToSend.append('arquivos', file);
+          dataToSend.append('files', file);
         });
       }
 

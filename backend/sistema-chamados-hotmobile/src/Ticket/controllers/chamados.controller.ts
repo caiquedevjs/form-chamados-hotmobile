@@ -1,6 +1,6 @@
 import {
   Controller, Post, Get, Delete, Body, Query, UploadedFiles, UseInterceptors,
-  UsePipes, ValidationPipe, UseGuards, Patch, Param, ParseIntPipe,
+  UsePipes, ValidationPipe, UseGuards, Patch, Param, ParseIntPipe, BadRequestException,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ChamadosService } from '../services/chamados.service';
@@ -13,8 +13,18 @@ import { AuthGuard } from '@nestjs/passport';
 export class ChamadosController {
   constructor(private readonly chamadosService: ChamadosService) {}
 
+  // ✅ 1. ROTA DE CRIAÇÃO (FORMULÁRIO INICIAL)
+  // Adicionada validação para aceitar ÁUDIO (.webm, .mp3, etc)
   @Post()
-  @UseInterceptors(FilesInterceptor('arquivos', 10))
+  @UseInterceptors(FilesInterceptor('files', 10, { // 'files' deve bater com o frontend
+    fileFilter: (req, file, callback) => {
+      // Regex atualizada para incluir extensões de áudio
+      if (!file.originalname.match(/\.(jpg|jpeg|png|pdf|doc|docx|xls|xlsx|mp3|wav|webm|ogg)$/)) {
+        return callback(new BadRequestException('Formato inválido! Permitido: Imagens, PDF e Áudio.'), false);
+      }
+      callback(null, true);
+    }
+  }))
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   async create(
     @Body() createChamadoDto: CreateChamadoDto,
@@ -22,6 +32,27 @@ export class ChamadosController {
   ) {
     return this.chamadosService.create(createChamadoDto, files);
   }
+
+  // ✅ 2. ROTA DE INTERAÇÃO (RESPOSTAS/CHAT)
+  // Também atualizada para aceitar áudio nas respostas
+  @Post(':id/interacoes')
+  @UseInterceptors(FilesInterceptor('files', 5, {
+    fileFilter: (req, file, callback) => {
+      if (!file.originalname.match(/\.(jpg|jpeg|png|pdf|doc|docx|xls|xlsx|mp3|wav|webm|ogg)$/)) {
+        return callback(new BadRequestException('Formato inválido! Permitido: Imagens, PDF e Áudio.'), false);
+      }
+      callback(null, true);
+    }
+  }))
+  async addInteracao(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: CreateInteracaoDto,
+    @UploadedFiles() files: Array<Express.Multer.File>,
+  ) {
+    return this.chamadosService.addInteracao(id, body, files);
+  }
+
+  // --- DEMAIS ROTAS (MANTIDAS IGUAIS) ---
 
   @UseGuards(AuthGuard('jwt'))
   @Patch(':id/status')
@@ -38,25 +69,12 @@ export class ChamadosController {
     return this.chamadosService.findAll();
   }
 
-  // 🔓 ROTA PÚBLICA: Permite cliente enviar mensagem sem login
-  @Post(':id/interacoes')
-  @UseInterceptors(FilesInterceptor('files', 5))
-  async addInteracao(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: CreateInteracaoDto,
-    @UploadedFiles() files: Array<Express.Multer.File>,
-  ) {
-    return this.chamadosService.addInteracao(id, body, files);
-  }
-
-  // 🔒 ROTA PRIVADA: Admin vê tudo
   @UseGuards(AuthGuard('jwt'))
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.chamadosService.findOne(id);
   }
 
-  // 🔓 ROTA PÚBLICA: Cliente vê apenas o necessário
   @Get('public/:id')
   async findOnePublic(@Param('id', ParseIntPipe) id: number) {
     return this.chamadosService.findOnePublic(id);
@@ -74,21 +92,22 @@ export class ChamadosController {
     return this.chamadosService.remove(id);
   }
 
+  // --- TAGS ---
 
   @UseGuards(AuthGuard('jwt'))
-  @Get('tags/list') // Rota para listar todas as tags disponíveis
+  @Get('tags/list')
   async listarTags() {
     return this.chamadosService.getTags();
   }
 
   @UseGuards(AuthGuard('jwt'))
-  @Post('tags') // Rota para criar nova tag
+  @Post('tags')
   async criarTag(@Body() body: { nome: string, cor: string }) {
     return this.chamadosService.createTag(body.nome, body.cor);
   }
 
   @UseGuards(AuthGuard('jwt'))
-  @Patch(':id/tags') // Rota para atualizar tags do chamado
+  @Patch(':id/tags')
   async atualizarTags(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { tagIds: number[] }
@@ -112,10 +131,10 @@ export class ChamadosController {
   }
 
   @Patch(':id/responsavel')
-async updateResponsavel(
-  @Param('id') id: string, 
-  @Body() body: { responsavel: string, responsavelCor: string }
-) {
-  return this.chamadosService.updateResponsavel(Number(id), body.responsavel, body.responsavelCor);
-}
+  async updateResponsavel(
+    @Param('id') id: string, 
+    @Body() body: { responsavel: string, responsavelCor: string }
+  ) {
+    return this.chamadosService.updateResponsavel(Number(id), body.responsavel, body.responsavelCor);
+  }
 }
