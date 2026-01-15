@@ -689,8 +689,10 @@ export default function KanbanBoardView() {
 
                 <Box display="flex" gap={1} mt={1} flexWrap="wrap">
                     <Chip label={item.servico} size="small" sx={{ bgcolor: col.bg, color: '#1d1d1d', fontWeight: 'bold', fontSize: '0.75rem' }} />
-                    {/* 🟢 CHIP DE TEMPO */}
-                    <Chip icon={<AccessTimeIcon style={{ fontSize: 14 }}/>} label={`${horasAberto}h`} size="small" sx={{ bgcolor: 'transparent', border: '1px solid #ccc', fontSize: '0.7rem' }} />
+                    {/* 🟢 CHIP DE TEMPO (ESCONDIDO SE FINALIZADO) */}
+                    {item.status !== 'FINALIZADO' && (
+                        <Chip icon={<AccessTimeIcon style={{ fontSize: 14 }}/>} label={`${horasAberto}h`} size="small" sx={{ bgcolor: 'transparent', border: '1px solid #ccc', fontSize: '0.7rem' }} />
+                    )}
                     {item.tags?.map(t => <Chip key={t.id} label={t.nome} size="small" sx={{ bgcolor: t.cor, color: '#fff', height: 20, fontSize: 10 }} />)}
                 </Box>
                 {/* ✅ MENSAGENS NÃO LIDAS NO CANTO INFERIOR DIREITO DO CARD */}
