@@ -970,7 +970,7 @@ export default function KanbanBoardView() {
                     <Typography variant="body2" paragraph>
                         Existem <strong>{metricasSla.estourados}</strong> chamados que excederam o ciclo de 24 horas sem conclusão.
                     </Typography>
-                    <Box bgcolor="#ffebee" p={2} borderRadius={1} border="1px solid #ffcdd2" mb={2}>
+                    <Box bgcolor="background.paper" p={2} borderRadius={1} border="1px solid #ffcdd2" mb={2}>
                         <Grid container spacing={2} textAlign="center">
                             <Grid item xs={6}>
                                 <Typography variant="caption" color="text.secondary">Total em Aberto</Typography>
