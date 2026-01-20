@@ -149,7 +149,7 @@ export default function UserProfileModal({ open, onClose }) {
                 <Typography variant="subtitle2" gutterBottom display="flex" alignItems="center" gap={1}>
                     <PaletteIcon fontSize="small" color="action"/> Cor do Avatar
                 </Typography>
-                <Box display="flex" gap={1} flexWrap="wrap" p={1} bgcolor="#f5f5f5" borderRadius={2}>
+                <Box display="flex" gap={1} flexWrap="wrap" p={1} bgcolor="background.paper" borderRadius={2}>
                     {USER_COLORS.map(cor => (
                         <Box
                            key={cor}
