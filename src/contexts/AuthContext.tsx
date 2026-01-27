@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import api from '../services/api';
 
+
 // ✅ 1. Crie a interface User (Isso resolve o erro ts(2304))
 interface User {
   id: number;
@@ -40,6 +41,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
       setUser(JSON.parse(storedUser));
     }
+    
     setLoading(false);
   }, []);
 
