@@ -350,7 +350,8 @@ async getDashboardMetrics(startStr?: string, endStr?: string) {
       hourlyData, // <-- Agora disponível para o gráfico dinâmico
       slaData,
       tagsData,
-      teamData
+      teamData,
+      rawDetails: chamados
     };
 }
   async remove(id: number) {
