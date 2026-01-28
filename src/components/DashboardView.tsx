@@ -3,14 +3,9 @@ import {
   Box, Grid, Paper, Typography, Button, CircularProgress, Card, CardContent, TextField, IconButton 
 } from '@mui/material';
 import { 
-  Download as DownloadIcon, 
-  TrendingUp, 
-  CheckCircle, 
-  Assignment,
-  FilterAlt as FilterIcon,
-  ArrowBack as ArrowBackIcon,
-  Warning as WarningIcon,
-  Description as CsvIcon // Ícone para o CSV
+  Download as DownloadIcon, TrendingUp, CheckCircle, Assignment,
+  FilterAlt as FilterIcon, ArrowBack as ArrowBackIcon, Warning as WarningIcon,
+  Description as CsvIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -54,34 +49,28 @@ export default function DashboardView() {
     }
   };
 
-  // --- NOVA FUNÇÃO: EXPORTAR CSV ---
   const handleExportCSV = () => {
-    if (!metrics || !metrics.rawDetails) {
-        alert("Dados detalhados não disponíveis para exportação.");
-        return;
-    }
+    if (!metrics?.rawDetails) return;
 
-    const headers = ["ID", "Status", "Prioridade", "Responsável", "Data Criação", "Data Atualização"];
-    const csvRows = metrics.rawDetails.map(c => [
-        c.id,
-        c.status,
-        c.prioridade,
-        c.responsavel || 'N/A',
-        new Date(c.createdAt).toLocaleString(),
-        new Date(c.updatedAt).toLocaleString()
+    // Cabeçalhos detalhados incluindo análise de tempo
+    const headers = ["ID", "Status", "Prioridade", "Responsavel", "Criado Em", "Finalizado Em"];
+    const rows = metrics.rawDetails.map(c => [
+      c.id,
+      c.status,
+      c.prioridade,
+      c.responsavel || 'N/A',
+      new Date(c.createdAt).toLocaleString(),
+      c.updatedAt ? new Date(c.updatedAt).toLocaleString() : 'N/A'
     ]);
+    
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + headers.join(",") + "\n" 
+      + rows.map(e => e.map(val => `"${val}"`).join(",")).join("\n");
 
-    const csvContent = [
-        headers.join(","),
-        ...csvRows.map(row => row.map(value => `"${value}"`).join(","))
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+    const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `relatorio_chamados_${startDate}_a_${endDate}.csv`);
-    link.style.visibility = 'hidden';
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `relatorio_detalhado_${startDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -89,12 +78,7 @@ export default function DashboardView() {
 
   const handleExportPDF = async () => {
     if (!printRef.current) return;
-    const element = printRef.current;
-    const canvas = await html2canvas(element, { 
-        scale: 2, 
-        useCORS: true,
-        backgroundColor: isDark ? '#1e1e1e' : '#ffffff' 
-    });
+    const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true, backgroundColor: isDark ? '#1e1e1e' : '#ffffff' });
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -105,80 +89,37 @@ export default function DashboardView() {
 
   const chartAxisColor = isDark ? '#dddddd' : '#666666';
   const chartGridColor = isDark ? '#444444' : '#e0e0e0';
-  const tooltipStyle = { 
-      borderRadius: '8px', 
-      border: 'none', 
-      boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-      backgroundColor: isDark ? '#333' : '#fff',
-      color: isDark ? '#fff' : '#000'
-  };
+  const tooltipStyle = { borderRadius: '8px', border: 'none', backgroundColor: isDark ? '#333' : '#fff', color: isDark ? '#fff' : '#000' };
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 }, width: '100%', maxWidth: '1400px', mx: 'auto', mt: 4 }}>
       
       {/* 1. CABEÇALHO */}
       <Box display="flex" alignItems="center" mb={4}>
-        <IconButton onClick={() => navigate('/admin')} sx={{ mr: 2 }}>
-          <ArrowBackIcon />
-        </IconButton>
+        <IconButton onClick={() => navigate('/admin')} sx={{ mr: 2 }}><ArrowBackIcon /></IconButton>
         <Box>
-            <Typography variant="h4" fontWeight="bold" color="text.primary">
-              Dashboard Analítico
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Métricas de performance e volumetria por horário.
-            </Typography>
+            <Typography variant="h4" fontWeight="bold">Dashboard Analítico</Typography>
+            <Typography variant="body2" color="text.secondary">Volume por horário e análise de tags.</Typography>
         </Box>
       </Box>
 
       {/* 2. FILTROS E EXPORTAÇÃO */}
       <Paper elevation={2} sx={{ p: 3, mb: 4, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: 'center', bgcolor: 'background.paper' }}>
         <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
-          <TextField 
-            label="Data Início" 
-            type="date" 
-            size="small"
-            InputLabelProps={{ shrink: true }}
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-          <TextField 
-            label="Data Fim" 
-            type="date" 
-            size="small"
-            InputLabelProps={{ shrink: true }}
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-          <Button variant="contained" startIcon={<FilterIcon />} onClick={fetchMetrics} sx={{ height: '40px' }}>
-            Atualizar
-          </Button>
+          <TextField label="Data Início" type="date" size="small" InputLabelProps={{ shrink: true }} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <TextField label="Data Fim" type="date" size="small" InputLabelProps={{ shrink: true }} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <Button variant="contained" startIcon={<FilterIcon />} onClick={fetchMetrics}>Atualizar</Button>
         </Box>
         <Box sx={{ flexGrow: 1 }} /> 
         <Box display="flex" gap={1}>
-            <Button variant="outlined" color="success" startIcon={<CsvIcon />} onClick={handleExportCSV}>
-              Exportar CSV
-            </Button>
-            <Button variant="outlined" color="primary" startIcon={<DownloadIcon />} onClick={handleExportPDF}>
-              Exportar PDF
-            </Button>
+            <Button variant="outlined" color="success" startIcon={<CsvIcon />} onClick={handleExportCSV}>CSV</Button>
+            <Button variant="outlined" color="primary" startIcon={<DownloadIcon />} onClick={handleExportPDF}>PDF</Button>
         </Box>
       </Paper>
 
-      {/* 3. ÁREA DE DADOS */}
-      <Box 
-        ref={printRef} 
-        sx={{ 
-            p: 3, 
-            bgcolor: isDark ? 'background.default' : '#f8f9fa', 
-            borderRadius: 2,
-            border: isDark ? '1px solid #333' : '1px solid #e0e0e0'
-        }}
-      >
+      <Box ref={printRef} sx={{ p: 3, bgcolor: isDark ? 'background.default' : '#f8f9fa', borderRadius: 2 }}>
         {loading ? (
             <Box display="flex" justifyContent="center" p={10}><CircularProgress /></Box>
-        ) : !metrics ? (
-            <Typography align="center" py={5} color="text.secondary">Nenhum dado encontrado.</Typography>
         ) : (
           <>
             {/* LINHA 1: KPIs */}
@@ -218,7 +159,7 @@ export default function DashboardView() {
               </Grid>
             </Grid>
 
-            {/* LINHA 2: Volume Diário e SLA */}
+            {/* LINHA 2: Volume Diário e SLA (O PIE CHART QUE VOCÊ PEDIU) */}
             <Grid container spacing={3} mb={4}>
               <Grid item xs={12} md={8}>
                 <Paper sx={{ p: 3, height: '400px', display: 'flex', flexDirection: 'column' }}>
@@ -229,7 +170,7 @@ export default function DashboardView() {
                       <XAxis dataKey="name" stroke={chartAxisColor} />
                       <YAxis allowDecimals={false} stroke={chartAxisColor} />
                       <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="chamados" fill="#1976d2" radius={[4, 4, 0, 0]} name="Chamados" />
+                      <Bar dataKey="chamados" fill="#1976d2" radius={[4, 4, 0, 0]} barSize={40} />
                     </BarChart>
                   </ResponsiveContainer>
                 </Paper>
@@ -237,64 +178,69 @@ export default function DashboardView() {
 
               <Grid item xs={12} md={4}>
                 <Paper sx={{ p: 3, height: '400px', display: 'flex', flexDirection: 'column' }}>
-                  <Typography variant="subtitle1" fontWeight="bold" mb={2}>Status SLA</Typography>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={metrics.slaData}
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {metrics.slaData?.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={SLA_COLORS[index % SLA_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <Typography variant="subtitle1" fontWeight="bold" mb={2}>SLA (Prazo)</Typography>
+                  <Box flexGrow={1} position="relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={metrics.slaData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" cx="50%" cy="50%">
+                          {metrics.slaData?.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={SLA_COLORS[index % SLA_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={tooltipStyle} />
+                        <Legend verticalAlign="bottom" />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -60%)', textAlign: 'center' }}>
+                        <Typography variant="h4" fontWeight="bold">{metrics.kpis?.percentualSlaOk || 0}%</Typography>
+                        <Typography variant="caption" color="text.secondary">OK</Typography>
+                    </Box>
+                  </Box>
                 </Paper>
               </Grid>
             </Grid>
 
-            {/* LINHA 3: NOVO GRÁFICO DE HORÁRIOS */}
+            {/* LINHA 3: NOVO GRÁFICO DE HORÁRIOS (OCUPANDO A LARGURA TODA) */}
             <Grid container spacing={3} mb={4}>
               <Grid item xs={12}>
                 <Paper sx={{ p: 3, height: '350px', display: 'flex', flexDirection: 'column' }}>
-                  <Typography variant="subtitle1" fontWeight="bold" mb={2}>Volume por Faixa de Horário (Criação do Chamado)</Typography>
+                  <Typography variant="subtitle1" fontWeight="bold" mb={2}>Chamados por Faixa de Horário</Typography>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={metrics.hourlyData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartGridColor} />
                       <XAxis dataKey="name" stroke={chartAxisColor} />
                       <YAxis allowDecimals={false} stroke={chartAxisColor} />
                       <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="chamados" fill="#ff9800" radius={[4, 4, 0, 0]} name="Qtd. Chamados" />
+                      <Bar dataKey="chamados" fill="#ff9800" radius={[4, 4, 0, 0]} name="Qtd" />
                     </BarChart>
                   </ResponsiveContainer>
                 </Paper>
               </Grid>
             </Grid>
 
-            {/* LINHA 4: Tags e Equipe */}
+            {/* LINHA 4: Tags (HORIZONTAL) e Equipe */}
             <Grid container spacing={3}>
                <Grid item xs={12} md={6}>
-                <Paper sx={{ p: 3, height: '400px', display: 'flex', flexDirection: 'column' }}>
-                  <Typography variant="subtitle1" fontWeight="bold" mb={2}>Top 5 Tags</Typography>
+                <Paper sx={{ p: 3, height: '450px', display: 'flex', flexDirection: 'column' }}>
+                  <Typography variant="subtitle1" fontWeight="bold" mb={2}>Top 5 Tags (Assuntos)</Typography>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart layout="vertical" data={metrics.tagsData}>
+                    <BarChart layout="vertical" data={metrics.tagsData} margin={{ left: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chartGridColor} />
                       <XAxis type="number" hide />
                       <YAxis dataKey="name" type="category" width={100} stroke={chartAxisColor} />
                       <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
+                        {metrics.tagsData?.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </Paper>
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <Paper sx={{ p: 3, height: '400px', display: 'flex', flexDirection: 'column' }}>
+                <Paper sx={{ p: 3, height: '450px', display: 'flex', flexDirection: 'column' }}>
                   <Typography variant="subtitle1" fontWeight="bold" mb={2}>Produtividade da Equipe</Typography>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={metrics.teamData}>
