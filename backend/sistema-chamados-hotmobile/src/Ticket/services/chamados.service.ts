@@ -226,7 +226,7 @@ async getDashboardMetrics(startStr?: string, endStr?: string) {
     const endDate = endStr ? endOfDay(parseISO(endStr)) : endOfDay(new Date());
     const startDate = startStr ? startOfDay(parseISO(startStr)) : startOfDay(new Date(new Date().setDate(new Date().getDate() - 7)));
 
-    // 2. BUSCA ÚNICA (Traz tudo o que precisamos de uma vez)
+    // 2. BUSCA ÚNICA
     const chamados = await this.prisma.chamado.findMany({
       where: { 
         createdAt: { gte: startDate, lte: endDate } 
@@ -239,13 +239,13 @@ async getDashboardMetrics(startStr?: string, endStr?: string) {
         createdAt: true,
         updatedAt: true,
         tags: { 
-            select: { nome: true } // Traz apenas o nome da tag
+            select: { nome: true } 
         }
       },
       orderBy: { createdAt: 'asc' }
     });
 
-    // --- PROCESSAMENTO EM MEMÓRIA (Muito mais rápido que múltiplas queries) ---
+    // --- PROCESSAMENTO EM MEMÓRIA ---
 
     // A. Totais Básicos
     const totalGeral = chamados.length;
@@ -253,20 +253,17 @@ async getDashboardMetrics(startStr?: string, endStr?: string) {
     const totalPendentes = totalGeral - totalFinalizados;
 
     // B. Cálculo de SLA
-    // Regra Exemplo: Violação se Prioridade for ALTA/CRITICA e demorou > 24h
     let slaViolado = 0;
     chamados.forEach(c => {
         const dataFim = c.status === 'FINALIZADO' ? new Date(c.updatedAt) : new Date();
         const horasDecorridas = differenceInHours(dataFim, new Date(c.createdAt));
 
-        // Regra de Negócio (Ajuste conforme sua necessidade)
         const ehUrgente = ['ALTA', 'CRITICA'].includes(c.prioridade || '');
         if (ehUrgente && horasDecorridas > 24) {
             slaViolado++;
         }
     });
     
-    // Evita divisão por zero
     const percentualSlaOk = totalGeral > 0 
         ? ((totalGeral - slaViolado) / totalGeral * 100).toFixed(0) 
         : 100;
@@ -286,32 +283,46 @@ async getDashboardMetrics(startStr?: string, endStr?: string) {
     ];
 
     // E. Timeline (Volume Diário)
-    // Reutilizando sua lógica de eachDayOfInterval para garantir que dias vazios apareçam
     const diasDoIntervalo = eachDayOfInterval({ start: startDate, end: endDate });
     const timelineData = diasDoIntervalo.map((dia) => {
         const diaFormatado = format(dia, 'yyyy-MM-dd');
-        const diaExibicao = format(dia, 'dd/MM'); // Ex: 12/05
-        
-        // Filtra na lista que já está na memória (rápido)
+        const diaExibicao = format(dia, 'dd/MM');
         const qtd = chamados.filter(c => format(new Date(c.createdAt), 'yyyy-MM-dd') === diaFormatado).length;
-        
         return { name: diaExibicao, chamados: qtd };
     });
 
-    // F. Top Tags (Assuntos)
+    // F. NOVO: Volume por Faixa de Horário (00h às 23h)
+    // Inicializamos as 24 horas do dia para o gráfico ficar completo
+    const hourCounts: Record<string, number> = {};
+    for (let i = 0; i < 24; i++) {
+        const label = `${i.toString().padStart(2, '0')}h`;
+        hourCounts[label] = 0;
+    }
+
+    chamados.forEach(c => {
+        const hora = new Date(c.createdAt).getHours();
+        const label = `${hora.toString().padStart(2, '0')}h`;
+        hourCounts[label]++;
+    });
+
+    const hourlyData = Object.entries(hourCounts).map(([name, value]) => ({
+        name,
+        chamados: value
+    }));
+
+    // G. Top Tags (Assuntos)
     const tagCounts: Record<string, number> = {};
     chamados.forEach(c => {
         c.tags.forEach(tag => {
             tagCounts[tag.nome] = (tagCounts[tag.nome] || 0) + 1;
         });
     });
-    // Ordena decrescente e pega Top 5
     const tagsData = Object.entries(tagCounts)
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 5);
 
-    // G. Performance da Equipe
+    // H. Performance da Equipe
     const teamStats: Record<string, { name: string, resolvidos: number, pendentes: number }> = {};
     chamados.forEach(c => {
         const resp = c.responsavel || 'Não Atribuído';
@@ -323,26 +334,25 @@ async getDashboardMetrics(startStr?: string, endStr?: string) {
             teamStats[resp].pendentes++;
         }
     });
-    // Transforma objeto em array e ordena por maior número de resolvidos
     const teamData = Object.values(teamStats).sort((a, b) => b.resolvidos - a.resolvidos);
 
-
-    // 4. Retorno Final (Compatível com o Frontend Novo)
+    // 4. Retorno Final
     return {
       kpis: { 
           total: totalGeral, 
           finalizados: totalFinalizados, 
           pendentes: totalPendentes,
-          slaViolado,         // Novo
-          percentualSlaOk     // Novo
+          slaViolado,
+          percentualSlaOk
       },
       statusData,
       timelineData,
-      slaData,    // Novo
-      tagsData,   // Novo
-      teamData    // Novo
+      hourlyData, // <-- Agora disponível para o gráfico dinâmico
+      slaData,
+      tagsData,
+      teamData
     };
-  }
+}
   async remove(id: number) {
     // Apaga tudo em ordem para não dar erro de chave estrangeira
     return this.prisma.$transaction([
